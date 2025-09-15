@@ -19,10 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { vehicles } from "../data/vehicles";
-import { formatCurrency } from "../lib/currency";
-import { useTranslation } from "../contexts/TranslationContext";
-import QRCodeGenerator from "../components/QRCodeGenerator";
+import { vehicles } from "@/data/vehicles";
+import { formatCurrency } from "@/lib/currency";
+import { useTranslation } from "@/contexts/TranslationContext";
+import QRCodeGenerator from "@/components/QRCodeGenerator";
 import { getVehicleById } from "@/data/vehicles";
 import DocumentUpload from "@/components/DocumentUpload";
 import PaymentSystem from "@/components/PaymentSystem";

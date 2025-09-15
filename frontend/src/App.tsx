@@ -6,28 +6,30 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import Navbar from "./components/Navbar";
-import Index from "./pages/Index";
-import Vehicles from "./pages/Vehicles";
-import VehicleDetails from "./pages/VehicleDetails";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import BookingPage from "./pages/BookingPage";
-import Stations from "./pages/Stations";
-import StationDetails from "./pages/StationDetails";
-import HowItWorks from "./pages/HowItWorks";
-import Bookings from "./pages/Bookings";
-import Settings from "./pages/Settings";
-import ForgotPassword from "./pages/ForgotPassword";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Contact from "./pages/Contact";
-import About from "./pages/About";
-import Help from "./pages/Help";
-import Safety from "./pages/Safety";
-import NotFound from "./pages/NotFound";
-import StaffDashboard from "./pages/StaffDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
+import {
+  Index,
+  Vehicles,
+  VehicleDetails,
+  Login,
+  Register,
+  Dashboard,
+  BookingPage,
+  Stations,
+  StationDetails,
+  HowItWorks,
+  Bookings,
+  Settings,
+  ForgotPassword,
+  Terms,
+  Privacy,
+  Contact,
+  About,
+  Help,
+  Safety,
+  NotFound,
+  StaffDashboard,
+  AdminDashboard,
+} from "./pages/pages";
 
 const queryClient = new QueryClient();
 
