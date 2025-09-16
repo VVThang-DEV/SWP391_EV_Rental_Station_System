@@ -19,6 +19,7 @@ import {
   Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import './DocumentUpload.css';
 
 interface DocumentUploadProps {
   onDocumentUpload: (documentType: string, file: File) => void;
@@ -298,6 +299,7 @@ const DocumentUpload = ({
               <Progress value={progress} />
             </div>
           ) : (
+            <>
             <div
               className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                 dragActive === documentType
@@ -321,24 +323,7 @@ const DocumentUpload = ({
                     Max size: {docType.maxSize / (1024 * 1024)}MB
                   </p>
                 </div>
-                <div className="flex items-center justify-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRefs.current[documentType]?.click()}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Choose File
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openCamera(documentType)}
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Take Photo
-                  </Button>
-                </div>
+                
               </div>
 
               <input
@@ -349,6 +334,27 @@ const DocumentUpload = ({
                 className="hidden"
               />
             </div>
+             <div className="upload-actions">
+                <Button
+                className="btn"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRefs.current[documentType]?.click()}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Choose File
+                </Button>
+                <Button
+                className="btn"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openCamera(documentType)}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Take Photo
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
