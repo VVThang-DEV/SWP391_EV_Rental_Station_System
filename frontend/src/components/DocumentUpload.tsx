@@ -24,12 +24,14 @@ interface DocumentUploadProps {
   onDocumentUpload: (documentType: string, file: File) => void;
   requiredDocuments?: string[];
   uploadedDocuments?: Record<string, File>;
+  onDocumentRemove?: (documentType: string) => void;
 }
 
 const DocumentUpload = ({
   onDocumentUpload,
   requiredDocuments = ["driverLicense", "nationalId", "collateral"],
   uploadedDocuments = {},
+  onDocumentRemove,
 }: DocumentUploadProps) => {
   const [dragActive, setDragActive] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
@@ -46,9 +48,19 @@ const DocumentUpload = ({
       maxSize: 5 * 1024 * 1024, // 5MB
       icon: FileText,
     },
-    nationalId: {
-      title: "National ID (CCCD/CMND)",
-      description: "Upload your national identification card or citizen card",
+    // split into front/back sides
+    nationalId_front: {
+      title: "National ID - Front",
+      description:
+        "Upload front side of your national identification card (photo and ID number)",
+      accept: "image/*,.pdf",
+      maxSize: 5 * 1024 * 1024, // 5MB
+      icon: FileText,
+    },
+    nationalId_back: {
+      title: "National ID - Back",
+      description:
+        "Upload back side of your national identification card (address / other info)",
       accept: "image/*,.pdf",
       maxSize: 5 * 1024 * 1024, // 5MB
       icon: FileText,
@@ -68,6 +80,21 @@ const DocumentUpload = ({
       icon: FileText,
     },
   };
+
+  // Normalize required documents: expand `nationalId` into front/back if present
+  const normalizeRequired = (reqs: string[]) => {
+    const out: string[] = [];
+    reqs.forEach((d) => {
+      if (d === "nationalId") {
+        out.push("nationalId_front", "nationalId_back");
+      } else {
+        out.push(d);
+      }
+    });
+    return out;
+  };
+
+  const normalizedRequired = normalizeRequired(requiredDocuments);
 
   const handleDrag = (e: React.DragEvent, documentType: string) => {
     e.preventDefault();
@@ -166,6 +193,47 @@ const DocumentUpload = ({
     }
   };
 
+  const handlePreview = (documentType: string) => {
+    const file = uploadedDocuments[documentType];
+    if (!file) {
+      toast({
+        title: "No file to preview",
+        description: "There is no uploaded file to preview for this document.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const url = URL.createObjectURL(file as any);
+      // open in new tab/window
+      window.open(url, "_blank");
+      // revoke after a short delay to allow the new tab to load
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      toast({
+        title: "Preview failed",
+        description: "Unable to preview the uploaded file.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemove = (documentType: string) => {
+    if (typeof (onDocumentRemove as any) === "function") {
+      (onDocumentRemove as any)(documentType);
+      return;
+    }
+
+    // If parent didn't provide a remove handler, show guidance
+    toast({
+      title: "Remove not available",
+      description:
+        "Removal handler is not implemented in the parent. Provide `onDocumentRemove` prop to enable file removal.",
+      variant: "destructive",
+    });
+  };
+
   const renderDocumentUploader = (documentType: string) => {
     const docType = documentTypes[documentType as keyof typeof documentTypes];
     const isUploaded = uploadedDocuments[documentType];
@@ -186,7 +254,7 @@ const DocumentUpload = ({
           <CardTitle className="flex items-center space-x-2 text-lg">
             <Icon className="h-5 w-5" />
             <span>{docType.title}</span>
-            {requiredDocuments.includes(documentType) && (
+            {normalizedRequired.includes(documentType) && (
               <span className="text-destructive text-sm">*</span>
             )}
           </CardTitle>
@@ -194,19 +262,27 @@ const DocumentUpload = ({
         </CardHeader>
         <CardContent className="space-y-4">
           {isUploaded ? (
-            <div className="flex items-center justify-between p-4 bg-success-light rounded-lg">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-5 w-5 text-success" />
-                <span className="font-medium text-success">
+            <div className="p-4 bg-success-light rounded-lg">
+              <div className="flex items-center space-x-2 min-w-0">
+                <CheckCircle className="h-5 w-5 text-success flex-shrink-0" />
+                <span className="font-medium text-success truncate text-sm">
                   Document uploaded
                 </span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Button size="sm" variant="outline">
+              <div className="mt-3 flex items-center space-x-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handlePreview(documentType)}
+                >
                   <Eye className="h-4 w-4 mr-1" />
                   Preview
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleRemove(documentType)}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -280,7 +356,7 @@ const DocumentUpload = ({
   };
 
   const getUploadStatus = () => {
-    const required = requiredDocuments.filter(
+    const required = normalizedRequired.filter(
       (doc) => documentTypes[doc as keyof typeof documentTypes]
     );
     const uploaded = required.filter((doc) => uploadedDocuments[doc]);
@@ -330,7 +406,7 @@ const DocumentUpload = ({
 
       {/* Document Upload Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {requiredDocuments.map((documentType) =>
+        {normalizedRequired.map((documentType) =>
           documentTypes[documentType as keyof typeof documentTypes]
             ? renderDocumentUploader(documentType)
             : null
