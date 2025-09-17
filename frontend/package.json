@@ -12,7 +12,7 @@
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "deploy:vercel": "npm run build && vercel --prod",
+    "deploy:vercel": "npm run build && vercel --cwd=. --prod",
     "deploy:netlify": "npm run build && netlify deploy --prod --dir=dist",
     "clean": "rm -rf dist node_modules/.vite"
   },
