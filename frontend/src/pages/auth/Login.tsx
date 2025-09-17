@@ -48,40 +48,70 @@ const Login = ({ onLogin }: LoginProps) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Mock authentication - in real app, this would call an API
-    setTimeout(() => {
-      if (email && password) {
-        // Mock successful login with role-based user data
-        const userData: User = {
-          id: `user_${Date.now()}`,
-          name:
-            role === "admin"
-              ? "Admin User"
-              : role === "staff"
-              ? "Staff Member"
-              : "John Doe",
-          email: email,
-          role: role,
-          ...(role === "staff" && { stationId: "ST001" }),
-        };
-        onLogin(userData);
-        toast({
-          title: t("common.welcomeBack"),
-          description: t("common.signInSuccess"),
-        });
-        // Small delay to ensure state update processes
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 100);
-      } else {
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL as string | undefined;
+      if (!baseUrl) {
+        throw new Error("VITE_API_URL is not set in .env");
+      }
+
+      const response = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.status === 401) {
         toast({
           title: t("common.error"),
-          description: t("login.fillAllFields"),
+          description: t("login.invalidCredentials"),
           variant: "destructive",
         });
+        return;
       }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+
+      const data: { success: boolean; fullName?: string; role?: string; token?: string } = await response.json();
+      if (!data.success) {
+        toast({
+          title: t("common.error"),
+          description: t("login.invalidCredentials"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const resolvedRole = (role || data.role || "customer") as "customer" | "staff" | "admin";
+      if (data.token) {
+        localStorage.setItem("auth_token", data.token);
+      }
+      const userData: User = {
+        id: `user_${Date.now()}`,
+        name: data.fullName || "User",
+        email,
+        role: resolvedRole,
+        ...(resolvedRole === "staff" && { stationId: "ST001" }),
+      };
+
+      onLogin(userData);
+      toast({
+        title: t("common.welcomeBack"),
+        description: t("common.signInSuccess"),
+      });
+      navigate("/dashboard");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({
+        title: t("common.error"),
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

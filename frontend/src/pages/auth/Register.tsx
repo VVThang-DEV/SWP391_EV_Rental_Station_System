@@ -43,6 +43,8 @@ const Register = ({ onRegister }: RegisterProps) => {
     fullName: "",
     email: "",
     phone: "",
+    cccd: "",
+    licenseNumber: "",
     dateOfBirth: "",
     password: "",
     confirmPassword: "",
@@ -84,30 +86,53 @@ const Register = ({ onRegister }: RegisterProps) => {
 
     setIsLoading(true);
 
-    // Mock registration - in real app, this would call an API
-    setTimeout(() => {
-      if (formData.fullName && formData.email && formData.password) {
-        const userData: User = {
-          id: `user_${Date.now()}`,
-          name: formData.fullName,
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL as string | undefined;
+      if (!baseUrl) throw new Error("VITE_API_URL is not set");
+
+      const response = await fetch(`${baseUrl}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: formData.fullName,
           email: formData.email,
-          role: "customer", // Default role for new registrations
-        };
-        onRegister(userData);
-        toast({
-          title: t("register.welcome"),
-          description: t("register.accountCreated"),
-        });
-        navigate("/dashboard");
-      } else {
+          phone: formData.phone,
+          password: formData.password,
+            cccd: formData.cccd,
+            licenseNumber: formData.licenseNumber,
+        }),
+      });
+
+      if (response.status === 409) {
+        const conflict = await response.json().catch(() => ({ message: "" }));
         toast({
           title: t("register.error"),
-          description: t("register.fillAllFields"),
+          description: conflict.message || t("register.emailOrPhoneExists"),
           variant: "destructive",
         });
+        return;
       }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `HTTP ${response.status}`);
+      }
+
+      const userData: User = {
+        id: `user_${Date.now()}`,
+        name: formData.fullName,
+        email: formData.email,
+        role: "customer",
+      };
+      onRegister(userData);
+      toast({ title: t("register.welcome"), description: t("register.accountCreated") });
+      navigate("/dashboard");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: t("register.error"), description: message, variant: "destructive" });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -152,6 +177,34 @@ const Register = ({ onRegister }: RegisterProps) => {
                     required
                   />
                 </div>
+              </div>
+
+              {/* CCCD */}
+              <div className="space-y-2">
+                <Label htmlFor="cccd">CCCD</Label>
+                <Input
+                  id="cccd"
+                  type="text"
+                  placeholder="012345678901"
+                  value={formData.cccd}
+                  onChange={(e) => handleInputChange("cccd", e.target.value)}
+                  className="text-black"
+                />
+              </div>
+
+              {/* License Number */}
+              <div className="space-y-2">
+                <Label htmlFor="licenseNumber">License Number</Label>
+                <Input
+                  id="licenseNumber"
+                  type="text"
+                  placeholder="A123456789"
+                  value={formData.licenseNumber}
+                  onChange={(e) =>
+                    handleInputChange("licenseNumber", e.target.value)
+                  }
+                  className="text-black"
+                />
               </div>
 
               {/* Email */}
