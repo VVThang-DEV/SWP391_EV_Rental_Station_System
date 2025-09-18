@@ -60,16 +60,21 @@ const BookingPage = () => {
   const { toast } = useToast();
   const vehicle = id ? getVehicleById(id) : null;
 
+  const now = new Date();
+const pad = (n: number) => n.toString().padStart(2, "0");
+const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
   const [bookingData, setBookingData] = useState({
-    startDate: "",
+    startDate: todayStr,
     endDate: "",
-    startTime: "09:00",
+    startTime: currentTimeStr,
     endTime: "17:00",
     rentalDuration: "daily",
     customerInfo: {
       fullName: "John Doe", // Pre-filled from user context
-      email: "john.doe@example.com",
-      phone: "+1 (555) 123-4567",
+      email: "",
+      phone: "",
       driverLicense: "",
       emergencyContact: "",
     },
@@ -127,7 +132,7 @@ const BookingPage = () => {
   const deposit = 200; // Fixed deposit
   const totalCost = baseCost + insuranceCost + deposit;
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: any) => {
     if (field.includes(".")) {
       const [parent, child] = field.split(".");
       setBookingData((prev) => ({
@@ -289,6 +294,7 @@ const BookingPage = () => {
                 onChange={(e) =>
                   handleInputChange("customerInfo.email", e.target.value)
                 }
+                placeholder="Enter email address"
                 className="text-black"
                 required
               />
@@ -305,6 +311,7 @@ const BookingPage = () => {
                 onChange={(e) =>
                   handleInputChange("customerInfo.phone", e.target.value)
                 }
+                placeholder="Enter phone number"
                 className="text-black"
                 required
               />
@@ -350,7 +357,7 @@ const BookingPage = () => {
               id="insurance"
               checked={bookingData.agreeToInsurance}
               onCheckedChange={(checked) =>
-                handleInputChange("agreeToInsurance", checked.toString())
+                handleInputChange("agreeToInsurance", !!checked)
               }
             />
             <label htmlFor="insurance" className="text-sm">
@@ -364,7 +371,7 @@ const BookingPage = () => {
               id="terms"
               checked={bookingData.agreeToTerms}
               onCheckedChange={(checked) =>
-                handleInputChange("agreeToTerms", checked.toString())
+                handleInputChange("agreeToTerms", !!checked)
               }
             />
             <label htmlFor="terms" className="text-sm">
