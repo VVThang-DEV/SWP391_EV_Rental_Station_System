@@ -1,0 +1,57 @@
+/* Floating label aligned to the right of the leading icon */
+.login-form label {
+    position: absolute;
+    left: 42px; /* clears the Mail/Lock icon */
+    top: 10px;
+    background: transparent;
+    padding: 0 6px;
+    font-size: 14px;
+    color: #6b7280; /* muted */
+    pointer-events: none;
+    transition: transform 0.2s ease, color 0.2s ease, font-size 0.2s ease, top 0.2s ease, background-color 0.2s ease;
+}
+
+/* Float when focused or when input has value (placeholder not shown) */
+.login-form input:focus + label,
+.login-form input:not(:placeholder-shown) + label {
+    transform: translateY(-18px);
+    top: 4px;
+    font-size: 14px;
+    color: #0051ff;
+    background: #fff; /* small white chip over the border */
+    border-radius: 6px;
+}
+
+/* Single, consistent focus style */
+.login-form input:focus {
+    outline: none;
+    border-color: #0051ff;
+    box-shadow: none;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+
+  /* background từ public */
+  background: url("/login-bg.jpg") no-repeat center center;
+  background-size: cover;
+
+  position: relative;
+}
+
+.login-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.25); /* lớp phủ mờ để form dễ nhìn */
+  z-index: 0;
+}
+
+.login-page > * {
+  position: relative;
+  z-index: 1; /* giữ nội dung trên overlay */
+}

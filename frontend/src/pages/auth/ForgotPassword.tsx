@@ -1,3 +1,5 @@
+import "./Login/Style.css";
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -43,7 +45,8 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+    <div className="login-page">
+
       <div className="w-full max-w-md">
         {/* Back Link */}
         <div className="mb-6">
@@ -104,23 +107,20 @@ const ForgotPassword = () => {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="john@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 text-black"
-                      required
-                    />
-                  </div>
+              <form onSubmit={handleSubmit} className="login-form space-y-4">
+                <div className="relative mb-6">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 text-black"
+                    placeholder=" "
+                    required
+                  />
+                  <label htmlFor="email">Email address</label>
                 </div>
-
                 <Button
                   type="submit"
                   className="w-full btn-hero"
@@ -133,12 +133,7 @@ const ForgotPassword = () => {
           </CardContent>
         </Card>
 
-        {/* Demo Note */}
-        <div className="mt-6 text-center">
-          <p className="text-white/80 text-sm">
-            Demo: Email reset functionality simulated
-          </p>
-        </div>
+        
       </div>
     </div>
   );
