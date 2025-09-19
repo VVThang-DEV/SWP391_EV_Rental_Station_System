@@ -539,7 +539,7 @@ const Index = ({ user }: IndexProps) => {
     <PageTransition>
       <div className="min-h-screen bg-background">
         {/* Hero Section */}
-        <FadeIn delay={100}>
+        <FadeIn>
           <section className="relative bg-gradient-hero overflow-hidden">
             <div className="absolute inset-0">
               <img
@@ -552,12 +552,16 @@ const Index = ({ user }: IndexProps) => {
 
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
               <div className="text-center text-white">
-                <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                  {t("common.heroTitle")}
-                </h1>
-                <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto">
-                  {t("common.heroSubtitle")}
-                </p>
+                <SlideIn direction="top" delay={100}>
+                  <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                    {t("common.heroTitle")}
+                  </h1>
+                </SlideIn>
+                <SlideIn direction="top" delay={200}>
+                  <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto">
+                    {t("common.heroSubtitle")}
+                  </p>
+                </SlideIn>
 
                 {/* Search Bar */}
                 <div className="max-w-2xl mx-auto mb-8">
@@ -587,30 +591,38 @@ const Index = ({ user }: IndexProps) => {
 
                 {/* Quick Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">50+</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.electricVehicles")}
+                  <FadeIn delay={300}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">50+</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.electricVehicles")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">8</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.chargingStations")}
+                  </FadeIn>
+                  <FadeIn delay={400}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">8</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.chargingStations")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">24/7</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.support")}
+                  </FadeIn>
+                  <FadeIn delay={500}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">24/7</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.support")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">4.9</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.userRating")}
+                  </FadeIn>
+                  <FadeIn delay={600}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">4.9</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.userRating")}
+                      </div>
                     </div>
-                  </div>
+                  </FadeIn>
                 </div>
               </div>
             </div>
