@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,18 +61,48 @@ const BookingPage = () => {
   const vehicle = id ? getVehicleById(id) : null;
 
   const now = new Date();
-const pad = (n: number) => n.toString().padStart(2, "0");
-const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const getTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const getTimeStr = () => {
+    const d = new Date();
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const handleRentalDurationChange = (value: string) => {
+    setBookingData((prev) => ({
+      ...prev,
+      rentalDuration: value,
+      ...(value === "daily"
+        ? { startDate: getTodayStr(), startTime: getTimeStr() }
+        : {}),
+    }));
+  };
+
+  useEffect(() => {
+    if (bookingData.rentalDuration === "daily") {
+      setBookingData((prev) => ({
+        ...prev,
+        startDate: getTodayStr(),
+        startTime: getTimeStr(),
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // chạy 1 lần khi mở trang
+  // SỬA Ở ĐÂY: nếu bạn có context/auth cung cấp current user, lấy tên ở đây
+  // Ví dụ: const { currentUser } = useAuth(); -> thay thế theo project của bạn
+  const currentUserName = (window as any).CURRENT_USER_NAME || "John Doe"; // SỬA: thay bằng nguồn thực tế nếu có
 
   const [bookingData, setBookingData] = useState({
-    startDate: todayStr,
+    startDate: getTodayStr(),
     endDate: "",
-    startTime: currentTimeStr,
+    startTime: getTimeStr(),
     endTime: "17:00",
     rentalDuration: "daily",
     customerInfo: {
-      fullName: "John Doe", // Pre-filled from user context
+      fullName: currentUserName, // Pre-filled from user context
       email: "",
       phone: "",
       driverLicense: "",
@@ -82,6 +112,16 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     agreeToTerms: false,
     agreeToInsurance: false,
   });
+
+
+
+  // SỬA Ở ĐÂY: helper cập nhật startTime về giờ hiện tại (gọi khi upload document hoặc hành động tương tự)
+  const updateStartTimeNow = () => {
+    setBookingData((prev) => ({
+      ...prev,
+      startTime: getTimeStr(),
+    }));
+  };
 
   const [uploadedDocuments, setUploadedDocuments] = useState<
     Record<string, File>
@@ -194,9 +234,8 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
             <Label className="mb-2 block">Rental Type</Label>
             <Select
               value={bookingData.rentalDuration}
-              onValueChange={(value) =>
-                handleInputChange("rentalDuration", value)
-              }
+              onValueChange={(value) => handleRentalDurationChange(value)}
+              
             >
               <SelectTrigger>
                 <SelectValue />
@@ -339,7 +378,7 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
       {/* Document Upload */}
       <DocumentUpload
         onDocumentUpload={handleDocumentUpload}
-        requiredDocuments={["driverLicense", "nationalId"]}
+        requiredDocuments={["driverLicense", "driverLicenseBack", "nationalId"]}
         uploadedDocuments={uploadedDocuments}
       />
 
@@ -638,19 +677,17 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
                 {[1, 2, 3].map((stepNumber) => (
                   <div key={stepNumber} className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step >= stepNumber
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= stepNumber
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                        }`}
                     >
                       {stepNumber}
                     </div>
                     {stepNumber < 3 && (
                       <div
-                        className={`w-12 h-0.5 mx-2 ${
-                          step > stepNumber ? "bg-primary" : "bg-secondary"
-                        }`}
+                        className={`w-12 h-0.5 mx-2 ${step > stepNumber ? "bg-primary" : "bg-secondary"
+                          }`}
                       />
                     )}
                   </div>
