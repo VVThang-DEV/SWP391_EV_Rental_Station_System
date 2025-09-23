@@ -227,8 +227,8 @@ const DocumentUpload = ({
   };
 
   const handleRemove = (documentType: string) => {
-    if (typeof (onDocumentRemove as any) === "function") {
-      (onDocumentRemove as any)(documentType);
+    if (typeof onDocumentRemove === "function") {
+      onDocumentRemove(documentType);
       return;
     }
 

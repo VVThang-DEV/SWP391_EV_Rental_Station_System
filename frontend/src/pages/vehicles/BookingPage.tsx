@@ -218,11 +218,22 @@ const BookingPage = () => {
       navigate("/dashboard");
     }
   };
+  const handleDocumentRemove = (documentType: string) => {
+    setUploadedDocuments((prev) => {
+      const newDocs = { ...prev };
+      delete newDocs[documentType];
+      return newDocs;
+    });
 
+    toast({
+      title: "Document removed",
+      description: "You can now upload a new document.",
+    });
+  };
   const renderBookingDetails = () => (
     <div className="space-y-6">
       {/* Rental Period */}
-      <Card>
+      <Card id = "rental-period">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Calendar className="h-5 w-5 mr-2" />
@@ -235,7 +246,7 @@ const BookingPage = () => {
             <Select
               value={bookingData.rentalDuration}
               onValueChange={(value) => handleRentalDurationChange(value)}
-              
+
             >
               <SelectTrigger>
                 <SelectValue />
@@ -380,6 +391,7 @@ const BookingPage = () => {
         onDocumentUpload={handleDocumentUpload}
         requiredDocuments={["driverLicense", "driverLicenseBack", "nationalId"]}
         uploadedDocuments={uploadedDocuments}
+        onDocumentRemove={handleDocumentRemove}
       />
 
       {/* Insurance & Terms */}

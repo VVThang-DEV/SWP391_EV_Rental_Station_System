@@ -383,9 +383,20 @@ Thank you for choosing EVRentals!
       {/* Payment Method Selection */}
       {paymentStatus === "idle" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex items-center justify-between">
             <CardTitle>Select Payment Method</CardTitle>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const el = document.getElementById("rental-period");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+                // hoặc dùng navigate(-1) nếu bạn muốn history.back()
+              }}
+            >
+              Back to Information
+            </Button>
           </CardHeader>
+
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Button
