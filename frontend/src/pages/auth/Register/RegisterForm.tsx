@@ -121,6 +121,9 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
     };
   };
 
+  // phone regex: chấp nhận 0xxxxxxxxx , +84xxxxxxxxx hoặc 84xxxxxxxxx (vn numbers)
+  const phoneRegex = /^(?:0|\+84|84)[1-9]\d{8}$/;
+
   const validateField = (field: string, value: string): string => {
     switch (field) {
       case "fullName": {
@@ -138,11 +141,10 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
         return "";
       }
       case "phone": {
-        if (!value.trim()) return t("register.validation.phoneRequired");
-        const normalized = value.replace(/\s|-/g, "");
-        // Must start with 0 and have total 10 or 11 digits
-        const phoneRegex = /^0\d{9,10}$/;
-        if (!phoneRegex.test(normalized)) return t("register.validation.phoneInvalid");
+        // chuẩn hóa: loại bỏ khoảng trắng và dấu gạch
+        const normalized = value.replace(/[\s\-\.()]/g, "");
+        if (!normalized) return "Số điện thoại không được để trống.";
+        if (!phoneRegex.test(normalized)) return "Số điện thoại không hợp lệ. Ví dụ: 0912345678 hoặc +84912345678";
         return "";
       }
       case "dateOfBirth": {
@@ -249,15 +251,13 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
               <Input
                 id="phone"
                 type="tel"
-                placeholder={t("Nhập Số Điện Thoại")}
+                inputMode="tel"
+                pattern="^(?:0|\+84|84)[1-9]\d{8}$"
+                placeholder="Nhập Số Điện Thoại"
                 value={formData.phone}
                 onChange={(e) => handleInputChange("phone", e.target.value)}
                 onBlur={() => handleBlur("phone")}
-                className="pl-10 text-black focus-visible:ring-offset-0"
-              inputMode="tel"
-              pattern="0\\d{9,10}"
-              aria-invalid={!!errors.phone}
-                required
+                className="pl-10 text-black"
               />
             </div>
             {errors.phone && (
