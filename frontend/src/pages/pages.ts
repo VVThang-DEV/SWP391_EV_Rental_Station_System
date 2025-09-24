@@ -1,5 +1,5 @@
 // Barrel file for pages after reorganization
-export { default as Login } from "./auth/Login";
+export { default as Login } from "./auth/Login/Login";
 export { default as Register } from "./auth/Register";
 export { default as ForgotPassword } from "./auth/ForgotPassword";
 
