@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -31,6 +32,7 @@ interface PaymentSystemProps {
   };
   onPaymentComplete: (paymentData: PaymentData) => void;
   paymentMethod?: "qr_code" | "cash" | "card";
+  onBack?: () => void;
 }
 
 interface PaymentData {
@@ -48,6 +50,7 @@ const PaymentSystem = ({
   customerInfo,
   onPaymentComplete,
   paymentMethod = "qr_code",
+  onBack,
 }: PaymentSystemProps) => {
   const [currentMethod, setCurrentMethod] = useState(paymentMethod);
   const [paymentStatus, setPaymentStatus] = useState<
@@ -56,7 +59,7 @@ const PaymentSystem = ({
   const [qrCodeData, setQrCodeData] = useState("");
   const [paymentTimer, setPaymentTimer] = useState(300); // 5 minutes
   const { toast } = useToast();
-
+  const navigate = useNavigate();
   // Generate QR code data (mock)
   useEffect(() => {
     if (currentMethod === "qr_code") {
@@ -387,10 +390,13 @@ Thank you for choosing EVRentals!
             <CardTitle>Select Payment Method</CardTitle>
             <Button
               variant="outline"
+              aria-label="Back to information"
               onClick={() => {
-                const el = document.getElementById("rental-period");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-                // hoặc dùng navigate(-1) nếu bạn muốn history.back()
+                if (typeof onBack === "function") {
+                  onBack();
+                } else {
+                  navigate(-1);
+                }
               }}
             >
               Back to Information

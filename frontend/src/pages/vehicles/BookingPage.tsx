@@ -233,86 +233,88 @@ const BookingPage = () => {
   const renderBookingDetails = () => (
     <div className="space-y-6">
       {/* Rental Period */}
-      <Card id = "rental-period">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Calendar className="h-5 w-5 mr-2" />
-            Rental Period
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="mb-2 block">Rental Type</Label>
-            <Select
-              value={bookingData.rentalDuration}
-              onValueChange={(value) => handleRentalDurationChange(value)}
-
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="hourly">Hourly Rental</SelectItem>
-                <SelectItem value="daily">Daily Rental</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div id="rental-period">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="h-5 w-5 mr-2" />
+              Rental Period
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={bookingData.startDate}
-                onChange={(e) => handleInputChange("startDate", e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className="text-black"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="endDate">End Date *</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={bookingData.endDate}
-                onChange={(e) => handleInputChange("endDate", e.target.value)}
-                min={
-                  bookingData.startDate ||
-                  new Date().toISOString().split("T")[0]
-                }
-                className="text-black"
-                required
-              />
-            </div>
-          </div>
+              <Label className="mb-2 block">Rental Type</Label>
+              <Select
+                value={bookingData.rentalDuration}
+                onValueChange={(value) => handleRentalDurationChange(value)}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startTime">Start Time</Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={bookingData.startTime}
-                onChange={(e) => handleInputChange("startTime", e.target.value)}
-                className="text-black"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hourly">Hourly Rental</SelectItem>
+                  <SelectItem value="daily">Daily Rental</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label htmlFor="endTime">End Time</Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={bookingData.endTime}
-                onChange={(e) => handleInputChange("endTime", e.target.value)}
-                className="text-black"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Start Date *</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={bookingData.startDate}
+                  onChange={(e) => handleInputChange("startDate", e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="text-black"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">End Date *</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={bookingData.endDate}
+                  onChange={(e) => handleInputChange("endDate", e.target.value)}
+                  min={
+                    bookingData.startDate ||
+                    new Date().toISOString().split("T")[0]
+                  }
+                  className="text-black"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startTime">Start Time</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={bookingData.startTime}
+                  onChange={(e) => handleInputChange("startTime", e.target.value)}
+                  className="text-black"
+                />
+              </div>
+              <div>
+                <Label htmlFor="endTime">End Time</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={bookingData.endTime}
+                  onChange={(e) => handleInputChange("endTime", e.target.value)}
+                  className="text-black"
+                />
+              </div>
+            </div>
+          </CardContent>
+
+        </Card>
+      </div>
       {/* Customer Information */}
       <Card>
         <CardHeader>
@@ -459,6 +461,7 @@ const BookingPage = () => {
           setStep(3);
         }}
         paymentMethod={bookingData.paymentMethod as "qr_code" | "cash" | "card"}
+        onBack={() => setStep(1)}
       />
     </div>
   );
