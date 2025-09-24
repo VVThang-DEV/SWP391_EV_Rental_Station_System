@@ -93,7 +93,7 @@ export interface Translations {
     continueWithFacebook: string;
     dontHaveAnAccount: string;
     signUpNow: string;
-    demoNote: string;
+    demoNote?: string;
     welcomeUser: string;
     passwordAndSecurity: string;
     currentPassword: string;
@@ -159,6 +159,7 @@ export interface Translations {
     staffAccessRequired: string;
     fillAllFields: string;
     signInSuccess: string;
+    invalidEmail?: string;
     chargers: string;
     searchPlaceholder: string;
     vehiclesHeaderTitle: string;
@@ -271,7 +272,23 @@ export interface Translations {
     fillAllFields: string;
     alreadyHaveAccount: string;
     signInHere: string;
-    demoNote: string;
+    demoNote?: string;
+    validation: {
+      fullNameRequired: string;
+      fullNameTooShort: string;
+      fullNameLettersOnly: string;
+      emailRequired: string;
+      emailInvalid: string;
+      phoneRequired: string;
+      phoneInvalid: string;
+      dobRequired: string;
+      dobTooYoung: string;
+      passwordRequired: string;
+      passwordTooShort: string;
+      passwordWeak: string;
+      confirmPasswordRequired: string;
+      passwordsDoNotMatch: string;
+    };
   };
 
   // Help
@@ -516,7 +533,6 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         continueWithGoogle: "Continue with Google",
         continueWithFacebook: "Continue with Facebook",
         dontHaveAnAccount: "Don't have an account?",
-        demoNote: "Demo: Use any email and password to sign in",
         welcomeUser: "Welcome",
         passwordAndSecurity: "Password & Security",
         currentPassword: "Current Password",
@@ -582,6 +598,7 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         staffAccessRequired: "Staff access required.",
         fillAllFields: "Please fill in all fields.",
         signInSuccess: "You have successfully signed in.",
+        invalidEmail: "Please enter a valid email.",
         chargers: "Chargers",
         searchPlaceholder: "Search by vehicle name or brand...",
         vehiclesHeaderTitle: "Find Your Perfect EV",
@@ -704,7 +721,22 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         fillAllFields: "Please fill in all required fields.",
         alreadyHaveAccount: "Already have an account?",
         signInHere: "Sign in here",
-        demoNote: "Demo: Fill out the form to create an account instantly",
+        validation: {
+          fullNameRequired: "Full name is required.",
+          fullNameTooShort: "Full name must be at least 2 characters.",
+        fullNameLettersOnly: "Full name can only contain letters and spaces.",
+          emailRequired: "Email is required.",
+          emailInvalid: "Please enter a valid email address.",
+          phoneRequired: "Phone number is required.",
+          phoneInvalid: "Please enter a valid Vietnamese phone number.",
+          dobRequired: "Date of birth is required.",
+          dobTooYoung: "You must be at least 18 years old.",
+          passwordRequired: "Password is required.",
+          passwordTooShort: "Password must be at least 8 characters.",
+          passwordWeak: "Password must include letters and numbers.",
+          confirmPasswordRequired: "Please confirm your password.",
+          passwordsDoNotMatch: "Passwords do not match.",
+        },
       },
       help: {
         title: "Help Center",
@@ -910,7 +942,6 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         continueWithGoogle: "Tiếp tục với Google",
         continueWithFacebook: "Tiếp tục với Facebook",
         dontHaveAnAccount: "Chưa có tài khoản?",
-        demoNote: "Demo: Sử dụng bất kỳ email và mật khẩu nào để đăng nhập",
         welcomeUser: "Chào mừng",
         passwordAndSecurity: "Mật khẩu & Bảo mật",
         currentPassword: "Mật khẩu hiện tại",
@@ -977,6 +1008,7 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         staffAccessRequired: "Cần quyền truy cập nhân viên.",
         fillAllFields: "Vui lòng điền đầy đủ thông tin.",
         signInSuccess: "Bạn đã đăng nhập thành công.",
+        invalidEmail: "Vui lòng nhập email hợp lệ.",
         chargers: "Trạm sạc",
         searchPlaceholder: "Tìm kiếm theo tên xe hoặc thương hiệu...",
         vehiclesHeaderTitle: "Tìm Xe Điện Hoàn Hảo Của Bạn",
@@ -1098,7 +1130,22 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         fillAllFields: "Vui lòng điền đầy đủ thông tin bắt buộc.",
         alreadyHaveAccount: "Đã có tài khoản?",
         signInHere: "Đăng nhập tại đây",
-        demoNote: "Demo: Điền vào biểu mẫu để tạo tài khoản ngay lập tức",
+        validation: {
+          fullNameRequired: "Vui lòng nhập họ và tên.",
+          fullNameTooShort: "Họ và tên phải có ít nhất 2 ký tự.",
+        fullNameLettersOnly: "Họ và tên chỉ được chứa chữ và khoảng trắng.",
+          emailRequired: "Vui lòng nhập email.",
+          emailInvalid: "Email không hợp lệ.",
+          phoneRequired: "Vui lòng nhập số điện thoại.",
+          phoneInvalid: "Số điện thoại Việt Nam không hợp lệ.",
+          dobRequired: "Vui lòng nhập ngày sinh.",
+          dobTooYoung: "Bạn phải đủ 18 tuổi.",
+          passwordRequired: "Vui lòng nhập mật khẩu.",
+          passwordTooShort: "Mật khẩu phải có ít nhất 8 ký tự.",
+          passwordWeak: "Mật khẩu phải bao gồm chữ và số.",
+          confirmPasswordRequired: "Vui lòng xác nhận mật khẩu.",
+          passwordsDoNotMatch: "Mật khẩu không khớp.",
+        },
       },
       help: {
         title: "Trung tâm trợ giúp",
