@@ -9,10 +9,11 @@ import { useTranslation } from "@/contexts/TranslationContext";
 import "./Style.css";
 
 
-const LoginForm = () => {
+type Props = { onLogin?: (user: any) => void };
+
+const LoginForm = ({ onLogin }: Props) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"customer" | "staff" | "admin">("customer");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,7 +24,7 @@ const LoginForm = () => {
   // Simple email format check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // validate email format before continuing
     if (!email.trim() || !emailRegex.test(email.trim())) {
@@ -36,22 +37,47 @@ const LoginForm = () => {
     }
     setIsLoading(true);
 
-    setTimeout(() => {
-      if (email && password) {
-        toast({
-          title: t("common.welcomeBack"),
-          description: t("common.signInSuccess"),
-        });
-        navigate("/dashboard");
-      } else {
-        toast({
-          title: t("common.error"),
-          description: t("login.fillAllFields"),
-          variant: "destructive",
-        });
+    try {
+      const baseUrl = (import.meta as any).env?.VITE_API_URL || "http://localhost:5000";
+      const res = await fetch(`${baseUrl}/auth/admin-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Unauthorized");
       }
+      const data = await res.json();
+      // data: { success, fullName, role, token }
+      if (!data?.token) throw new Error("No token");
+
+      localStorage.setItem("token", data.token);
+      if (data.role) localStorage.setItem("role", String(data.role));
+      if (data.fullName) localStorage.setItem("fullName", String(data.fullName));
+
+      toast({ title: t("common.welcomeBack"), description: t("common.signInSuccess") });
+
+      const roleLower = String(data.role || "").toLowerCase();
+      if (onLogin) {
+        onLogin({ id: "", name: data.fullName, email, role: roleLower });
+      }
+      if (roleLower === "admin") {
+        navigate("/dashboard/admin");
+      } else if (roleLower === "staff") {
+        navigate("/dashboard/staff");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      toast({
+        title: t("common.error"),
+        description: t("login.invalidCredentials") || "Email hoặc mật khẩu không đúng.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

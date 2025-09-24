@@ -13,7 +13,9 @@ import LoginForm from "./LoginForm";
 import LoginSocial from "./LoginSocial";
 import { useTranslation } from "@/contexts/TranslationContext";
 
-const Login = () => {
+type Props = { onLogin?: (user: any) => void };
+
+const Login = ({ onLogin }: Props) => {
   const { t } = useTranslation();
 
   return (
@@ -41,7 +43,7 @@ const Login = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <LoginForm />
+            <LoginForm onLogin={onLogin} />
             <LoginSocial />
           </CardContent>
         </Card>
