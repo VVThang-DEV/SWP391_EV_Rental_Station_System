@@ -20,8 +20,20 @@ const LoginForm = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  // Simple email format check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // validate email format before continuing
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      toast({
+        title: t("common.error") || "Lỗi",
+        description: t("login.invalidEmail") || "Vui lòng nhập email hợp lệ.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsLoading(true);
 
     setTimeout(() => {
@@ -101,7 +113,11 @@ const LoginForm = () => {
       </div>
 
       {/* Submit */}
-      <Button type="submit" className="w-full btn-hero" disabled={isLoading}>
+      <Button
+        type="submit"
+        className="w-full btn-hero"
+        disabled={isLoading}
+      >
         {isLoading ? t("common.signingIn") : t("common.signIn")}
       </Button>
     </form>

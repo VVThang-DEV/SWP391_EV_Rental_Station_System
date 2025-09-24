@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import LoginForm from "./LoginForm";
 import LoginSocial from "./LoginSocial";
-import LoginNote from "./LoginNote";
 import { useTranslation } from "@/contexts/TranslationContext";
 
 const Login = () => {
@@ -46,8 +45,7 @@ const Login = () => {
             <LoginSocial />
           </CardContent>
         </Card>
-
-        <LoginNote />
+        
       </div>
     </div>
   );

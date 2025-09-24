@@ -10,7 +10,7 @@ import { Car, Eye, EyeOff, Mail, Lock, User, Phone, Calendar } from "lucide-reac
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { User as UserType } from "./types";
-// Stylesheet removed (file not present) to avoid build error
+
 
 interface RegisterFormProps {
   onRegister: (userData: UserType) => void;
@@ -35,12 +35,43 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (field: string, value: string) => {
+  const [errors, setErrors] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    password: "",
+    confirmPassword: "",
+  });
+
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Live-validate and clear/update error as user types
+    setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    const formElement = e.currentTarget;
+    // Custom validation first for better, localized messages
+    const fieldErrors = validateAllFields();
+    setErrors(fieldErrors);
+    const firstError = Object.values(fieldErrors).find((msg) => msg);
+    if (firstError) {
+      toast({
+        title: t("register.error"),
+        description: firstError,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Then use native validation to highlight any remaining constraints
+    if (!formElement.checkValidity()) {
+      formElement.reportValidity();
+      return;
+    }
 
     if (!agreeToTerms) {
       toast({
@@ -63,29 +94,95 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
     setIsLoading(true);
 
     setTimeout(() => {
-      if (formData.fullName && formData.email && formData.password) {
-        const userData: UserType = {
-          id: `user_${Date.now()}`,
-          name: formData.fullName,
-          email: formData.email,
-          role: "customer",
-        };
-        onRegister(userData);
-        toast({
-          title: t("register.welcome"),
-          description: t("register.accountCreated"),
-        });
-        navigate("/dashboard");
-      } else {
-        toast({
-          title: t("register.error"),
-          description: t("register.fillAllFields"),
-          variant: "destructive",
-        });
-      }
+      const userData: UserType = {
+        id: `user_${Date.now()}`,
+        name: formData.fullName,
+        email: formData.email,
+        role: "customer",
+      };
+      onRegister(userData);
+      toast({
+        title: t("register.welcome"),
+        description: t("register.accountCreated"),
+      });
+      navigate("/dashboard");
       setIsLoading(false);
     }, 1000);
   };
+
+  const validateAllFields = () => {
+    return {
+      fullName: validateField("fullName", formData.fullName),
+      email: validateField("email", formData.email),
+      phone: validateField("phone", formData.phone),
+      dateOfBirth: validateField("dateOfBirth", formData.dateOfBirth),
+      password: validateField("password", formData.password),
+      confirmPassword: validateField("confirmPassword", formData.confirmPassword),
+    };
+  };
+
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case "fullName": {
+        if (!value.trim()) return t("register.validation.fullNameRequired");
+        if (value.trim().length < 2) return t("register.validation.fullNameTooShort");
+        // Only letters (all languages), spaces and common name punctuation
+        const nameRegex = /^[\p{L}\s'.-]+$/u;
+        if (!nameRegex.test(value.trim())) return t("register.validation.fullNameLettersOnly");
+        return "";
+      }
+      case "email": {
+        if (!value.trim()) return t("register.validation.emailRequired");
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+        if (!emailRegex.test(value)) return t("register.validation.emailInvalid");
+        return "";
+      }
+      case "phone": {
+        if (!value.trim()) return t("register.validation.phoneRequired");
+        const normalized = value.replace(/\s|-/g, "");
+        // Must start with 0 and have total 10 or 11 digits
+        const phoneRegex = /^0\d{9,10}$/;
+        if (!phoneRegex.test(normalized)) return t("register.validation.phoneInvalid");
+        return "";
+      }
+      case "dateOfBirth": {
+        if (!value) return t("register.validation.dobRequired");
+        const dob = new Date(value);
+        const now = new Date();
+        const age = now.getFullYear() - dob.getFullYear() - (now < new Date(now.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+        if (age < 18) return t("register.validation.dobTooYoung");
+        return "";
+      }
+      case "password": {
+        if (!value) return t("register.validation.passwordRequired");
+        if (value.length < 8) return t("register.validation.passwordTooShort");
+        const complexity = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+        if (!complexity.test(value)) return t("register.validation.passwordWeak");
+        return "";
+      }
+      case "confirmPassword": {
+        if (!value) return t("register.validation.confirmPasswordRequired");
+        if (value !== formData.password) return t("register.validation.passwordsDoNotMatch");
+        return "";
+      }
+      default:
+        return "";
+    }
+  };
+
+  const handleBlur = (field: keyof typeof errors) => {
+    const message = validateField(field, (formData as any)[field] as string);
+    setErrors((prev) => ({ ...prev, [field]: message }));
+  };
+
+  // Compute native constraint for DOB: must be at least 18 years old
+  const maxDOB = (() => {
+    const now = new Date();
+    const year = now.getFullYear() - 18;
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  })();
 
   return (
     <Card className="shadow-premium w-full max-w-md">
@@ -107,13 +204,19 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
               <Input
                 id="fullName"
                 type="text"
-                placeholder={t("register.fullNamePlaceholder")}
+                placeholder="Nhập Họ và Tên"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange("fullName", e.target.value)}
-                className="pl-10 text-black"
+              onBlur={() => handleBlur("fullName")}
+              className="pl-10 text-black focus-visible:ring-offset-0"
+              minLength={2}
+              aria-invalid={!!errors.fullName}
                 required
               />
             </div>
+            {errors.fullName && (
+              <p className="mt-1 text-sm text-destructive">{errors.fullName}</p>
+            )}
           </div>
 
           {/* Email */}
@@ -124,13 +227,18 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
               <Input
                 id="email"
                 type="email"
-                placeholder={t("register.emailPlaceholder")}
+                placeholder="Nhập Email"
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
-                className="pl-10 text-black"
+                onBlur={() => handleBlur("email")}
+                className="pl-10 text-black focus-visible:ring-offset-0"
+              aria-invalid={!!errors.email}
                 required
               />
             </div>
+            {errors.email && (
+              <p className="mt-1 text-sm text-destructive">{errors.email}</p>
+            )}
           </div>
 
           {/* Phone */}
@@ -141,13 +249,20 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
               <Input
                 id="phone"
                 type="tel"
-                placeholder={t("(+84)")}
+                placeholder={t("Nhập Số Điện Thoại")}
                 value={formData.phone}
                 onChange={(e) => handleInputChange("phone", e.target.value)}
-                className="pl-10 text-black"
+                onBlur={() => handleBlur("phone")}
+                className="pl-10 text-black focus-visible:ring-offset-0"
+              inputMode="tel"
+              pattern="0\\d{9,10}"
+              aria-invalid={!!errors.phone}
                 required
               />
             </div>
+            {errors.phone && (
+              <p className="mt-1 text-sm text-destructive">{errors.phone}</p>
+            )}
           </div>
 
           {/* Date of Birth */}
@@ -160,10 +275,16 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
                 type="date"
                 value={formData.dateOfBirth}
                 onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
-                className="pl-10 text-black"
+                onBlur={() => handleBlur("dateOfBirth")}
+                className="pl-10 text-black focus-visible:ring-offset-0"
+              max={maxDOB}
+              aria-invalid={!!errors.dateOfBirth}
                 required
               />
             </div>
+            {errors.dateOfBirth && (
+              <p className="mt-1 text-sm text-destructive">{errors.dateOfBirth}</p>
+            )}
           </div>
 
           {/* Password */}
@@ -174,10 +295,13 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder={t("register.passwordPlaceholder")}
+                placeholder="Tạo mật khẩu mạnh"
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
-                className="pl-10 pr-10 text-black"
+                onBlur={() => handleBlur("password")}
+                className="pl-10 pr-10 text-black focus-visible:ring-offset-0"
+              minLength={8}
+              aria-invalid={!!errors.password}
                 required
               />
               <Button
@@ -190,6 +314,9 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
                 {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
               </Button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-sm text-destructive">{errors.password}</p>
+            )}
           </div>
 
           {/* Confirm Password */}
@@ -200,10 +327,13 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
               <Input
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
-                placeholder={t("register.confirmPasswordPlaceholder")}
+                placeholder="Xác nhận mật khẩu"
                 value={formData.confirmPassword}
                 onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                className="pl-10 pr-10 text-black"
+                onBlur={() => handleBlur("confirmPassword")}
+                className="pl-10 pr-10 text-black focus-visible:ring-offset-0"
+              minLength={8}
+              aria-invalid={!!errors.confirmPassword}
                 required
               />
               <Button
@@ -216,6 +346,9 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
                 {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
               </Button>
             </div>
+            {errors.confirmPassword && (
+              <p className="mt-1 text-sm text-destructive">{errors.confirmPassword}</p>
+            )}
           </div>
 
           {/* Terms */}
