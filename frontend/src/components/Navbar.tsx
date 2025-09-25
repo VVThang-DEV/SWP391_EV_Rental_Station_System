@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Car, User, Menu, X, LogOut, Settings, History } from "lucide-react";
 import {
@@ -22,6 +22,7 @@ interface NavbarProps {
 const Navbar = ({ user, onLogout }: NavbarProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
 
   const isActive = (path: string) => location.pathname === path;
@@ -127,7 +128,7 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={onLogout}
+                    onClick={() => { onLogout?.(); navigate("/"); }}
                     className="text-destructive focus:text-destructive"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
@@ -240,6 +241,7 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                       onClick={() => {
                         onLogout?.();
                         setIsMobileMenuOpen(false);
+                        navigate("/");
                       }}
                       className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-destructive hover:bg-destructive/10"
                     >
