@@ -3,792 +3,542 @@ import { Vehicle } from "@/components/VehicleCard";
 export const vietnameseVehicles: Vehicle[] = [
   {
     id: "1",
-    name: "VinFast VF8",
-    year: 2023,
+    name: "VinFast VF3",
+    year: 2024,
     brand: "VinFast",
-    model: "VF8",
-    type: "SUV",
-    image:
-      "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 90,
-    location: "District 1 Station",
+    model: "VF3",
+    type: "Hatchback",
+    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2023/09/Hong-Phan-min.png",
+    batteryLevel: 95,
+    location: "Trạm Quận 1",
     availability: "available",
-    pricePerHour: 345000, // VND equivalent of $15
-    pricePerDay: 2760000, // VND equivalent of $120
-    rating: 4.8,
-    reviewCount: 124,
-    trips: 89,
-    range: 420,
-    seats: 5,
-    features: ["Âm thanh cao cấp", "Lái tự động", "Sạc nhanh", "Ghế da"],
+    pricePerHour: 184000,
+    pricePerDay: 1380000,
+    rating: 4.6,
+    reviewCount: 89,
+    trips: 45,
+    range: 210,
+    seats: 4,
+    features: ["Thiết kế nhỏ gọn", "Lái xe đô thị", "Sạc nhanh", "Kết nối thông minh"],
     condition: "excellent",
-
-    lastMaintenance: "2024-01-08",
-
-    mileage: 12850,
-
-    fuelEfficiency: "150 kWh/100km",
-
-    inspectionDate: "2024-01-12",
-
-    insuranceExpiry: "2024-11-30",
-
-    description:
-      "Trải nghiệm lái xe điện cao cấp với VinFast VF8. Chiếc SUV cao cấp này mang đến tầm hoạt động tuyệt vời và công nghệ tiên tiến cho hành trình của bạn.",
+    lastMaintenance: "2024-01-15",
+    mileage: 2500,
+    fuelEfficiency: "110 kWh/100km",
+    inspectionDate: "2024-01-20",
+    insuranceExpiry: "2024-12-31",
+    description: "VinFast VF3 là mẫu xe điện nhỏ gọn hoàn hảo cho việc di chuyển đô thị với hiệu suất tiết kiệm và thiết kế hiện đại."
   },
   {
     id: "2",
-    name: "Tesla Model 3",
-    year: 2022,
-    brand: "Tesla",
-    model: "Model 3",
-    type: "Sedan",
-    image:
-      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 85,
-    location: "District 7 Station",
+    name: "VinFast VF 5 Plus",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 5 Plus",
+    type: "SUV",
+    image: "https://vinfastquangninh.com.vn/wp-content/uploads/2023/05/CE1W.jpg",
+    batteryLevel: 92,
+    location: "Trạm Quận 7",
     availability: "available",
-    pricePerHour: 414000, // VND equivalent of $18
-    pricePerDay: 3450000, // VND equivalent of $150
-    rating: 4.9,
-    reviewCount: 256,
-    trips: 142,
-    range: 358,
+    pricePerHour: 276000,
+    pricePerDay: 2070000,
+    rating: 4.7,
+    reviewCount: 124,
+    trips: 67,
+    range: 285,
     seats: 5,
-    features: [
-      "Lái tự động",
-      "Sạc siêu nhanh",
-      "Nội thất cao cấp",
-      "Cập nhật qua mạng",
-    ],
-    condition: "good",
-
-    lastMaintenance: "2024-01-05",
-
-    mileage: 8500,
-
-    fuelEfficiency: "140 kWh/100km",
-
-    inspectionDate: "2024-01-10",
-
-    insuranceExpiry: "2024-10-15",
-
-    description:
-      "Tesla Model 3 mang đến hiệu suất vượt trội và hiệu quả. Hoàn hảo cho cả lái xe trong thành phố và đi đường dài.",
+    features: ["Nội thất cao cấp", "An toàn tiên tiến", "Sạc không dây", "Điều khiển giọng nói"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-12",
+    mileage: 3200,
+    fuelEfficiency: "125 kWh/100km",
+    inspectionDate: "2024-01-18",
+    insuranceExpiry: "2024-11-30",
+    description: "VinFast VF 5 Plus mang đến sự thoải mái và công nghệ nâng cao cho những cuộc phiêu lưu gia đình."
   },
   {
     id: "3",
-    name: "Hyundai Kona Electric",
-    year: 2023,
-    brand: "Hyundai",
-    model: "Kona Electric",
-    type: "Crossover",
-    image:
-      "https://images.unsplash.com/photo-1549399735-cef2e2c3f638?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 78,
-    location: "District 5 Station",
+    name: "VinFast VF 6 Eco",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 6 Eco",
+    type: "SUV",
+    image: "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 88,
+    location: "Trạm Sân Bay",
     availability: "available",
-    pricePerHour: 276000, // VND equivalent of $12
-    pricePerDay: 2070000, // VND equivalent of $90
-    rating: 4.6,
-    reviewCount: 89,
-    trips: 67,
-    range: 305,
+    pricePerHour: 322000, // 14 USD
+    pricePerDay: 2415000, // 105 USD
+    rating: 4.5,
+    reviewCount: 156,
+    trips: 89,
+    range: 365,
     seats: 5,
-    features: [
-      "Sạc nhanh",
-      "Màn hình cảm ứng",
-      "Camera 360°",
-      "Ứng dụng kết nối",
-    ],
+    features: ["Chế độ Eco", "Thu hồi năng lượng", "Bảng điều khiển thông minh", "Điều hòa không khí"],
     condition: "good",
-
-    lastMaintenance: "2023-12-20",
-
-    mileage: 15300,
-
-    fuelEfficiency: "135 kWh/100km",
-
-    inspectionDate: "2024-01-08",
-
-    insuranceExpiry: "2024-09-20",
-
-    description:
-      "Hyundai Kona Electric là lựa chọn hoàn hảo cho gia đình. Với thiết kế hiện đại và công nghệ tiên tiến, mang đến trải nghiệm lái xe thoải mái.",
+    lastMaintenance: "2024-01-08",
+    mileage: 5600,
+    fuelEfficiency: "130 kWh/100km",
+    inspectionDate: "2024-01-14",
+    insuranceExpiry: "2024-10-15",
+    description: "VinFast VF 6 Eco mang lại hiệu suất đặc biệt và ý thức môi trường."
   },
   {
     id: "4",
-    name: "BMW i3",
-    year: 2023,
-    brand: "BMW",
-    model: "i3",
-    type: "Hatchback",
-    image:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 92,
-    location: "District 3 Station",
+    name: "VinFast VF 6 Plus",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 6 Plus",
+    type: "SUV",
+    image: "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 90,
+    location: "Trạm Bình Thạnh",
     availability: "available",
-    pricePerHour: 345000, // VND equivalent of $15
-    pricePerDay: 2760000, // VND equivalent of $120
-    rating: 4.7,
-    reviewCount: 156,
-    trips: 98,
-    range: 246,
-    seats: 4,
-    features: [
-      "Thiết kế thể thao",
-      "Hệ thống âm thanh cao cấp",
-      "Sạc nhanh",
-      "Kết nối smartphone",
-    ],
+    pricePerHour: 368000, // 16 USD
+    pricePerDay: 2760000, // 120 USD
+    rating: 4.8,
+    reviewCount: 198,
+    trips: 112,
+    range: 380,
+    seats: 5,
+    features: ["Gói cao cấp", "Ghế da", "Cửa sổ trời toàn cảnh", "Âm thanh cao cấp"],
     condition: "excellent",
-
     lastMaintenance: "2024-01-10",
-
-    mileage: 6200,
-
-    fuelEfficiency: "120 kWh/100km",
-
-    inspectionDate: "2024-01-15",
-
+    mileage: 4200,
+    fuelEfficiency: "135 kWh/100km",
+    inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-10",
-
-    description:
-      "BMW i3 mang đến sự kết hợp hoàn hảo giữa hiệu suất và tính thực dụng. Thiết kế nhỏ gọn phù hợp cho đô thị.",
+    description: "VinFast VF 6 Plus kết hợp sang trọng và hiệu suất cho những tài xế khó tính."
   },
   {
     id: "5",
-    name: "Nissan Leaf",
-    year: 2022,
-    brand: "Nissan",
-    model: "Leaf",
-    type: "Hatchback",
-    image:
-      "https://images.unsplash.com/photo-1593941707882-d2b27fcd5e1a?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 88,
-    location: "District 8 Station",
+    name: "VinFast VF 7 Plus",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 7 Plus",
+    type: "SUV",
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 93,
+    location: "Trạm Thủ Đức",
     availability: "available",
-    pricePerHour: 207000, // VND equivalent of $9
-    pricePerDay: 1380000, // VND equivalent of $60
-    rating: 4.4,
-    reviewCount: 203,
-    trips: 145,
-    range: 243,
-    seats: 5,
-    features: [
-      "Hệ thống sạc nhanh",
-      "Màn hình hiển thị",
-      "Điều hòa tự động",
-      "Cảm biến đỗ xe",
-    ],
-    condition: "fair",
-
-    lastMaintenance: "2023-11-15",
-
-    mileage: 22800,
-
-    fuelEfficiency: "160 kWh/100km",
-
-    inspectionDate: "2023-12-20",
-
-    insuranceExpiry: "2024-08-30",
-
-    description:
-      "Nissan Leaf là mẫu xe điện phổ biến với chi phí vận hành thấp và dễ sử dụng. Lý tưởng cho việc đi lại hàng ngày.",
+    pricePerHour: 414000, // 18 USD
+    pricePerDay: 3105000, // 135 USD
+    rating: 4.7,
+    reviewCount: 145,
+    trips: 78,
+    range: 450,
+    seats: 7,
+    features: ["7 chỗ ngồi", "Hỗ trợ lái xe tiên tiến", "Âm thanh cao cấp", "Khả năng mọi thời tiết"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-14",
+    mileage: 3800,
+    fuelEfficiency: "140 kWh/100km",
+    inspectionDate: "2024-01-19",
+    insuranceExpiry: "2024-11-25",
+    description: "VinFast VF 7 Plus là SUV gia đình lý tưởng với nội thất rộng rãi và tính năng tiên tiến."
   },
   {
     id: "6",
-    name: "Audi e-tron",
-    year: 2023,
-    brand: "Audi",
-    model: "e-tron",
+    name: "VinFast VF 7 S",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 7 S",
     type: "SUV",
-    image:
-      "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 95,
-    location: "Downtown Station",
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 91,
+    location: "Trạm Quận 2",
     availability: "available",
-    pricePerHour: 483000, // VND equivalent of $21
-    pricePerDay: 4140000, // VND equivalent of $180
+    pricePerHour: 460000, // 20 USD
+    pricePerDay: 3450000, // 150 USD
     rating: 4.9,
-    reviewCount: 78,
-    trips: 45,
-    range: 400,
-    seats: 5,
-    features: [
-      "Hệ thống quattro",
-      "Âm thanh Bang & Olufsen",
-      "Màn hình HUD",
-      "Sạc không dây",
-    ],
+    reviewCount: 87,
+    trips: 56,
+    range: 420,
+    seats: 7,
+    features: ["Chế độ thể thao", "Tinh chỉnh hiệu suất", "Hệ thống treo thể thao", "Ghế đua"],
     condition: "excellent",
-
-    lastMaintenance: "2024-01-08",
-
-    mileage: 12850,
-
-    fuelEfficiency: "150 kWh/100km",
-
-    inspectionDate: "2024-01-12",
-
-    insuranceExpiry: "2024-11-30",
-
-    description:
-      "Audi e-tron mang đến trải nghiệm lái xe sang trọng với công nghệ tiên tiến và hiệu suất vượt trội.",
+    lastMaintenance: "2024-01-11",
+    mileage: 2900,
+    fuelEfficiency: "145 kWh/100km",
+    inspectionDate: "2024-01-17",
+    insuranceExpiry: "2024-10-30",
+    description: "VinFast VF 7 S mang lại hiệu suất thể thao với tính thực tiện thân thiện với gia đình."
   },
   {
     id: "7",
-    name: "Polestar 2",
-    year: 2023,
-    brand: "Polestar",
-    model: "Polestar 2",
-    type: "Sedan",
-    image:
-      "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 87,
-    location: "District 2 Station",
+    name: "VinFast VF 7 Eco",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 7 Eco",
+    type: "SUV",
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 89,
+    location: "Trạm Quận 3",
     availability: "available",
-    pricePerHour: 414000, // VND equivalent of $18
-    pricePerDay: 3450000, // VND equivalent of $150
-    rating: 4.8,
-    reviewCount: 92,
-    trips: 56,
-    range: 440,
-    seats: 5,
-    features: [
-      "Thiết kế Scandinavian",
-      "Google tích hợp",
-      "Sạc nhanh",
-      "Âm thanh cao cấp",
-    ],
+    pricePerHour: 391000, // 17 USD
+    pricePerDay: 2944000, // 128 USD
+    rating: 4.6,
+    reviewCount: 134,
+    trips: 92,
+    range: 480,
+    seats: 7,
+    features: ["Hiệu suất tối đa", "Chế độ lái Eco", "Màn hình năng lượng", "Công nghệ xanh"],
     condition: "good",
-
-    lastMaintenance: "2024-01-05",
-
-    mileage: 8500,
-
-    fuelEfficiency: "140 kWh/100km",
-
-    inspectionDate: "2024-01-10",
-
-    insuranceExpiry: "2024-10-15",
-
-    description:
-      "Polestar 2 kết hợp thiết kế hiện đại với công nghệ tiên tiến, mang đến trải nghiệm lái xe điện cao cấp.",
+    lastMaintenance: "2024-01-09",
+    mileage: 6100,
+    fuelEfficiency: "125 kWh/100km",
+    inspectionDate: "2024-01-15",
+    insuranceExpiry: "2024-09-20",
+    description: "VinFast VF 7 Eco tối đa hóa tầm hoạt động và hiệu suất cho các gia đình có ý thức môi trường."
   },
   {
     id: "8",
-    name: "Kia EV6",
-    year: 2023,
-    brand: "Kia",
-    model: "EV6",
-    type: "Crossover",
-    image:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 91,
-    location: "Airport Station",
+    name: "VinFast VF 8 Lux",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 8 Lux",
+    type: "SUV",
+    image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 94,
+    location: "Trạm Trung Tâm",
     availability: "available",
-    pricePerHour: 345000, // VND equivalent of $15
-    pricePerDay: 2760000, // VND equivalent of $120
-    rating: 4.7,
-    reviewCount: 134,
+    pricePerHour: 575000, // 25 USD
+    pricePerDay: 4600000, // 200 USD
+    rating: 4.9,
+    reviewCount: 156,
     trips: 89,
-    range: 482,
+    range: 500,
     seats: 5,
-    features: [
-      "Sạc siêu nhanh",
-      "Không gian nội thất rộng",
-      "Màn hình đôi",
-      "Hỗ trợ V2L",
-    ],
-    condition: "good",
-
-    lastMaintenance: "2023-12-20",
-
-    mileage: 15300,
-
-    fuelEfficiency: "135 kWh/100km",
-
-    inspectionDate: "2024-01-08",
-
-    insuranceExpiry: "2024-09-20",
-
-    description:
-      "Kia EV6 mang đến tầm hoạt động ấn tượng và thiết kế hiện đại, hoàn hảo cho các chuyến đi dài.",
+    features: ["Nội thất sang trọng", "Da cao cấp", "Ghế massage", "Hệ thống âm thanh cao cấp"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-13",
+    mileage: 1800,
+    fuelEfficiency: "150 kWh/100km",
+    inspectionDate: "2024-01-18",
+    insuranceExpiry: "2024-12-15",
+    description: "VinFast VF 8 Lux đại diện cho đỉnh cao của sự sang trọng và hiệu suất điện."
   },
   {
     id: "9",
-    name: "Honda e",
-    year: 2022,
-    brand: "Honda",
-    model: "e",
-    type: "Hatchback",
-    image:
-      "https://images.unsplash.com/photo-1593941707882-d2b27fcd5e1a?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 84,
-    location: "District 1 Station",
+    name: "VinFast VF 8 Plus",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 8 Plus",
+    type: "SUV",
+    image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 87,
+    location: "Trạm Quận 5",
     availability: "available",
-    pricePerHour: 276000, // VND equivalent of $12
-    pricePerDay: 2070000, // VND equivalent of $90
-    rating: 4.5,
-    reviewCount: 167,
-    trips: 112,
-    range: 137,
-    seats: 4,
-    features: [
-      "Thiết kế nhỏ gọn",
-      "Dễ điều khiển",
-      "Ứng dụng Honda",
-      "Sạc tại nhà",
-    ],
-    condition: "excellent",
-
-    lastMaintenance: "2024-01-10",
-
-    mileage: 6200,
-
-    fuelEfficiency: "120 kWh/100km",
-
-    inspectionDate: "2024-01-15",
-
-    insuranceExpiry: "2024-12-10",
-
-    description:
-      "Honda e là mẫu xe điện đô thị hoàn hảo với thiết kế nhỏ gọn và dễ sử dụng trong thành phố đông đúc.",
+    pricePerHour: 506000, // 22 USD
+    pricePerDay: 4025000, // 175 USD
+    rating: 4.8,
+    reviewCount: 203,
+    trips: 134,
+    range: 465,
+    seats: 5,
+    features: ["Gói nâng cao", "An toàn tiên tiến", "Công nghệ không dây", "Tiện nghi cao cấp"],
+    condition: "good",
+    lastMaintenance: "2024-01-07",
+    mileage: 7200,
+    fuelEfficiency: "145 kWh/100km",
+    inspectionDate: "2024-01-13",
+    insuranceExpiry: "2024-08-30",
+    description: "VinFast VF 8 Plus cung cấp các tính năng nâng cao và sự thoải mái cho trải nghiệm lái xe cao cấp."
   },
   {
     id: "10",
-    name: "Jaguar I-PACE",
-    year: 2023,
-    brand: "Jaguar",
-    model: "I-PACE",
+    name: "VinFast VF 9 Eco (6 chỗ)",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 9 Eco",
     type: "SUV",
-    image:
-      "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 89,
-    location: "District 5 Station",
+    image: "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 92,
+    location: "Trạm Quận 4",
     availability: "available",
-    pricePerHour: 552000, // VND equivalent of $24
-    pricePerDay: 4830000, // VND equivalent of $210
-    rating: 4.8,
-    reviewCount: 67,
-    trips: 34,
-    range: 383,
-    seats: 5,
-    features: [
-      "Hiệu suất cao",
-      "Nội thất sang trọng",
-      "Hệ thống 4 bánh",
-      "Âm thanh Meridian",
-    ],
-    condition: "fair",
-
-    lastMaintenance: "2023-11-15",
-
-    mileage: 22800,
-
-    fuelEfficiency: "160 kWh/100km",
-
-    inspectionDate: "2023-12-20",
-
-    insuranceExpiry: "2024-08-30",
-
-    description:
-      "Jaguar I-PACE mang đến sự kết hợp giữa hiệu suất thể thao và tính sang trọng của thương hiệu Anh quốc.",
+    pricePerHour: 552000, // 24 USD
+    pricePerDay: 4255000, // 185 USD
+    rating: 4.7,
+    reviewCount: 98,
+    trips: 67,
+    range: 520,
+    seats: 6,
+    features: ["Ghế thuyền trưởng", "Nội thất rộng rãi", "Công nghệ Eco", "Tiện nghi gia đình"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-12",
+    mileage: 4500,
+    fuelEfficiency: "155 kWh/100km",
+    inspectionDate: "2024-01-17",
+    insuranceExpiry: "2024-11-20",
+    description: "VinFast VF 9 Eco 6 chỗ cung cấp sự thoải mái và hiệu suất tối đa cho các gia đình lớn."
   },
   {
     id: "11",
-    name: "Yamaha EC-05",
-    year: 2023,
-    brand: "Yamaha",
-    model: "EC-05",
-    type: "Scooter",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 96,
-    location: "District 1 Station",
+    name: "VinFast VF 9 Plus (7 chỗ)",
+    year: 2024,
+    brand: "VinFast",
+    model: "VF 9 Plus",
+    type: "SUV",
+    image: "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 90,
+    location: "Trạm Quận 8",
     availability: "available",
-    pricePerHour: 69000, // VND equivalent of $3
-    pricePerDay: 345000, // VND equivalent of $15
-    rating: 4.6,
-    reviewCount: 289,
-    trips: 456,
-    range: 43,
-    seats: 1,
-    features: [
-      "Dễ điều khiển",
-      "Sạc nhanh",
-      "Ổ khóa thông minh",
-      "Ứng dụng kết nối",
-    ],
-    condition: "good",
-
-    lastMaintenance: "2024-01-08",
-
-    mileage: 4800,
-
-    fuelEfficiency: "40 kWh/100km",
-
-    inspectionDate: "2024-01-10",
-
-    insuranceExpiry: "2024-10-20",
-
-    description:
-      "Yamaha EC-05 là mẫu xe tay ga điện hoàn hảo cho việc di chuyển trong thành phố với thiết kế nhỏ gọn và tiện lợi.",
+    pricePerHour: 598000, // 26 USD
+    pricePerDay: 4830000, // 210 USD
+    rating: 4.8,
+    reviewCount: 76,
+    trips: 45,
+    range: 485,
+    seats: 7,
+    features: ["Bố trí 7 chỗ", "Tính năng cao cấp", "Công nghệ tiên tiến", "Tiện nghi sang trọng"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-15",
+    mileage: 3100,
+    fuelEfficiency: "160 kWh/100km",
+    inspectionDate: "2024-01-20",
+    insuranceExpiry: "2024-12-05",
+    description: "VinFast VF 9 Plus 7 chỗ là SUV gia đình tối thượng với các tính năng cao cấp và nội thất rộng rãi."
   },
   {
     id: "12",
-    name: "Piaggio 1 Active",
-    year: 2023,
-    brand: "Piaggio",
-    model: "1 Active",
+    name: "VinFast Motio",
+    year: 2024,
+    brand: "VinFast",
+    model: "Motio",
     type: "Scooter",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 88,
-    location: "Trạm Quận 3",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 96,
+    location: "Trạm Quận 1",
     availability: "available",
-    pricePerHour: 103500, // VND equivalent of $4.5
-    pricePerDay: 414000, // VND equivalent of $18
-    rating: 4.4,
-    reviewCount: 198,
-    trips: 267,
-    range: 55,
+    pricePerHour: 92000, // 4 USD
+    pricePerDay: 460000, // 20 USD
+    rating: 4.5,
+    reviewCount: 234,
+    trips: 456,
+    range: 65,
     seats: 1,
-    features: ["Thiết kế Ý", "Chống nước", "Sạc nhanh", "Ổ khóa từ"],
-    condition: "fair",
-
-    lastMaintenance: "2023-12-15",
-
-    mileage: 8500,
-
-    fuelEfficiency: "45 kWh/100km",
-
-    inspectionDate: "2023-12-28",
-
-    insuranceExpiry: "2024-09-15",
-
-    description:
-      "Piaggio 1 Active mang đến phong cách Ý cổ điển với công nghệ điện hiện đại, hoàn hảo cho việc di chuyển đô thị.",
+    features: ["Kết nối thông minh", "Sạc nhanh", "Màn hình số", "Hệ thống chống trộm"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-14",
+    mileage: 2800,
+    fuelEfficiency: "35 kWh/100km",
+    inspectionDate: "2024-01-19",
+    insuranceExpiry: "2024-10-25",
+    description: "VinFast Motio là giải pháp di chuyển đô thị hoàn hảo với các tính năng thông minh và độ tin cậy."
   },
   {
     id: "13",
-    name: "Honda PCX Electric",
-    year: 2023,
-    brand: "Honda",
-    model: "PCX Electric",
+    name: "VinFast EvoGrand Lite",
+    year: 2024,
+    brand: "VinFast",
+    model: "EvoGrand Lite",
     type: "Scooter",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 92,
-    location: "Trạm Bình Thạnh",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 88,
+    location: "Trạm Quận 7",
     availability: "available",
-    pricePerHour: 138000, // VND equivalent of $6
-    pricePerDay: 552000, // VND equivalent of $24
-    rating: 4.7,
-    reviewCount: 156,
-    trips: 203,
-    range: 41,
+    pricePerHour: 115000, // 5 USD
+    pricePerDay: 575000, // 25 USD
+    rating: 4.6,
+    reviewCount: 189,
+    trips: 267,
+    range: 75,
     seats: 1,
-    features: [
-      "Động cơ Honda",
-      "Sạc siêu nhanh",
-      "Ứng dụng Honda",
-      "Chống trộm",
-    ],
-    condition: "excellent",
-
-    lastMaintenance: "2024-01-12",
-
-    mileage: 3200,
-
-    fuelEfficiency: "35 kWh/100km",
-
+    features: ["Thiết kế nhẹ", "Dễ điều khiển", "Sạc nhanh", "Đèn LED"],
+    condition: "good",
+    lastMaintenance: "2024-01-10",
+    mileage: 4200,
+    fuelEfficiency: "38 kWh/100km",
     inspectionDate: "2024-01-15",
-
-    insuranceExpiry: "2024-11-25",
-
-    description:
-      "Honda PCX Electric kết hợp độ tin cậy của Honda với công nghệ điện tiên tiến cho trải nghiệm di chuyển thoải mái.",
+    insuranceExpiry: "2024-09-30",
+    description: "VinFast EvoGrand Lite cung cấp hiệu suất nhẹ và tiện lợi cho việc đi lại trong thành phố."
   },
   {
     id: "14",
-    name: "Suzuki Burgman Electric",
-    year: 2022,
-    brand: "Suzuki",
-    model: "Burgman Electric",
+    name: "VinFast Evo Lite Neo",
+    year: 2024,
+    brand: "VinFast",
+    model: "Evo Lite Neo",
     type: "Scooter",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 85,
-    location: "Trạm Tân Bình",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 92,
+    location: "Trạm Sân Bay",
     availability: "available",
-    pricePerHour: 103500, // VND equivalent of $4.5
-    pricePerDay: 414000, // VND equivalent of $18
-    rating: 4.5,
-    reviewCount: 134,
-    trips: 178,
-    range: 52,
+    pricePerHour: 103500, // 4.5 USD
+    pricePerDay: 506000, // 22 USD
+    rating: 4.4,
+    reviewCount: 156,
+    trips: 203,
+    range: 68,
     seats: 1,
-    features: [
-      "Không gian chứa đồ",
-      "Sạc nhanh",
-      "Màn hình LCD",
-      "Khóa thông minh",
-    ],
-    condition: "good",
-
-    lastMaintenance: "2024-01-08",
-
-    mileage: 4800,
-
-    fuelEfficiency: "40 kWh/100km",
-
-    inspectionDate: "2024-01-10",
-
-    insuranceExpiry: "2024-10-20",
-
-    description:
-      "Suzuki Burgman Electric mang đến sự tiện lợi với không gian chứa đồ lớn và công nghệ điện hiện đại.",
+    features: ["Thiết kế Neo", "Kích thước nhỏ gọn", "Tính năng thông minh", "Động cơ hiệu quả"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-12",
+    mileage: 3500,
+    fuelEfficiency: "36 kWh/100km",
+    inspectionDate: "2024-01-17",
+    insuranceExpiry: "2024-11-15",
+    description: "VinFast Evo Lite Neo kết hợp thiết kế hiện đại với chức năng thực tiễn cho người lái đô thị."
   },
   {
     id: "15",
-    name: "Vespa Elettrica",
-    year: 2023,
-    brand: "Vespa",
-    model: "Elettrica",
+    name: "VinFast Evo200 Lite",
+    year: 2024,
+    brand: "VinFast",
+    model: "Evo200 Lite",
     type: "Scooter",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
-    batteryLevel: 90,
-    location: "Trạm Quận 2",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 85,
+    location: "Trạm Bình Thạnh",
     availability: "available",
-    pricePerHour: 172500, // VND equivalent of $7.5
-    pricePerDay: 690000, // VND equivalent of $30
-    rating: 4.8,
-    reviewCount: 89,
-    trips: 67,
-    range: 100,
+    pricePerHour: 138000, // 6 USD
+    pricePerDay: 690000, // 30 USD
+    rating: 4.7,
+    reviewCount: 134,
+    trips: 178,
+    range: 85,
     seats: 1,
-    features: [
-      "Thiết kế cổ điển",
-      "Sạc không dây",
-      "Ứng dụng kết nối",
-      "Chống nước",
-    ],
-    condition: "fair",
-
-    lastMaintenance: "2023-12-15",
-
-    mileage: 8500,
-
-    fuelEfficiency: "45 kWh/100km",
-
-    inspectionDate: "2023-12-28",
-
-    insuranceExpiry: "2024-09-15",
-
-    description:
-      "Vespa Elettrica mang đến biểu tượng phong cách Ý với công nghệ điện hiện đại và tầm hoạt động ấn tượng.",
+    features: ["Động cơ 200W", "Tầm hoạt động mở rộng", "Bảng điều khiển thông minh", "Sạc nhanh"],
+    condition: "good",
+    lastMaintenance: "2024-01-08",
+    mileage: 5100,
+    fuelEfficiency: "42 kWh/100km",
+    inspectionDate: "2024-01-13",
+    insuranceExpiry: "2024-08-20",
+    description: "VinFast Evo200 Lite mang lại sức mạnh và tầm hoạt động nâng cao cho các chuyến đi dài hơn."
   },
   {
     id: "16",
-    name: "Harley-Davidson LiveWire",
-    year: 2023,
-    brand: "Harley-Davidson",
-    model: "LiveWire",
-    type: "Motorcycle",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    name: "VinFast Feliz 2025",
+    year: 2025,
+    brand: "VinFast",
+    model: "Feliz 2025",
+    type: "Scooter",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
     batteryLevel: 94,
-    location: "Trạm Quận 7",
+    location: "Trạm Thủ Đức",
     availability: "available",
-    pricePerHour: 345000, // VND equivalent of $15
-    pricePerDay: 2070000, // VND equivalent of $90
-    rating: 4.9,
-    reviewCount: 45,
-    trips: 23,
-    range: 235,
+    pricePerHour: 184000, // 8 USD
+    pricePerDay: 920000, // 40 USD
+    rating: 4.8,
+    reviewCount: 89,
+    trips: 67,
+    range: 120,
     seats: 1,
-    features: [
-      "Động cơ điện mạnh mẽ",
-      "Thiết kế Harley cổ điển",
-      "Sạc nhanh",
-      "Ứng dụng kết nối",
-    ],
+    features: ["Mẫu 2025", "Công nghệ mới nhất", "Thiết kế cao cấp", "An toàn tiên tiến"],
     condition: "excellent",
-
-    lastMaintenance: "2024-01-12",
-
-    mileage: 3200,
-
-    fuelEfficiency: "35 kWh/100km",
-
-    inspectionDate: "2024-01-15",
-
-    insuranceExpiry: "2024-11-25",
-
-    description:
-      "Harley-Davidson LiveWire mang đến sức mạnh và phong cách của Harley với công nghệ điện tiên tiến.",
+    lastMaintenance: "2024-01-16",
+    mileage: 1200,
+    fuelEfficiency: "40 kWh/100km",
+    inspectionDate: "2024-01-21",
+    insuranceExpiry: "2025-01-15",
+    description: "VinFast Feliz 2025 đại diện cho tương lai của xe tay ga điện với công nghệ tiên tiến."
   },
   {
     id: "17",
-    name: "Zero S",
-    year: 2023,
-    brand: "Zero Motorcycles",
-    model: "S",
-    type: "Motorcycle",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    name: "VinFast EvoGrand",
+    year: 2024,
+    brand: "VinFast",
+    model: "EvoGrand",
+    type: "Scooter",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
     batteryLevel: 91,
-    location: "Trạm Thủ Đức",
+    location: "Trạm Quận 2",
     availability: "available",
-    pricePerHour: 276000, // VND equivalent of $12
-    pricePerDay: 1380000, // VND equivalent of $60
-    rating: 4.7,
-    reviewCount: 67,
-    trips: 34,
-    range: 199,
+    pricePerHour: 161000, // 7 USD
+    pricePerDay: 805000, // 35 USD
+    rating: 4.9,
+    reviewCount: 145,
+    trips: 89,
+    range: 110,
     seats: 1,
-    features: [
-      "Động cơ điện mạnh mẽ",
-      "Sạc nhanh",
-      "Màn hình TFT",
-      "Ứng dụng Zero",
-    ],
-    condition: "good",
-
-    lastMaintenance: "2024-01-08",
-
-    mileage: 4800,
-
-    fuelEfficiency: "40 kWh/100km",
-
-    inspectionDate: "2024-01-10",
-
-    insuranceExpiry: "2024-10-20",
-
-    description:
-      "Zero S mang đến hiệu suất cao và độ tin cậy cho những tay lái đam mê tốc độ.",
+    features: ["Hiệu suất vượt trội", "Chế tạo cao cấp", "Tính năng tiên tiến", "Tầm hoạt động dài"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-11",
+    mileage: 2600,
+    fuelEfficiency: "45 kWh/100km",
+    inspectionDate: "2024-01-16",
+    insuranceExpiry: "2024-12-20",
+    description: "VinFast EvoGrand cung cấp hiệu suất và tính năng cao cấp cho những người lái khó tính."
   },
   {
     id: "18",
-    name: "Energica Ego",
-    year: 2023,
-    brand: "Energica",
-    model: "Ego",
-    type: "Motorcycle",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    name: "VinFast Evo Neo",
+    year: 2024,
+    brand: "VinFast",
+    model: "Evo Neo",
+    type: "Scooter",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
     batteryLevel: 87,
-    location: "Trạm Phú Nhuận",
+    location: "Trạm Quận 3",
     availability: "available",
-    pricePerHour: 414000, // VND equivalent of $18
-    pricePerDay: 2760000, // VND equivalent of $120
-    rating: 4.8,
-    reviewCount: 34,
-    trips: 18,
-    range: 420,
+    pricePerHour: 126500, // 5.5 USD
+    pricePerDay: 644000, // 28 USD
+    rating: 4.6,
+    reviewCount: 178,
+    trips: 134,
+    range: 90,
     seats: 1,
-    features: [
-      "Động cơ điện cao cấp",
-      "Thiết kế Ý",
-      "Sạc nhanh",
-      "Hệ thống quản lý pin thông minh",
-    ],
-    condition: "fair",
-
-    lastMaintenance: "2023-12-15",
-
-    mileage: 8500,
-
-    fuelEfficiency: "45 kWh/100km",
-
-    inspectionDate: "2023-12-28",
-
-    insuranceExpiry: "2024-09-15",
-
-    description:
-      "Energica Ego mang đến sự sang trọng và hiệu suất cao cho những tay lái tinh tế.",
+    features: ["Công nghệ Neo", "Kết nối thông minh", "Thiết kế hiệu quả", "Thân thiện người dùng"],
+    condition: "good",
+    lastMaintenance: "2024-01-09",
+    mileage: 4800,
+    fuelEfficiency: "39 kWh/100km",
+    inspectionDate: "2024-01-14",
+    insuranceExpiry: "2024-09-10",
+    description: "VinFast Evo Neo mang công nghệ thế hệ tiếp theo đến việc đi lại hàng ngày."
   },
   {
     id: "19",
-    name: "Ather 450X",
-    year: 2023,
-    brand: "Ather",
-    model: "450X",
+    name: "VinFast Klara Neo",
+    year: 2024,
+    brand: "VinFast",
+    model: "Klara Neo",
     type: "Scooter",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
     batteryLevel: 93,
-    location: "Trạm Quận 10",
+    location: "Trạm Quận 5",
     availability: "available",
-    pricePerHour: 138000, // VND equivalent of $6
-    pricePerDay: 552000, // VND equivalent of $24
-    rating: 4.6,
+    pricePerHour: 149500, // 6.5 USD
+    pricePerDay: 736000, // 32 USD
+    rating: 4.7,
     reviewCount: 123,
-    trips: 89,
-    range: 116,
+    trips: 95,
+    range: 95,
     seats: 1,
-    features: [
-      "Sạc siêu nhanh",
-      "Ứng dụng thông minh",
-      "Theo dõi GPS",
-      "Chống trộm",
-    ],
+    features: ["Thiết kế Klara", "Phong cách thanh lịch", "Hiệu suất mượt mà", "Tính năng thông minh"],
     condition: "excellent",
-
-    lastMaintenance: "2024-01-12",
-
+    lastMaintenance: "2024-01-13",
     mileage: 3200,
-
-    fuelEfficiency: "35 kWh/100km",
-
-    inspectionDate: "2024-01-15",
-
-    insuranceExpiry: "2024-11-25",
-
-    description:
-      "Ather 450X mang đến trải nghiệm di chuyển thông minh với công nghệ tiên tiến và thiết kế hiện đại.",
+    fuelEfficiency: "41 kWh/100km",
+    inspectionDate: "2024-01-18",
+    insuranceExpiry: "2024-11-08",
+    description: "VinFast Klara Neo kết hợp thiết kế thanh lịch với hiệu suất đáng tin cậy cho người lái hiện đại."
   },
   {
     id: "20",
-    name: "Ola S1",
-    year: 2023,
-    brand: "Ola Electric",
-    model: "S1",
+    name: "VinFast Vento Neo",
+    year: 2024,
+    brand: "VinFast",
+    model: "Vento Neo",
     type: "Scooter",
-    image:
-      "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://xedienvietthanh.com/wp-content/uploads/2025/03/xe-may-dien-vinfast-vento-neo-mau-xam-xi-mang.jpg",
     batteryLevel: 89,
     location: "Trạm Quận 4",
     availability: "available",
-    pricePerHour: 103500, // VND equivalent of $4.5
-    pricePerDay: 345000, // VND equivalent of $15
+    pricePerHour: 115000, // 5 USD
+    pricePerDay: 575000, // 25 USD
     rating: 4.5,
-    reviewCount: 234,
-    trips: 345,
-    range: 181,
+    reviewCount: 167,
+    trips: 112,
+    range: 78,
     seats: 1,
-    features: [
-      "Sạc nhanh 5 phút",
-      "Ứng dụng Ola",
-      "GPS tích hợp",
-      "Hỗ trợ IoT",
-    ],
+    features: ["Thiết kế Neo nhỏ gọn", "Dễ cất giữ", "Sạc nhanh", "Hoàn hảo cho thành phố"],
     condition: "good",
-
-    lastMaintenance: "2024-01-08",
-
-    mileage: 4800,
-
-    fuelEfficiency: "40 kWh/100km",
-
-    inspectionDate: "2024-01-10",
-
-    insuranceExpiry: "2024-10-20",
-
-    description:
-      "Ola S1 là mẫu xe điện thông minh với khả năng sạc nhanh và ứng dụng tiện lợi cho người dùng đô thị.",
-  },
+    lastMaintenance: "2024-01-10",
+    mileage: 4500,
+    fuelEfficiency: "37 kWh/100km",
+    inspectionDate: "2024-01-15",
+    insuranceExpiry: "2024-10-12",
+    description: "VinFast Vento Neo là giải pháp nhỏ gọn hoàn hảo cho việc di chuyển đô thị với các tính năng thực tế."
+  }
 ];
