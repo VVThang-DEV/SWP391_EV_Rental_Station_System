@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "E:\\SWP ky moi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj": {}
+    "E:\\Bai Thi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj": {}
   },
   "projects": {
-    "E:\\SWP ky moi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj": {
+    "E:\\Bai Thi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\SWP ky moi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
+        "projectUniqueName": "E:\\Bai Thi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
         "projectName": "EVRentalApi",
-        "projectPath": "E:\\SWP ky moi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
+        "projectPath": "E:\\Bai Thi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
         "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
-        "outputPath": "E:\\SWP ky moi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\obj\\",
+        "outputPath": "E:\\Bai Thi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

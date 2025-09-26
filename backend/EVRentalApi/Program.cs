@@ -27,6 +27,7 @@ builder.Services.AddScoped<Func<SqlConnection>>(_ =>
 // DI: repositories & services
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<EmailService>();
 
 var app = builder.Build();
 
@@ -69,11 +70,41 @@ app.MapPost("/auth/admin-login", async (LoginRequest req, AuthService auth, ICon
     return Results.Ok(new { success = true, fullName, role = roleName, token = tokenString });
 });
 
+// Register endpoint
+app.MapPost("/auth/register", async (RegisterRequest req, UserRepository users, EmailService emailService, HttpContext http) =>
+{
+    // Hash password
+    var passwordHash = Sha256(req.Password);
+
+    // Attempt to create customer
+    var (ok, userId, token) = await users.CreateCustomerWithVerificationAsync(req.Email, passwordHash, req.FullName);
+    if (!ok)
+    {
+        return Results.BadRequest(new { success = false, message = "Email already exists or registration failed." });
+    }
+
+    // Build verification link
+    var host = http.Request.Host.Value;
+    var scheme = http.Request.Scheme;
+    var verificationLink = $"{scheme}://{host}/auth/verify?token={token}";
+
+    await emailService.SendVerificationEmailAsync(req.Email, verificationLink);
+
+    return Results.Ok(new { success = true, userId });
+});
+
+// Email verify endpoint
+app.MapGet("/auth/verify", async (string token, UserRepository users) =>
+{
+    var ok = await users.VerifyEmailAsync(token);
+    if (!ok) return Results.BadRequest(new { success = false, message = "Invalid or expired token" });
+    return Results.Ok(new { success = true });
+});
+
 // Health
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run("http://0.0.0.0:5000");
 
 record LoginRequest(string Email, string Password);
-
-
+record RegisterRequest(string Email, string Password, string FullName);       
