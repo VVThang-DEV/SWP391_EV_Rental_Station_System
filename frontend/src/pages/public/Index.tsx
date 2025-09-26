@@ -75,6 +75,7 @@ const Index = ({ user }: IndexProps) => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStation, setSelectedStation] = useState<string>("");
   const [locationOpen, setLocationOpen] = useState(false);
+  const [locationHovered, setLocationHovered] = useState(false);
 
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ const Index = ({ user }: IndexProps) => {
   // Create location suggestions from stations
   const locationSuggestions = stations.map((station) => ({
     value: station.name,
-    label: `${station.name} - ${station.address}, ${station.city}`,
+    label: `${station.name}`,
     station: station,
   }));
 
@@ -149,9 +150,21 @@ const Index = ({ user }: IndexProps) => {
               <form onSubmit={handleSearch} className="flex-1">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
                   <div className="relative">
-                    <Popover open={locationOpen} onOpenChange={setLocationOpen}>
+                    <Popover
+                      open={locationOpen || locationHovered}
+                      onOpenChange={(open) => {
+                        if (!open && !locationHovered) {
+                          setLocationOpen(false);
+                        } else if (open) {
+                          setLocationOpen(true);
+                        }
+                      }}
+                    >
                       <PopoverTrigger asChild>
-                        <div className="relative">
+                        <div
+                          className="relative cursor-pointer"
+                          onClick={() => setLocationOpen(!locationOpen)}
+                        >
                           <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
                           <Input
                             placeholder={t("common.pickupLocation")}
@@ -159,10 +172,16 @@ const Index = ({ user }: IndexProps) => {
                             onChange={(e) => setSearchLocation(e.target.value)}
                             className="pl-10 h-11 text-black"
                             onFocus={() => setLocationOpen(true)}
+                            onClick={() => setLocationOpen(true)}
                           />
                         </div>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[400px] p-0" align="start">
+                      <PopoverContent
+                        className="w-[400px] p-0"
+                        align="start"
+                        onMouseEnter={() => setLocationHovered(true)}
+                        onMouseLeave={() => setLocationHovered(false)}
+                      >
                         <Command>
                           <CommandInput
                             placeholder={t("common.searchLocations")}
@@ -187,6 +206,7 @@ const Index = ({ user }: IndexProps) => {
                                     onSelect={() => {
                                       setSearchLocation(location.label);
                                       setLocationOpen(false);
+                                      setLocationHovered(false);
                                     }}
                                   >
                                     <Check

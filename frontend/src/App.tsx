@@ -119,6 +119,46 @@ const App = () => {
                     )
                   }
                 />
+                {/* Explicit role routes */}
+                <Route
+                  path="/dashboard/admin"
+                  element={
+                    user?.role === "admin" ? (
+                      <AdminDashboard
+                        user={
+                          {
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            role: "admin",
+                          } as any
+                        }
+                      />
+                    ) : (
+                      <NotFound />
+                    )
+                  }
+                />
+                <Route
+                  path="/dashboard/staff"
+                  element={
+                    user?.role === "staff" ? (
+                      <StaffDashboard
+                        user={
+                          {
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            role: "staff",
+                            stationId: (user as any).stationId || "",
+                          } as any
+                        }
+                      />
+                    ) : (
+                      <NotFound />
+                    )
+                  }
+                />
                 <Route path="/stations" element={<Stations />} />
                 <Route path="/stations/:id" element={<StationDetails />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
