@@ -89,11 +89,23 @@ const BookingPage = () => {
         startTime: getTimeStr(),
       }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // chạy 1 lần khi mở trang
-  // SỬA Ở ĐÂY: nếu bạn có context/auth cung cấp current user, lấy tên ở đây
-  // Ví dụ: const { currentUser } = useAuth(); -> thay thế theo project của bạn
-  const currentUserName = (window as any).CURRENT_USER_NAME || "John Doe"; // SỬA: thay bằng nguồn thực tế nếu có
+
+  }, []);
+
+  const getCurrentUser = () => {
+    try {
+      const userStr = localStorage.getItem('currentUser') || localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const user = getCurrentUser();
+
+  const currentUserName = user?.fullName || user?.name || "John Doe";
+  const currentUserEmail = user?.email || "user@example.com";
+  const currentUserPhone = user?.phone || user?.phoneNumber || "0123456789";
 
   const [bookingData, setBookingData] = useState({
     startDate: getTodayStr(),
@@ -102,7 +114,7 @@ const BookingPage = () => {
     endTime: "17:00",
     rentalDuration: "daily",
     customerInfo: {
-      fullName: currentUserName, // Pre-filled from user context
+      fullName: "",
       email: "",
       phone: "",
       driverLicense: "",
@@ -113,7 +125,22 @@ const BookingPage = () => {
     agreeToInsurance: false,
   });
 
+  useEffect(() => {
+    if (user) {
+      setBookingData(prev => ({
+        ...prev,
+        customerInfo: {
+          ...prev.customerInfo,
+          fullName: currentUserName,
+          email: currentUserEmail,
+          phone: currentUserPhone,  
+        }
+      }));
+    }
+  }, [currentUserName, currentUserEmail, currentUserPhone]);
 
+  console.log("User from localStorage:", user);
+  console.log("Extracted data:", { currentUserName, currentUserEmail, currentUserPhone });
 
   // SỬA Ở ĐÂY: helper cập nhật startTime về giờ hiện tại (gọi khi upload document hoặc hành động tương tự)
   const updateStartTimeNow = () => {

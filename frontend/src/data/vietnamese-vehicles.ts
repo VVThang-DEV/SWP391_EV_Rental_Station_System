@@ -62,12 +62,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 6 Eco",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=800&h=600&fit=crop&crop=center",
+    image: "https://vinfast3sthanhhoa.com/wp-content/uploads/2023/09/vf6-mau-trang-1-1110x1032-600x600-1.jpg",
     batteryLevel: 88,
     location: "Trạm Sân Bay",
     availability: "available",
-    pricePerHour: 322000, // 14 USD
-    pricePerDay: 2415000, // 105 USD
+    pricePerHour: 322000,
+    pricePerDay: 2415000,
     rating: 4.5,
     reviewCount: 156,
     trips: 89,
@@ -89,12 +89,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 6 Plus",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=800&h=600&fit=crop&crop=center",
+    image: "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf6-trang.png",
     batteryLevel: 90,
     location: "Trạm Bình Thạnh",
     availability: "available",
-    pricePerHour: 368000, // 16 USD
-    pricePerDay: 2760000, // 120 USD
+    pricePerHour: 368000,
+    pricePerDay: 2760000,
     rating: 4.8,
     reviewCount: 198,
     trips: 112,
@@ -116,12 +116,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 7 Plus",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4c3e07c9/reserves/VF7/exterior/product-CE1M.webp", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 93,
     location: "Trạm Thủ Đức",
     availability: "available",
-    pricePerHour: 414000, // 18 USD
-    pricePerDay: 3105000, // 135 USD
+    pricePerHour: 414000,
+    pricePerDay: 3105000,
     rating: 4.7,
     reviewCount: 145,
     trips: 78,
@@ -143,12 +143,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 7 S",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
+    image: "https://vfxanh.vn/wp-content/uploads/2024/08/42.1.png", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 91,
     location: "Trạm Quận 2",
     availability: "available",
-    pricePerHour: 460000, // 20 USD
-    pricePerDay: 3450000, // 150 USD
+    pricePerHour: 460000,
+    pricePerDay: 3450000,
     rating: 4.9,
     reviewCount: 87,
     trips: 56,
@@ -170,12 +170,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 7 Eco",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&crop=center",
+    image: "https://drive.gianhangvn.com/image/2750589-2756041j33702.jpg", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 89,
     location: "Trạm Quận 3",
     availability: "available",
-    pricePerHour: 391000, // 17 USD
-    pricePerDay: 2944000, // 128 USD
+    pricePerHour: 391000,
+    pricePerDay: 2944000,
     rating: 4.6,
     reviewCount: 134,
     trips: 92,
@@ -197,12 +197,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 8 Lux",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
+    image: "https://autovinfast.com.vn/wp-content/uploads/2024/07/vinfast-vf-8-240723-c-02.jpg",
     batteryLevel: 94,
     location: "Trạm Trung Tâm",
     availability: "available",
-    pricePerHour: 575000, // 25 USD
-    pricePerDay: 4600000, // 200 USD
+    pricePerHour: 575000,
+    pricePerDay: 4600000,
     rating: 4.9,
     reviewCount: 156,
     trips: 89,
@@ -224,12 +224,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 8 Plus",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
+    image: "https://vinfast3sthanhhoa.com/wp-content/uploads/2022/01/z3665722408589_a822343b173de28690d528ca318d27f4.jpg", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 87,
     location: "Trạm Quận 5",
     availability: "available",
-    pricePerHour: 506000, // 22 USD
-    pricePerDay: 4025000, // 175 USD
+    pricePerHour: 506000,
+    pricePerDay: 4025000,
     rating: 4.8,
     reviewCount: 203,
     trips: 134,
@@ -251,12 +251,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 9 Eco",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800&h=600&fit=crop&crop=center",
+    image: "https://vinfastthanhhoa.net/wp-content/uploads/2024/03/vinfast-vf9-eco-6.jpg", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 92,
     location: "Trạm Quận 4",
     availability: "available",
-    pricePerHour: 552000, // 24 USD
-    pricePerDay: 4255000, // 185 USD
+    pricePerHour: 552000,
+    pricePerDay: 4255000,
     rating: 4.7,
     reviewCount: 98,
     trips: 67,
@@ -278,12 +278,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 9 Plus",
     type: "SUV",
-    image: "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800&h=600&fit=crop&crop=center",
+    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2022/08/Do-Plus-min-1.png",
     batteryLevel: 90,
     location: "Trạm Quận 8",
     availability: "available",
-    pricePerHour: 598000, // 26 USD
-    pricePerDay: 4830000, // 210 USD
+    pricePerHour: 598000,
+    pricePerDay: 4830000,
     rating: 4.8,
     reviewCount: 76,
     trips: 45,
@@ -305,12 +305,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Motio",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://laixuanthinh.com/wp-content/uploads/2025/01/vinfast-motio.webp", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 96,
     location: "Trạm Quận 1",
     availability: "available",
-    pricePerHour: 92000, // 4 USD
-    pricePerDay: 460000, // 20 USD
+    pricePerHour: 92000,
+    pricePerDay: 460000,
     rating: 4.5,
     reviewCount: 234,
     trips: 456,
@@ -332,12 +332,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "EvoGrand Lite",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://bizweb.dktcdn.net/100/514/954/products/bar.png?v=1753376448643",
     batteryLevel: 88,
     location: "Trạm Quận 7",
     availability: "available",
-    pricePerHour: 115000, // 5 USD
-    pricePerDay: 575000, // 25 USD
+    pricePerHour: 115000,
+    pricePerDay: 575000,
     rating: 4.6,
     reviewCount: 189,
     trips: 267,
@@ -359,12 +359,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Lite Neo",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwcad6f891/images/PDP-XMD/evoliteneo/img-top-evoliteneo-white-sp.webp",
     batteryLevel: 92,
     location: "Trạm Sân Bay",
     availability: "available",
-    pricePerHour: 103500, // 4.5 USD
-    pricePerDay: 506000, // 22 USD
+    pricePerHour: 103500,
+    pricePerDay: 506000,
     rating: 4.4,
     reviewCount: 156,
     trips: 203,
@@ -386,12 +386,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200 Lite",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwba20f6df/images/PDP-XMD/evo200-lite/img-evo-red.png",
     batteryLevel: 85,
     location: "Trạm Bình Thạnh",
     availability: "available",
-    pricePerHour: 138000, // 6 USD
-    pricePerDay: 690000, // 30 USD
+    pricePerHour: 138000,
+    pricePerDay: 690000,
     rating: 4.7,
     reviewCount: 134,
     trips: 178,
@@ -413,12 +413,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz 2025",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://vinfastecoxe.vn/wp-content/uploads/2025/09/6.png",
     batteryLevel: 94,
     location: "Trạm Thủ Đức",
     availability: "available",
-    pricePerHour: 184000, // 8 USD
-    pricePerDay: 920000, // 40 USD
+    pricePerHour: 184000,
+    pricePerDay: 920000,
     rating: 4.8,
     reviewCount: 89,
     trips: 67,
@@ -440,12 +440,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "EvoGrand",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://i1-vnexpress.vnecdn.net/2025/07/28/Evo-Grand-Lite-1-1753675297.jpg?w=750&h=0&q=100&dpr=1&fit=crop&s=fJkJPNxDqw9kKs0w3575pQ",
     batteryLevel: 91,
     location: "Trạm Quận 2",
     availability: "available",
-    pricePerHour: 161000, // 7 USD
-    pricePerDay: 805000, // 35 USD
+    pricePerHour: 161000,
+    pricePerDay: 805000,
     rating: 4.9,
     reviewCount: 145,
     trips: 89,
@@ -467,12 +467,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Neo",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://product.hstatic.net/200001005978/product/screen_shot_2025-05-22_at_15.19.22_00eae0c82e6b49ceba8c3fe2d655183d.png",
     batteryLevel: 87,
     location: "Trạm Quận 3",
     availability: "available",
-    pricePerHour: 126500, // 5.5 USD
-    pricePerDay: 644000, // 28 USD
+    pricePerHour: 126500,
+    pricePerDay: 644000,
     rating: 4.6,
     reviewCount: 178,
     trips: 134,
@@ -494,12 +494,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Klara Neo",
     type: "Scooter",
-    image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=600&fit=crop&crop=center",
+    image: "https://xehoadiep.vn/uploads/san-pham/Xe_may_dien/vinfast/klra/xe-may-dien-vinfast-klara-s-2022-reu.jpg",
     batteryLevel: 93,
     location: "Trạm Quận 5",
     availability: "available",
-    pricePerHour: 149500, // 6.5 USD
-    pricePerDay: 736000, // 32 USD
+    pricePerHour: 149500,
+    pricePerDay: 736000,
     rating: 4.7,
     reviewCount: 123,
     trips: 95,
@@ -521,12 +521,12 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Vento Neo",
     type: "Scooter",
-    image: "https://xedienvietthanh.com/wp-content/uploads/2025/03/xe-may-dien-vinfast-vento-neo-mau-xam-xi-mang.jpg",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4ee00902/images/PDP-XMD/ventoneo/img-top-ventoneo-yellow-sp.webp",
     batteryLevel: 89,
     location: "Trạm Quận 4",
     availability: "available",
-    pricePerHour: 115000, // 5 USD
-    pricePerDay: 575000, // 25 USD
+    pricePerHour: 115000,
+    pricePerDay: 575000,
     rating: 4.5,
     reviewCount: 167,
     trips: 112,
