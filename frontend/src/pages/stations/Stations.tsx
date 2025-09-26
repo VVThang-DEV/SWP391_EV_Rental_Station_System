@@ -17,16 +17,20 @@ const Stations = () => {
     <PageTransition>
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <FadeIn delay={100}>
+        <FadeIn>
           <div className="bg-gradient-hero py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Our Station Locations
-              </h1>
-              <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Find convenient pickup and drop-off locations throughout the
-                city
-              </p>
+              <SlideIn direction="top" delay={100}>
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                  Our Station Locations
+                </h1>
+              </SlideIn>
+              <SlideIn direction="top" delay={200}>
+                <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+                  Find convenient pickup and drop-off locations throughout the
+                  city
+                </p>
+              </SlideIn>
             </div>
           </div>
         </FadeIn>

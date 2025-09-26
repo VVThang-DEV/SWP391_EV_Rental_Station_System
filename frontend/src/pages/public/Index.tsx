@@ -75,6 +75,7 @@ const Index = ({ user }: IndexProps) => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStation, setSelectedStation] = useState<string>("");
   const [locationOpen, setLocationOpen] = useState(false);
+  const [locationHovered, setLocationHovered] = useState(false);
 
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ const Index = ({ user }: IndexProps) => {
   // Create location suggestions from stations
   const locationSuggestions = stations.map((station) => ({
     value: station.name,
-    label: `${station.name} - ${station.address}, ${station.city}`,
+    label: `${station.name}`,
     station: station,
   }));
 
@@ -149,9 +150,21 @@ const Index = ({ user }: IndexProps) => {
               <form onSubmit={handleSearch} className="flex-1">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
                   <div className="relative">
-                    <Popover open={locationOpen} onOpenChange={setLocationOpen}>
+                    <Popover
+                      open={locationOpen || locationHovered}
+                      onOpenChange={(open) => {
+                        if (!open && !locationHovered) {
+                          setLocationOpen(false);
+                        } else if (open) {
+                          setLocationOpen(true);
+                        }
+                      }}
+                    >
                       <PopoverTrigger asChild>
-                        <div className="relative">
+                        <div
+                          className="relative cursor-pointer"
+                          onClick={() => setLocationOpen(!locationOpen)}
+                        >
                           <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
                           <Input
                             placeholder={t("common.pickupLocation")}
@@ -159,10 +172,16 @@ const Index = ({ user }: IndexProps) => {
                             onChange={(e) => setSearchLocation(e.target.value)}
                             className="pl-10 h-11 text-black"
                             onFocus={() => setLocationOpen(true)}
+                            onClick={() => setLocationOpen(true)}
                           />
                         </div>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[400px] p-0" align="start">
+                      <PopoverContent
+                        className="w-[400px] p-0"
+                        align="start"
+                        onMouseEnter={() => setLocationHovered(true)}
+                        onMouseLeave={() => setLocationHovered(false)}
+                      >
                         <Command>
                           <CommandInput
                             placeholder={t("common.searchLocations")}
@@ -187,6 +206,7 @@ const Index = ({ user }: IndexProps) => {
                                     onSelect={() => {
                                       setSearchLocation(location.label);
                                       setLocationOpen(false);
+                                      setLocationHovered(false);
                                     }}
                                   >
                                     <Check
@@ -539,7 +559,7 @@ const Index = ({ user }: IndexProps) => {
     <PageTransition>
       <div className="min-h-screen bg-background">
         {/* Hero Section */}
-        <FadeIn delay={100}>
+        <FadeIn>
           <section className="relative bg-gradient-hero overflow-hidden">
             <div className="absolute inset-0">
               <img
@@ -552,12 +572,16 @@ const Index = ({ user }: IndexProps) => {
 
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
               <div className="text-center text-white">
-                <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                  {t("common.heroTitle")}
-                </h1>
-                <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto">
-                  {t("common.heroSubtitle")}
-                </p>
+                <SlideIn direction="top" delay={100}>
+                  <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                    {t("common.heroTitle")}
+                  </h1>
+                </SlideIn>
+                <SlideIn direction="top" delay={200}>
+                  <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto">
+                    {t("common.heroSubtitle")}
+                  </p>
+                </SlideIn>
 
                 {/* Search Bar */}
                 <div className="max-w-2xl mx-auto mb-8">
@@ -587,30 +611,38 @@ const Index = ({ user }: IndexProps) => {
 
                 {/* Quick Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">50+</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.electricVehicles")}
+                  <FadeIn delay={300}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">50+</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.electricVehicles")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">8</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.chargingStations")}
+                  </FadeIn>
+                  <FadeIn delay={400}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">8</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.chargingStations")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">24/7</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.support")}
+                  </FadeIn>
+                  <FadeIn delay={500}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">24/7</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.support")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-2xl font-bold">4.9</div>
-                    <div className="text-sm text-white/80">
-                      {t("common.userRating")}
+                  </FadeIn>
+                  <FadeIn delay={600}>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                      <div className="text-2xl font-bold">4.9</div>
+                      <div className="text-sm text-white/80">
+                        {t("common.userRating")}
+                      </div>
                     </div>
-                  </div>
+                  </FadeIn>
                 </div>
               </div>
             </div>

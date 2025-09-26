@@ -34,16 +34,20 @@ const HowItWorks = () => {
     <PageTransition>
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <FadeIn delay={100}>
+        <FadeIn>
           <div className="bg-gradient-hero py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                How It Works
-              </h1>
-              <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Renting an electric vehicle has never been easier. Get started
-                in just 3 simple steps.
-              </p>
+              <SlideIn direction="top" delay={100}>
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                  How It Works
+                </h1>
+              </SlideIn>
+              <SlideIn direction="top" delay={200}>
+                <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+                  Renting an electric vehicle has never been easier. Get started
+                  in just 3 simple steps.
+                </p>
+              </SlideIn>
             </div>
           </div>
         </FadeIn>
