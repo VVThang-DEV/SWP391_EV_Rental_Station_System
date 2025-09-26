@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -7,6 +8,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -18,8 +28,18 @@ import {
   Download,
   Mail,
   Clock,
+  Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+interface CardFormData {
+  cardNumber: string;
+  expiryMonth: string;
+  expiryYear: string;
+  cvv: string;
+  cardholderName: string;
+}
+
 
 interface PaymentSystemProps {
   amount: number;
@@ -31,6 +51,7 @@ interface PaymentSystemProps {
   };
   onPaymentComplete: (paymentData: PaymentData) => void;
   paymentMethod?: "qr_code" | "cash" | "card";
+  onBack?: () => void;
 }
 
 interface PaymentData {
@@ -42,12 +63,14 @@ interface PaymentData {
   receiptSent: boolean;
 }
 
+
 const PaymentSystem = ({
   amount,
   bookingId,
   customerInfo,
   onPaymentComplete,
   paymentMethod = "qr_code",
+  onBack,
 }: PaymentSystemProps) => {
   const [currentMethod, setCurrentMethod] = useState(paymentMethod);
   const [paymentStatus, setPaymentStatus] = useState<
@@ -56,7 +79,16 @@ const PaymentSystem = ({
   const [qrCodeData, setQrCodeData] = useState("");
   const [paymentTimer, setPaymentTimer] = useState(300); // 5 minutes
   const { toast } = useToast();
+  const navigate = useNavigate();
 
+  const [cardForm, setCardForm] = useState<CardFormData>({
+    cardNumber: "",
+    expiryMonth: "",
+    expiryYear: "",
+    cvv: "",
+    cardholderName: "",
+  });
+  const [cardErrors, setCardErrors] = useState<Partial<CardFormData>>({});
   // Generate QR code data (mock)
   useEffect(() => {
     if (currentMethod === "qr_code") {
@@ -193,6 +225,81 @@ Thank you for choosing EVRentals!
     a.download = `receipt_${bookingId}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const validateCardForm = (): boolean => {
+    const errors: Partial<CardFormData> = {};
+
+    if (!cardForm.cardNumber || cardForm.cardNumber.replace(/\s/g, "").length !== 16) {
+      errors.cardNumber = "Số thẻ phải có 16 chữ số";
+    }
+
+    if (!cardForm.expiryMonth) {
+      errors.expiryMonth = "Vui lòng chọn tháng";
+    }
+
+    if (!cardForm.expiryYear) {
+      errors.expiryYear = "Vui lòng chọn năm";
+    }
+
+    if (!cardForm.cvv || cardForm.cvv.length !== 3) {
+      errors.cvv = "CVV phải có 3 chữ số";
+    }
+
+    if (!cardForm.cardholderName.trim()) {
+      errors.cardholderName = "Vui lòng nhập tên chủ thẻ";
+    }
+
+    setCardErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
+    const matches = v.match(/\d{4,16}/g);
+    const match = matches && matches[0] || "";
+    const parts = [];
+
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+
+    if (parts.length) {
+      return parts.join(" ");
+    } else {
+      return v;
+    }
+  };
+
+  const handleCardInputChange = (field: keyof CardFormData, value: string) => {
+    let formattedValue = value;
+
+    if (field === "cardNumber") {
+      formattedValue = formatCardNumber(value);
+    } else if (field === "cvv") {
+      formattedValue = value.replace(/\D/g, "").substring(0, 3);
+    }
+
+    setCardForm(prev => ({
+      ...prev,
+      [field]: formattedValue
+    }));
+
+    if (cardErrors[field]) {
+      setCardErrors(prev => ({
+        ...prev,
+        [field]: undefined
+      }));
+    }
+  };
+
+  const generateYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = 0; i < 10; i++) {
+      years.push(currentYear + i);
+    }
+    return years;
   };
 
   const renderQRPayment = () => (
@@ -342,40 +449,152 @@ Thank you for choosing EVRentals!
   );
 
   const renderCardPayment = () => (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="flex items-center justify-center space-x-2">
-          <CreditCard className="h-6 w-6" />
-          <span>Card Payment</span>
-        </CardTitle>
-        <CardDescription>
-          Pay securely with your credit or debit card
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="p-4 border rounded-lg">
-          <p className="text-sm text-muted-foreground">
-            Card payment integration would be implemented here with a payment
-            processor like Stripe or PayPal.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="flex items-center justify-center space-x-2">
+            <CreditCard className="h-6 w-6" />
+            <span>Card Payment</span>
+          </CardTitle>
+          <CardDescription>
+            Pay securely with your credit or debit card
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            {/* Card Number */}
+            <div className="space-y-2">
+              <Label htmlFor="cardNumber">Số thẻ</Label>
+              <Input
+                id="cardNumber"
+                type="text"
+                placeholder="1234 5678 9012 3456"
+                value={cardForm.cardNumber}
+                onChange={(e) => handleCardInputChange("cardNumber", e.target.value)}
+                maxLength={19}
+                className={cardErrors.cardNumber ? "border-red-500" : ""}
+              />
+              {cardErrors.cardNumber && (
+                <p className="text-sm text-red-500">{cardErrors.cardNumber}</p>
+              )}
+            </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span>Amount:</span>
-            <span className="font-bold">${amount.toFixed(2)}</span>
+            {/* Loại thẻ */}
+            <div className="space-y-2">
+              <Label>Loại thẻ</Label>
+              <div className="flex space-x-2">
+                <Badge variant="outline">💳 VISA</Badge>
+                <Badge variant="outline">💳 Mastercard</Badge>
+              </div>
+            </div>
+
+            {/* Expiry Date and CVV */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Ngày hết hạn</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Select
+                    value={cardForm.expiryMonth}
+                    onValueChange={(value) => handleCardInputChange("expiryMonth", value)}
+                  >
+                    <SelectTrigger className={cardErrors.expiryMonth ? "border-red-500" : ""}>
+                      <SelectValue placeholder="MM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                        <SelectItem key={month} value={month.toString().padStart(2, '0')}>
+                          {month.toString().padStart(2, '0')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={cardForm.expiryYear}
+                    onValueChange={(value) => handleCardInputChange("expiryYear", value)}
+                  >
+                    <SelectTrigger className={cardErrors.expiryYear ? "border-red-500" : ""}>
+                      <SelectValue placeholder="YYYY" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateYears().map(year => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(cardErrors.expiryMonth || cardErrors.expiryYear) && (
+                  <p className="text-sm text-red-500">
+                    {cardErrors.expiryMonth || cardErrors.expiryYear}
+                  </p>
+                )}
+              </div>
+
+              
+
+              <div className="space-y-2">
+                 <Label htmlFor="cvv">Mã số bảo mật</Label>
+                <Input
+                  id="cvv"
+                  type="password"
+                  placeholder="123"
+                  value={cardForm.cvv}
+                  onChange={(e) => handleCardInputChange("cvv", e.target.value)}
+                  maxLength={3}
+                  className={cardErrors.cvv ? "border-red-500" : ""}
+                />
+                {cardErrors.cvv && (
+                  <p className="text-sm text-red-500">{cardErrors.cvv}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Cardholder Name */}
+            <div className="space-y-2">
+              <Label htmlFor="cardholderName">Tên chủ thẻ</Label>
+              <Input
+                id="cardholderName"
+                type="text"
+                placeholder="Nhập tên như trên thẻ"
+                value={cardForm.cardholderName}
+                onChange={(e) => handleCardInputChange("cardholderName", e.target.value)}
+                className={cardErrors.cardholderName ? "border-red-500" : ""}
+              />
+              {cardErrors.cardholderName && (
+                <p className="text-sm text-red-500">{cardErrors.cardholderName}</p>
+              )}
+            </div>
           </div>
-        </div>
 
-        <Button
-          className="w-full"
-          onClick={processPayment}
-          disabled={paymentStatus === "processing"}
-        >
-          {paymentStatus === "processing" ? "Processing..." : "Pay Now"}
-        </Button>
-      </CardContent>
-    </Card>
+          <Separator />
+
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Amount:</span>
+              <span className="font-bold text-lg">${amount.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <Lock className="h-4 w-4" />
+            <span>Thông tin thẻ được bảo mật và mã hóa</span>
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={() => {
+              if (validateCardForm()) {
+                processPayment();
+              }
+            }}
+            disabled={paymentStatus === "processing"}
+          >
+            {paymentStatus === "processing" ? "Đang xử lý..." : "Pay Now"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 
   return (
@@ -383,9 +602,23 @@ Thank you for choosing EVRentals!
       {/* Payment Method Selection */}
       {paymentStatus === "idle" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex items-center justify-between">
             <CardTitle>Select Payment Method</CardTitle>
+            <Button
+              variant="outline"
+              aria-label="Back to information"
+              onClick={() => {
+                if (typeof onBack === "function") {
+                  onBack();
+                } else {
+                  navigate(-1);
+                }
+              }}
+            >
+              Back to Information
+            </Button>
           </CardHeader>
+
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Button
