@@ -137,7 +137,13 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
       title: t("register.welcome"),
       description: t("register.accountCreated"),
     });
-    navigate("/dashboard");
+    // Navigate to personal info update instead of dashboard
+    navigate("/personal-info-update", {
+      state: {
+        fromRegistration: true,
+        user: userData,
+      },
+    });
   };
 
   const handleBackToForm = () => {
@@ -182,7 +188,7 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
       }
       case "phone": {
         // chuẩn hóa: loại bỏ khoảng trắng và dấu gạch
-        const normalized = value.replace(/[\s\-\.()]/g, "");
+        const normalized = value.replace(/[\s\-.()]/g, "");
         if (!normalized) return "Số điện thoại không được để trống.";
         if (!phoneRegex.test(normalized))
           return "Số điện thoại không hợp lệ. Ví dụ: 0912345678 hoặc +84912345678";
@@ -221,7 +227,7 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
   };
 
   const handleBlur = (field: keyof typeof errors) => {
-    const message = validateField(field, (formData as any)[field] as string);
+    const message = validateField(field, formData[field] as string);
     setErrors((prev) => ({ ...prev, [field]: message }));
   };
 

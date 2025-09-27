@@ -4,7 +4,9 @@ import { vietnameseVehicles } from "./vietnamese-vehicles";
 // English vehicle data
 const englishVehicles: Vehicle[] = [
   {
-    id: "1",
+    id: "VF8-ST1-001", // Unique instance ID: Model-Station-Instance
+    modelId: "VF8", // Model identifier
+    uniqueVehicleId: "VN1ABCDE123456789", // VIN or unique physical ID
     name: "VinFast VF8",
     year: 2023,
     brand: "VinFast",
@@ -14,6 +16,7 @@ const englishVehicles: Vehicle[] = [
       "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
     batteryLevel: 90,
     location: "District 1 Station",
+    stationId: "st1", // Links to station ID
     availability: "available",
     pricePerHour: 15,
     pricePerDay: 120,
@@ -24,22 +27,50 @@ const englishVehicles: Vehicle[] = [
     seats: 5,
     features: ["Premium Sound", "Autopilot", "Fast Charging", "Leather Seats"],
     condition: "excellent",
-
     lastMaintenance: "2024-01-08",
-
     mileage: 12850,
-
     fuelEfficiency: "150 kWh/100km",
-
     inspectionDate: "2024-01-12",
-
     insuranceExpiry: "2024-11-30",
-
     description:
       "Experience luxury electric driving with the VinFast VF8. This premium SUV offers exceptional range and cutting-edge technology for your journey.",
   },
   {
-    id: "2",
+    id: "VF8-ST2-001", // Another VF8 at different station
+    modelId: "VF8",
+    uniqueVehicleId: "VN1ABCDE123456790",
+    name: "VinFast VF8",
+    year: 2023,
+    brand: "VinFast",
+    model: "VF8",
+    type: "SUV",
+    image:
+      "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 85,
+    location: "District 7 Station",
+    stationId: "st2",
+    availability: "available",
+    pricePerHour: 15,
+    pricePerDay: 120,
+    rating: 4.7,
+    reviewCount: 89,
+    trips: 45,
+    range: 420,
+    seats: 5,
+    features: ["Premium Sound", "Autopilot", "Fast Charging", "Leather Seats"],
+    condition: "excellent",
+    lastMaintenance: "2024-01-10",
+    mileage: 8750,
+    fuelEfficiency: "150 kWh/100km",
+    inspectionDate: "2024-01-15",
+    insuranceExpiry: "2024-11-30",
+    description:
+      "Experience luxury electric driving with the VinFast VF8. This premium SUV offers exceptional range and cutting-edge technology for your journey.",
+  },
+  {
+    id: "MODEL3-ST2-001",
+    modelId: "MODEL3",
+    uniqueVehicleId: "5YJ3E1EA4MF123456",
     name: "Tesla Model 3",
     year: 2022,
     brand: "Tesla",
@@ -49,6 +80,7 @@ const englishVehicles: Vehicle[] = [
       "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=800&h=600&fit=crop&crop=center",
     batteryLevel: 85,
     location: "District 7 Station",
+    stationId: "st2",
     availability: "available",
     pricePerHour: 18,
     pricePerDay: 150,
@@ -64,22 +96,55 @@ const englishVehicles: Vehicle[] = [
       "Over-the-Air Updates",
     ],
     condition: "good",
-
     lastMaintenance: "2024-01-05",
-
     mileage: 8500,
-
     fuelEfficiency: "140 kWh/100km",
-
     inspectionDate: "2024-01-10",
-
     insuranceExpiry: "2024-10-15",
-
     description:
       "The iconic Tesla Model 3 delivers unmatched performance and efficiency. Perfect for both city driving and long-distance trips.",
   },
   {
-    id: "3",
+    id: "MODEL3-ST1-001", // Another Model 3 at different station
+    modelId: "MODEL3",
+    uniqueVehicleId: "5YJ3E1EA4MF123457",
+    name: "Tesla Model 3",
+    year: 2022,
+    brand: "Tesla",
+    model: "Model 3",
+    type: "Sedan",
+    image:
+      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=800&h=600&fit=crop&crop=center",
+    batteryLevel: 92,
+    location: "District 1 Station",
+    stationId: "st1",
+    availability: "available",
+    pricePerHour: 18,
+    pricePerDay: 150,
+    rating: 4.8,
+    reviewCount: 198,
+    trips: 87,
+    range: 358,
+    seats: 5,
+    features: [
+      "Autopilot",
+      "Supercharging",
+      "Premium Interior",
+      "Over-the-Air Updates",
+    ],
+    condition: "excellent",
+    lastMaintenance: "2024-01-12",
+    mileage: 6200,
+    fuelEfficiency: "140 kWh/100km",
+    inspectionDate: "2024-01-18",
+    insuranceExpiry: "2024-10-15",
+    description:
+      "The iconic Tesla Model 3 delivers unmatched performance and efficiency. Perfect for both city driving and long-distance trips.",
+  },
+  {
+    id: "KONA-ST3-001",
+    modelId: "KONA",
+    uniqueVehicleId: "KMHC75LHXNA123456",
     name: "Hyundai Kona Electric",
     year: 2023,
     brand: "Hyundai",
@@ -120,6 +185,9 @@ const englishVehicles: Vehicle[] = [
   },
   {
     id: "4",
+    modelId: "BMW_I3",
+    uniqueVehicleId: "WBY8P8C0XK7A12345",
+    stationId: "st1",
     name: "BMW i3",
     year: 2023,
     brand: "BMW",
@@ -160,6 +228,9 @@ const englishVehicles: Vehicle[] = [
   },
   {
     id: "5",
+    modelId: "NISSAN_LEAF",
+    uniqueVehicleId: "1N4AZ1CP1KC123456",
+    stationId: "st2",
     name: "Nissan Leaf",
     year: 2022,
     brand: "Nissan",
