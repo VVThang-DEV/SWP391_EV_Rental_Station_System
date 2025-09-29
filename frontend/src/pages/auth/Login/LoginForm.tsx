@@ -38,8 +38,8 @@ const LoginForm = ({ onLogin }: Props) => {
     setIsLoading(true);
 
     try {
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || "http://localhost:5000";
-      const res = await fetch(`${baseUrl}/auth/admin-login`, {
+      const baseUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5000";
+      const res = await fetch(`${baseUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

@@ -17,11 +17,12 @@ import { Mail, RefreshCcw, ArrowLeft } from "lucide-react";
 
 interface OTPVerificationProps {
   email: string;
-  onVerifySuccess: () => void;
+  onVerifySuccess: (otp?: string) => void;
   onBack: () => void;
   title?: string;
   description?: string;
   onResendOTP?: () => void;
+  mode?: "register" | "forgot-password";
 }
 
 export const OTPVerification = ({
@@ -31,6 +32,7 @@ export const OTPVerification = ({
   title = "Verify Your Email",
   description = "We've sent a 6-digit verification code to your email address.",
   onResendOTP,
+  mode = "register",
 }: OTPVerificationProps) => {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -66,33 +68,26 @@ export const OTPVerification = ({
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await verifyOTPAPI({ email, otp });
-
-      // Mock verification - replace with actual backend integration
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Mock success - in real implementation, check response from backend
-      const isValid = true; // This should come from backend response
-
-      if (isValid) {
-        toast({
-          title: "Verification Successful",
-          description: "Your email has been verified successfully.",
-        });
-        onVerifySuccess();
-      } else {
-        toast({
-          title: "Invalid OTP",
-          description:
-            "The verification code you entered is incorrect. Please try again.",
-          variant: "destructive",
-        });
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const res = await fetch(`${baseUrl}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otpCode: otp }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json?.message || "Invalid OTP");
       }
+
+      toast({
+        title: "Verification Successful",
+        description: "Your email has been verified successfully.",
+      });
+      onVerifySuccess(otp);
     } catch (error) {
       toast({
         title: "Verification Failed",
-        description: "An error occurred during verification. Please try again.",
+        description: (error as any)?.message || "An error occurred during verification. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -108,16 +103,22 @@ export const OTPVerification = ({
     setCountdown(60);
 
     try {
-      // TODO: Replace with actual API call
-      // await resendOTPAPI({ email });
-
-      // Mock resend - replace with actual backend integration
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      if (onResendOTP) {
-        onResendOTP();
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      
+      // Use different endpoint based on mode
+      const endpoint = mode === "forgot-password" ? "/auth/forgot-password" : "/auth/send-otp";
+      
+      const res = await fetch(`${baseUrl}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json?.message || "Failed to resend code");
       }
 
+      onResendOTP?.();
       toast({
         title: "Code Resent",
         description: "A new verification code has been sent to your email.",
