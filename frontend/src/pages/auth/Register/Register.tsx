@@ -3,11 +3,10 @@ import { RegisterProps } from "./types";
 
 const Register = (props: RegisterProps) => {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat p-4"
-      style={{ backgroundImage: "url(/login-bg.jpg)" }}
-    >
-      <RegisterForm {...props} />
+    <div className="login-page">
+      <div className="w-full max-w-md">
+        <RegisterForm {...props} />
+      </div>
     </div>
   );
 };

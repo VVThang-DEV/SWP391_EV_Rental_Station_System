@@ -23,6 +23,7 @@ import {
   Globe,
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
+import DocumentUpload from "@/components/DocumentUpload";
 
 const Settings = () => {
   const { t, language, setLanguage } = useTranslation();
@@ -49,7 +50,7 @@ const Settings = () => {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Tabs defaultValue="profile" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
             <TabsTrigger value="security">{t("settings.security")}</TabsTrigger>
             <TabsTrigger value="notifications">
@@ -57,6 +58,7 @@ const Settings = () => {
             </TabsTrigger>
             <TabsTrigger value="billing">{t("settings.billing")}</TabsTrigger>
             <TabsTrigger value="language">{t("settings.language")}</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -400,6 +402,30 @@ const Settings = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Documents Tab */}
+          <TabsContent value="documents">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FileText className="h-5 w-5 mr-2" />
+                  Upload/Update Identity Documents
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <p className="text-sm text-muted-foreground">
+                    Cập nhật CMND/CCCD và Bằng lái xe của bạn. Tài liệu rõ nét, đầy đủ 4 góc, tối đa 5MB mỗi ảnh.
+                  </p>
+                  <DocumentUpload
+                    onDocumentUpload={() => {}}
+                    requiredDocuments={["driverLicense", "driverLicenseBack", "nationalId"]}
+                    uploadedDocuments={{}}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Language Tab */}

@@ -24,7 +24,6 @@ import { formatCurrency } from "@/lib/currency";
 import { useTranslation } from "@/contexts/TranslationContext";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 import { getVehicleById } from "@/data/vehicles";
-import DocumentUpload from "@/components/DocumentUpload";
 import PaymentSystem from "@/components/PaymentSystem";
 import {
   PageTransition,
@@ -150,9 +149,6 @@ const BookingPage = () => {
     }));
   };
 
-  const [uploadedDocuments, setUploadedDocuments] = useState<
-    Record<string, File>
-  >({});
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
 
   if (!vehicle) {
@@ -171,12 +167,7 @@ const BookingPage = () => {
     );
   }
 
-  const handleDocumentUpload = (documentType: string, file: File) => {
-    setUploadedDocuments((prev) => ({
-      ...prev,
-      [documentType]: file,
-    }));
-  };
+  // Document upload removed from booking page per request
 
   const calculateCost = () => {
     if (!bookingData.startDate || !bookingData.endDate) return 0;
@@ -245,18 +236,7 @@ const BookingPage = () => {
       navigate("/dashboard");
     }
   };
-  const handleDocumentRemove = (documentType: string) => {
-    setUploadedDocuments((prev) => {
-      const newDocs = { ...prev };
-      delete newDocs[documentType];
-      return newDocs;
-    });
-
-    toast({
-      title: "Document removed",
-      description: "You can now upload a new document.",
-    });
-  };
+  // Document removal handler removed with upload section
   const renderBookingDetails = () => (
     <div className="space-y-6">
       {/* Rental Period */}
@@ -415,13 +395,7 @@ const BookingPage = () => {
         </CardContent>
       </Card>
 
-      {/* Document Upload */}
-      <DocumentUpload
-        onDocumentUpload={handleDocumentUpload}
-        requiredDocuments={["driverLicense", "driverLicenseBack", "nationalId"]}
-        uploadedDocuments={uploadedDocuments}
-        onDocumentRemove={handleDocumentRemove}
-      />
+      {/* Document Upload - removed */}
 
       {/* Insurance & Terms */}
       <Card>

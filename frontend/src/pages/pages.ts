@@ -1,6 +1,7 @@
 // Barrel file for pages after reorganization
 export { default as Login } from "./auth/Login/Login";
 export { default as Register } from "./auth/Register";
+export { default as CompleteProfile } from "./profile/CompleteProfile";
 export { default as ForgotPassword } from "./auth/ForgotPassword";
 
 export { default as Dashboard } from "./dashboard/Dashboard";

@@ -12,6 +12,7 @@ import {
   VehicleDetails,
   Login,
   Register,
+  CompleteProfile,
   Dashboard,
   BookingPage,
   Stations,
@@ -30,6 +31,7 @@ import {
   StaffDashboard,
   AdminDashboard,
 } from "./pages/pages";
+import RegisterSuccess from "@/pages/auth/Register/RegisterSuccess";
 
 const queryClient = new QueryClient();
 
@@ -164,6 +166,7 @@ const App = () => {
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/profile/complete" element={<CompleteProfile />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
@@ -171,6 +174,7 @@ const App = () => {
                 <Route path="/about" element={<About />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/safety" element={<Safety />} />
+                <Route path="/register/success" element={<RegisterSuccess />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
