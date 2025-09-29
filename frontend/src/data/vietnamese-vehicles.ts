@@ -2,15 +2,19 @@ import { Vehicle } from "@/components/VehicleCard";
 
 export const vietnameseVehicles: Vehicle[] = [
   {
-    id: "1",
+    id: "VF3-ST1-001",
+    modelId: "VF3",
+    uniqueVehicleId: "VN1ABCDE123456001",
     name: "VinFast VF3",
     year: 2024,
     brand: "VinFast",
     model: "VF3",
     type: "Hatchback",
-    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2023/09/Hong-Phan-min.png",
+    image:
+      "https://vinfastvietnam.com.vn/wp-content/uploads/2023/09/Hong-Phan-min.png",
     batteryLevel: 95,
     location: "Trạm Quận 1",
+    stationId: "st1",
     availability: "available",
     pricePerHour: 184000,
     pricePerDay: 1380000,
@@ -19,25 +23,35 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 45,
     range: 210,
     seats: 4,
-    features: ["Thiết kế nhỏ gọn", "Lái xe đô thị", "Sạc nhanh", "Kết nối thông minh"],
+    features: [
+      "Thiết kế nhỏ gọn",
+      "Lái xe đô thị",
+      "Sạc nhanh",
+      "Kết nối thông minh",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-15",
     mileage: 2500,
     fuelEfficiency: "110 kWh/100km",
     inspectionDate: "2024-01-20",
     insuranceExpiry: "2024-12-31",
-    description: "VinFast VF3 là mẫu xe điện nhỏ gọn hoàn hảo cho việc di chuyển đô thị với hiệu suất tiết kiệm và thiết kế hiện đại."
+    description:
+      "VinFast VF3 là mẫu xe điện nhỏ gọn hoàn hảo cho việc di chuyển đô thị với hiệu suất tiết kiệm và thiết kế hiện đại.",
   },
   {
-    id: "2",
+    id: "VF5-ST2-001",
+    modelId: "VF5",
+    uniqueVehicleId: "VN1ABCDE123456002",
     name: "VinFast VF 5 Plus",
     year: 2024,
     brand: "VinFast",
     model: "VF 5 Plus",
     type: "SUV",
-    image: "https://vinfastquangninh.com.vn/wp-content/uploads/2023/05/CE1W.jpg",
+    image:
+      "https://vinfastquangninh.com.vn/wp-content/uploads/2023/05/CE1W.jpg",
     batteryLevel: 92,
     location: "Trạm Quận 7",
+    stationId: "st2",
     availability: "available",
     pricePerHour: 276000,
     pricePerDay: 2070000,
@@ -46,25 +60,35 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 67,
     range: 285,
     seats: 5,
-    features: ["Nội thất cao cấp", "An toàn tiên tiến", "Sạc không dây", "Điều khiển giọng nói"],
+    features: [
+      "Nội thất cao cấp",
+      "An toàn tiên tiến",
+      "Sạc không dây",
+      "Điều khiển giọng nói",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-12",
     mileage: 3200,
     fuelEfficiency: "125 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-11-30",
-    description: "VinFast VF 5 Plus mang đến sự thoải mái và công nghệ nâng cao cho những cuộc phiêu lưu gia đình."
+    description:
+      "VinFast VF 5 Plus mang đến sự thoải mái và công nghệ nâng cao cho những cuộc phiêu lưu gia đình.",
   },
   {
-    id: "3",
+    id: "VF6-ST3-001",
+    modelId: "VF6",
+    uniqueVehicleId: "VN1ABCDE123456003",
     name: "VinFast VF 6 Eco",
     year: 2024,
     brand: "VinFast",
     model: "VF 6 Eco",
     type: "SUV",
-    image: "https://vinfast3sthanhhoa.com/wp-content/uploads/2023/09/vf6-mau-trang-1-1110x1032-600x600-1.jpg",
+    image:
+      "https://vinfast3sthanhhoa.com/wp-content/uploads/2023/09/vf6-mau-trang-1-1110x1032-600x600-1.jpg",
     batteryLevel: 88,
     location: "Trạm Sân Bay",
+    stationId: "st3",
     availability: "available",
     pricePerHour: 322000,
     pricePerDay: 2415000,
@@ -73,25 +97,35 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 89,
     range: 365,
     seats: 5,
-    features: ["Chế độ Eco", "Thu hồi năng lượng", "Bảng điều khiển thông minh", "Điều hòa không khí"],
+    features: [
+      "Chế độ Eco",
+      "Thu hồi năng lượng",
+      "Bảng điều khiển thông minh",
+      "Điều hòa không khí",
+    ],
     condition: "good",
     lastMaintenance: "2024-01-08",
     mileage: 5600,
     fuelEfficiency: "130 kWh/100km",
     inspectionDate: "2024-01-14",
     insuranceExpiry: "2024-10-15",
-    description: "VinFast VF 6 Eco mang lại hiệu suất đặc biệt và ý thức môi trường."
+    description:
+      "VinFast VF 6 Eco mang lại hiệu suất đặc biệt và ý thức môi trường.",
   },
   {
-    id: "4",
+    id: "VF6-ST4-001",
+    modelId: "VF6",
+    uniqueVehicleId: "VN1ABCDE123456004",
     name: "VinFast VF 6 Plus",
     year: 2024,
     brand: "VinFast",
     model: "VF 6 Plus",
     type: "SUV",
-    image: "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf6-trang.png",
+    image:
+      "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf6-trang.png",
     batteryLevel: 90,
-    location: "Trạm Bình Thạnh",
+    location: "Trạm Quận 3",
+    stationId: "st4",
     availability: "available",
     pricePerHour: 368000,
     pricePerDay: 2760000,
@@ -100,14 +134,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 112,
     range: 380,
     seats: 5,
-    features: ["Gói cao cấp", "Ghế da", "Cửa sổ trời toàn cảnh", "Âm thanh cao cấp"],
+    features: [
+      "Gói cao cấp",
+      "Ghế da",
+      "Cửa sổ trời toàn cảnh",
+      "Âm thanh cao cấp",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-10",
     mileage: 4200,
     fuelEfficiency: "135 kWh/100km",
     inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-10",
-    description: "VinFast VF 6 Plus kết hợp sang trọng và hiệu suất cho những tài xế khó tính."
+    description:
+      "VinFast VF 6 Plus kết hợp sang trọng và hiệu suất cho những tài xế khó tính.",
   },
   {
     id: "5",
@@ -116,7 +156,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 7 Plus",
     type: "SUV",
-    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4c3e07c9/reserves/VF7/exterior/product-CE1M.webp", // 🔄 CẬP NHẬT MỚI
+    image:
+      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4c3e07c9/reserves/VF7/exterior/product-CE1M.webp", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 93,
     location: "Trạm Thủ Đức",
     availability: "available",
@@ -127,14 +168,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 78,
     range: 450,
     seats: 7,
-    features: ["7 chỗ ngồi", "Hỗ trợ lái xe tiên tiến", "Âm thanh cao cấp", "Khả năng mọi thời tiết"],
+    features: [
+      "7 chỗ ngồi",
+      "Hỗ trợ lái xe tiên tiến",
+      "Âm thanh cao cấp",
+      "Khả năng mọi thời tiết",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 3800,
     fuelEfficiency: "140 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-11-25",
-    description: "VinFast VF 7 Plus là SUV gia đình lý tưởng với nội thất rộng rãi và tính năng tiên tiến."
+    description:
+      "VinFast VF 7 Plus là SUV gia đình lý tưởng với nội thất rộng rãi và tính năng tiên tiến.",
   },
   {
     id: "6",
@@ -154,14 +201,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 56,
     range: 420,
     seats: 7,
-    features: ["Chế độ thể thao", "Tinh chỉnh hiệu suất", "Hệ thống treo thể thao", "Ghế đua"],
+    features: [
+      "Chế độ thể thao",
+      "Tinh chỉnh hiệu suất",
+      "Hệ thống treo thể thao",
+      "Ghế đua",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-11",
     mileage: 2900,
     fuelEfficiency: "145 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-10-30",
-    description: "VinFast VF 7 S mang lại hiệu suất thể thao với tính thực tiện thân thiện với gia đình."
+    description:
+      "VinFast VF 7 S mang lại hiệu suất thể thao với tính thực tiện thân thiện với gia đình.",
   },
   {
     id: "7",
@@ -181,14 +234,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 92,
     range: 480,
     seats: 7,
-    features: ["Hiệu suất tối đa", "Chế độ lái Eco", "Màn hình năng lượng", "Công nghệ xanh"],
+    features: [
+      "Hiệu suất tối đa",
+      "Chế độ lái Eco",
+      "Màn hình năng lượng",
+      "Công nghệ xanh",
+    ],
     condition: "good",
     lastMaintenance: "2024-01-09",
     mileage: 6100,
     fuelEfficiency: "125 kWh/100km",
     inspectionDate: "2024-01-15",
     insuranceExpiry: "2024-09-20",
-    description: "VinFast VF 7 Eco tối đa hóa tầm hoạt động và hiệu suất cho các gia đình có ý thức môi trường."
+    description:
+      "VinFast VF 7 Eco tối đa hóa tầm hoạt động và hiệu suất cho các gia đình có ý thức môi trường.",
   },
   {
     id: "8",
@@ -197,7 +256,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 8 Lux",
     type: "SUV",
-    image: "https://autovinfast.com.vn/wp-content/uploads/2024/07/vinfast-vf-8-240723-c-02.jpg",
+    image:
+      "https://autovinfast.com.vn/wp-content/uploads/2024/07/vinfast-vf-8-240723-c-02.jpg",
     batteryLevel: 94,
     location: "Trạm Trung Tâm",
     availability: "available",
@@ -208,14 +268,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 89,
     range: 500,
     seats: 5,
-    features: ["Nội thất sang trọng", "Da cao cấp", "Ghế massage", "Hệ thống âm thanh cao cấp"],
+    features: [
+      "Nội thất sang trọng",
+      "Da cao cấp",
+      "Ghế massage",
+      "Hệ thống âm thanh cao cấp",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-13",
     mileage: 1800,
     fuelEfficiency: "150 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-12-15",
-    description: "VinFast VF 8 Lux đại diện cho đỉnh cao của sự sang trọng và hiệu suất điện."
+    description:
+      "VinFast VF 8 Lux đại diện cho đỉnh cao của sự sang trọng và hiệu suất điện.",
   },
   {
     id: "9",
@@ -224,7 +290,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 8 Plus",
     type: "SUV",
-    image: "https://vinfast3sthanhhoa.com/wp-content/uploads/2022/01/z3665722408589_a822343b173de28690d528ca318d27f4.jpg", // 🔄 CẬP NHẬT MỚI
+    image:
+      "https://vinfast3sthanhhoa.com/wp-content/uploads/2022/01/z3665722408589_a822343b173de28690d528ca318d27f4.jpg", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 87,
     location: "Trạm Quận 5",
     availability: "available",
@@ -235,14 +302,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 134,
     range: 465,
     seats: 5,
-    features: ["Gói nâng cao", "An toàn tiên tiến", "Công nghệ không dây", "Tiện nghi cao cấp"],
+    features: [
+      "Gói nâng cao",
+      "An toàn tiên tiến",
+      "Công nghệ không dây",
+      "Tiện nghi cao cấp",
+    ],
     condition: "good",
     lastMaintenance: "2024-01-07",
     mileage: 7200,
     fuelEfficiency: "145 kWh/100km",
     inspectionDate: "2024-01-13",
     insuranceExpiry: "2024-08-30",
-    description: "VinFast VF 8 Plus cung cấp các tính năng nâng cao và sự thoải mái cho trải nghiệm lái xe cao cấp."
+    description:
+      "VinFast VF 8 Plus cung cấp các tính năng nâng cao và sự thoải mái cho trải nghiệm lái xe cao cấp.",
   },
   {
     id: "10",
@@ -251,7 +324,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 9 Eco",
     type: "SUV",
-    image: "https://vinfastthanhhoa.net/wp-content/uploads/2024/03/vinfast-vf9-eco-6.jpg", // 🔄 CẬP NHẬT MỚI
+    image:
+      "https://vinfastthanhhoa.net/wp-content/uploads/2024/03/vinfast-vf9-eco-6.jpg", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 92,
     location: "Trạm Quận 4",
     availability: "available",
@@ -262,14 +336,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 67,
     range: 520,
     seats: 6,
-    features: ["Ghế thuyền trưởng", "Nội thất rộng rãi", "Công nghệ Eco", "Tiện nghi gia đình"],
+    features: [
+      "Ghế thuyền trưởng",
+      "Nội thất rộng rãi",
+      "Công nghệ Eco",
+      "Tiện nghi gia đình",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-12",
     mileage: 4500,
     fuelEfficiency: "155 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-11-20",
-    description: "VinFast VF 9 Eco 6 chỗ cung cấp sự thoải mái và hiệu suất tối đa cho các gia đình lớn."
+    description:
+      "VinFast VF 9 Eco 6 chỗ cung cấp sự thoải mái và hiệu suất tối đa cho các gia đình lớn.",
   },
   {
     id: "11",
@@ -278,7 +358,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF 9 Plus",
     type: "SUV",
-    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2022/08/Do-Plus-min-1.png",
+    image:
+      "https://vinfastvietnam.com.vn/wp-content/uploads/2022/08/Do-Plus-min-1.png",
     batteryLevel: 90,
     location: "Trạm Quận 8",
     availability: "available",
@@ -289,14 +370,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 45,
     range: 485,
     seats: 7,
-    features: ["Bố trí 7 chỗ", "Tính năng cao cấp", "Công nghệ tiên tiến", "Tiện nghi sang trọng"],
+    features: [
+      "Bố trí 7 chỗ",
+      "Tính năng cao cấp",
+      "Công nghệ tiên tiến",
+      "Tiện nghi sang trọng",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-15",
     mileage: 3100,
     fuelEfficiency: "160 kWh/100km",
     inspectionDate: "2024-01-20",
     insuranceExpiry: "2024-12-05",
-    description: "VinFast VF 9 Plus 7 chỗ là SUV gia đình tối thượng với các tính năng cao cấp và nội thất rộng rãi."
+    description:
+      "VinFast VF 9 Plus 7 chỗ là SUV gia đình tối thượng với các tính năng cao cấp và nội thất rộng rãi.",
   },
   {
     id: "12",
@@ -305,7 +392,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Motio",
     type: "Scooter",
-    image: "https://laixuanthinh.com/wp-content/uploads/2025/01/vinfast-motio.webp", // 🔄 CẬP NHẬT MỚI
+    image:
+      "https://laixuanthinh.com/wp-content/uploads/2025/01/vinfast-motio.webp", // 🔄 CẬP NHẬT MỚI
     batteryLevel: 96,
     location: "Trạm Quận 1",
     availability: "available",
@@ -316,14 +404,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 456,
     range: 65,
     seats: 1,
-    features: ["Kết nối thông minh", "Sạc nhanh", "Màn hình số", "Hệ thống chống trộm"],
+    features: [
+      "Kết nối thông minh",
+      "Sạc nhanh",
+      "Màn hình số",
+      "Hệ thống chống trộm",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 2800,
     fuelEfficiency: "35 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-10-25",
-    description: "VinFast Motio là giải pháp di chuyển đô thị hoàn hảo với các tính năng thông minh và độ tin cậy."
+    description:
+      "VinFast Motio là giải pháp di chuyển đô thị hoàn hảo với các tính năng thông minh và độ tin cậy.",
   },
   {
     id: "13",
@@ -332,7 +426,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "EvoGrand Lite",
     type: "Scooter",
-    image: "https://bizweb.dktcdn.net/100/514/954/products/bar.png?v=1753376448643",
+    image:
+      "https://bizweb.dktcdn.net/100/514/954/products/bar.png?v=1753376448643",
     batteryLevel: 88,
     location: "Trạm Quận 7",
     availability: "available",
@@ -350,7 +445,8 @@ export const vietnameseVehicles: Vehicle[] = [
     fuelEfficiency: "38 kWh/100km",
     inspectionDate: "2024-01-15",
     insuranceExpiry: "2024-09-30",
-    description: "VinFast EvoGrand Lite cung cấp hiệu suất nhẹ và tiện lợi cho việc đi lại trong thành phố."
+    description:
+      "VinFast EvoGrand Lite cung cấp hiệu suất nhẹ và tiện lợi cho việc đi lại trong thành phố.",
   },
   {
     id: "14",
@@ -359,7 +455,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Lite Neo",
     type: "Scooter",
-    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwcad6f891/images/PDP-XMD/evoliteneo/img-top-evoliteneo-white-sp.webp",
+    image:
+      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwcad6f891/images/PDP-XMD/evoliteneo/img-top-evoliteneo-white-sp.webp",
     batteryLevel: 92,
     location: "Trạm Sân Bay",
     availability: "available",
@@ -370,14 +467,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 203,
     range: 68,
     seats: 1,
-    features: ["Thiết kế Neo", "Kích thước nhỏ gọn", "Tính năng thông minh", "Động cơ hiệu quả"],
+    features: [
+      "Thiết kế Neo",
+      "Kích thước nhỏ gọn",
+      "Tính năng thông minh",
+      "Động cơ hiệu quả",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-12",
     mileage: 3500,
     fuelEfficiency: "36 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-11-15",
-    description: "VinFast Evo Lite Neo kết hợp thiết kế hiện đại với chức năng thực tiễn cho người lái đô thị."
+    description:
+      "VinFast Evo Lite Neo kết hợp thiết kế hiện đại với chức năng thực tiễn cho người lái đô thị.",
   },
   {
     id: "15",
@@ -386,7 +489,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200 Lite",
     type: "Scooter",
-    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwba20f6df/images/PDP-XMD/evo200-lite/img-evo-red.png",
+    image:
+      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwba20f6df/images/PDP-XMD/evo200-lite/img-evo-red.png",
     batteryLevel: 85,
     location: "Trạm Bình Thạnh",
     availability: "available",
@@ -397,14 +501,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 178,
     range: 85,
     seats: 1,
-    features: ["Động cơ 200W", "Tầm hoạt động mở rộng", "Bảng điều khiển thông minh", "Sạc nhanh"],
+    features: [
+      "Động cơ 200W",
+      "Tầm hoạt động mở rộng",
+      "Bảng điều khiển thông minh",
+      "Sạc nhanh",
+    ],
     condition: "good",
     lastMaintenance: "2024-01-08",
     mileage: 5100,
     fuelEfficiency: "42 kWh/100km",
     inspectionDate: "2024-01-13",
     insuranceExpiry: "2024-08-20",
-    description: "VinFast Evo200 Lite mang lại sức mạnh và tầm hoạt động nâng cao cho các chuyến đi dài hơn."
+    description:
+      "VinFast Evo200 Lite mang lại sức mạnh và tầm hoạt động nâng cao cho các chuyến đi dài hơn.",
   },
   {
     id: "16",
@@ -424,14 +534,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 67,
     range: 120,
     seats: 1,
-    features: ["Mẫu 2025", "Công nghệ mới nhất", "Thiết kế cao cấp", "An toàn tiên tiến"],
+    features: [
+      "Mẫu 2025",
+      "Công nghệ mới nhất",
+      "Thiết kế cao cấp",
+      "An toàn tiên tiến",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-16",
     mileage: 1200,
     fuelEfficiency: "40 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2025-01-15",
-    description: "VinFast Feliz 2025 đại diện cho tương lai của xe tay ga điện với công nghệ tiên tiến."
+    description:
+      "VinFast Feliz 2025 đại diện cho tương lai của xe tay ga điện với công nghệ tiên tiến.",
   },
   {
     id: "17",
@@ -440,7 +556,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "EvoGrand",
     type: "Scooter",
-    image: "https://i1-vnexpress.vnecdn.net/2025/07/28/Evo-Grand-Lite-1-1753675297.jpg?w=750&h=0&q=100&dpr=1&fit=crop&s=fJkJPNxDqw9kKs0w3575pQ",
+    image:
+      "https://i1-vnexpress.vnecdn.net/2025/07/28/Evo-Grand-Lite-1-1753675297.jpg?w=750&h=0&q=100&dpr=1&fit=crop&s=fJkJPNxDqw9kKs0w3575pQ",
     batteryLevel: 91,
     location: "Trạm Quận 2",
     availability: "available",
@@ -451,14 +568,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 89,
     range: 110,
     seats: 1,
-    features: ["Hiệu suất vượt trội", "Chế tạo cao cấp", "Tính năng tiên tiến", "Tầm hoạt động dài"],
+    features: [
+      "Hiệu suất vượt trội",
+      "Chế tạo cao cấp",
+      "Tính năng tiên tiến",
+      "Tầm hoạt động dài",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-11",
     mileage: 2600,
     fuelEfficiency: "45 kWh/100km",
     inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-20",
-    description: "VinFast EvoGrand cung cấp hiệu suất và tính năng cao cấp cho những người lái khó tính."
+    description:
+      "VinFast EvoGrand cung cấp hiệu suất và tính năng cao cấp cho những người lái khó tính.",
   },
   {
     id: "18",
@@ -467,7 +590,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Neo",
     type: "Scooter",
-    image: "https://product.hstatic.net/200001005978/product/screen_shot_2025-05-22_at_15.19.22_00eae0c82e6b49ceba8c3fe2d655183d.png",
+    image:
+      "https://product.hstatic.net/200001005978/product/screen_shot_2025-05-22_at_15.19.22_00eae0c82e6b49ceba8c3fe2d655183d.png",
     batteryLevel: 87,
     location: "Trạm Quận 3",
     availability: "available",
@@ -478,14 +602,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 134,
     range: 90,
     seats: 1,
-    features: ["Công nghệ Neo", "Kết nối thông minh", "Thiết kế hiệu quả", "Thân thiện người dùng"],
+    features: [
+      "Công nghệ Neo",
+      "Kết nối thông minh",
+      "Thiết kế hiệu quả",
+      "Thân thiện người dùng",
+    ],
     condition: "good",
     lastMaintenance: "2024-01-09",
     mileage: 4800,
     fuelEfficiency: "39 kWh/100km",
     inspectionDate: "2024-01-14",
     insuranceExpiry: "2024-09-10",
-    description: "VinFast Evo Neo mang công nghệ thế hệ tiếp theo đến việc đi lại hàng ngày."
+    description:
+      "VinFast Evo Neo mang công nghệ thế hệ tiếp theo đến việc đi lại hàng ngày.",
   },
   {
     id: "19",
@@ -494,7 +624,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Klara Neo",
     type: "Scooter",
-    image: "https://xehoadiep.vn/uploads/san-pham/Xe_may_dien/vinfast/klra/xe-may-dien-vinfast-klara-s-2022-reu.jpg",
+    image:
+      "https://xehoadiep.vn/uploads/san-pham/Xe_may_dien/vinfast/klra/xe-may-dien-vinfast-klara-s-2022-reu.jpg",
     batteryLevel: 93,
     location: "Trạm Quận 5",
     availability: "available",
@@ -505,14 +636,20 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 95,
     range: 95,
     seats: 1,
-    features: ["Thiết kế Klara", "Phong cách thanh lịch", "Hiệu suất mượt mà", "Tính năng thông minh"],
+    features: [
+      "Thiết kế Klara",
+      "Phong cách thanh lịch",
+      "Hiệu suất mượt mà",
+      "Tính năng thông minh",
+    ],
     condition: "excellent",
     lastMaintenance: "2024-01-13",
     mileage: 3200,
     fuelEfficiency: "41 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-11-08",
-    description: "VinFast Klara Neo kết hợp thiết kế thanh lịch với hiệu suất đáng tin cậy cho người lái hiện đại."
+    description:
+      "VinFast Klara Neo kết hợp thiết kế thanh lịch với hiệu suất đáng tin cậy cho người lái hiện đại.",
   },
   {
     id: "20",
@@ -521,7 +658,8 @@ export const vietnameseVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Vento Neo",
     type: "Scooter",
-    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4ee00902/images/PDP-XMD/ventoneo/img-top-ventoneo-yellow-sp.webp",
+    image:
+      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4ee00902/images/PDP-XMD/ventoneo/img-top-ventoneo-yellow-sp.webp",
     batteryLevel: 89,
     location: "Trạm Quận 4",
     availability: "available",
@@ -532,13 +670,19 @@ export const vietnameseVehicles: Vehicle[] = [
     trips: 112,
     range: 78,
     seats: 1,
-    features: ["Thiết kế Neo nhỏ gọn", "Dễ cất giữ", "Sạc nhanh", "Hoàn hảo cho thành phố"],
+    features: [
+      "Thiết kế Neo nhỏ gọn",
+      "Dễ cất giữ",
+      "Sạc nhanh",
+      "Hoàn hảo cho thành phố",
+    ],
     condition: "good",
     lastMaintenance: "2024-01-10",
     mileage: 4500,
     fuelEfficiency: "37 kWh/100km",
     inspectionDate: "2024-01-15",
     insuranceExpiry: "2024-10-12",
-    description: "VinFast Vento Neo là giải pháp nhỏ gọn hoàn hảo cho việc di chuyển đô thị với các tính năng thực tế."
-  }
+    description:
+      "VinFast Vento Neo là giải pháp nhỏ gọn hoàn hảo cho việc di chuyển đô thị với các tính năng thực tế.",
+  },
 ];

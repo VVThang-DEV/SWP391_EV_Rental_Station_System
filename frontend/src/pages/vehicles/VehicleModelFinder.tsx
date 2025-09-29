@@ -91,6 +91,7 @@ const VehicleModelFinder = () => {
   // Demo data - in production, this would come from the API
   const mockVehicleModels: VehicleModel[] = useMemo(
     () => [
+      // Original models
       {
         modelId: "VF8",
         name: "VinFast VF8",
@@ -138,6 +139,151 @@ const VehicleModelFinder = () => {
           features: ["Fast Charging", "Safety Tech", "Eco Mode"],
         },
         description: "Affordable electric crossover for city driving",
+      },
+      // Luxury models
+      {
+        modelId: "MERCEDES_EQS",
+        name: "Mercedes-Benz EQS",
+        brand: "Mercedes-Benz",
+        model: "EQS",
+        type: "Sedan",
+        image:
+          "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=400",
+        basePrice: { perHour: 35, perDay: 280 },
+        specs: {
+          range: 516,
+          seats: 5,
+          features: ["MBUX Hyperscreen", "Massage Seats", "Air Suspension"],
+        },
+        description:
+          "Ultimate luxury electric sedan with cutting-edge technology",
+      },
+      {
+        modelId: "PORSCHE_TAYCAN",
+        name: "Porsche Taycan",
+        brand: "Porsche",
+        model: "Taycan",
+        type: "Sedan",
+        image:
+          "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400",
+        basePrice: { perHour: 42, perDay: 350 },
+        specs: {
+          range: 484,
+          seats: 4,
+          features: ["Launch Control", "Sport Chrono", "Carbon Interior"],
+        },
+        description: "Pure performance meets electric efficiency",
+      },
+      // Budget models
+      {
+        modelId: "CHEVROLET_BOLT",
+        name: "Chevrolet Bolt EV",
+        brand: "Chevrolet",
+        model: "Bolt EV",
+        type: "Hatchback",
+        image:
+          "https://images.unsplash.com/photo-1549399735-cef2e2c3f638?w=400",
+        basePrice: { perHour: 9, perDay: 65 },
+        specs: {
+          range: 327,
+          seats: 5,
+          features: [
+            "Regenerative Braking",
+            "OnStar",
+            "Smartphone Integration",
+          ],
+        },
+        description: "Affordable electric vehicle perfect for daily commuting",
+      },
+      {
+        modelId: "VOLKSWAGEN_ID3",
+        name: "Volkswagen ID.3",
+        brand: "Volkswagen",
+        model: "ID.3",
+        type: "Hatchback",
+        image:
+          "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=400",
+        basePrice: { perHour: 11, perDay: 75 },
+        specs: {
+          range: 340,
+          seats: 5,
+          features: ["ID.Light", "App Connect", "Wireless Charging"],
+        },
+        description: "Compact and efficient electric car for urban mobility",
+      },
+      // Performance models
+      {
+        modelId: "TESLA_MODEL_S",
+        name: "Tesla Model S",
+        brand: "Tesla",
+        model: "Model S",
+        type: "Sedan",
+        image:
+          "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400",
+        basePrice: { perHour: 28, perDay: 220 },
+        specs: {
+          range: 652,
+          seats: 5,
+          features: ["Ludicrous Mode", "17'' Touchscreen", "Autopilot"],
+        },
+        description: "High-performance luxury sedan with incredible range",
+      },
+      {
+        modelId: "BMW_I4",
+        name: "BMW i4 M50",
+        brand: "BMW",
+        model: "i4 M50",
+        type: "Sedan",
+        image:
+          "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400",
+        basePrice: { perHour: 25, perDay: 200 },
+        specs: {
+          range: 435,
+          seats: 5,
+          features: [
+            "M Sport Package",
+            "Harman Kardon Audio",
+            "Head-Up Display",
+          ],
+        },
+        description: "Sports performance meets electric efficiency",
+      },
+      // Alternative vehicles
+      {
+        modelId: "YAMAHA_EC05",
+        name: "Yamaha EC-05",
+        brand: "Yamaha",
+        model: "EC-05",
+        type: "Scooter",
+        image:
+          "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400",
+        basePrice: { perHour: 4, perDay: 25 },
+        specs: {
+          range: 110,
+          seats: 2,
+          features: ["Smart Key", "USB Charging", "LED Lighting"],
+        },
+        description: "Convenient electric scooter for city commuting",
+      },
+      {
+        modelId: "SPECIALIZED_TURBO",
+        name: "Specialized Turbo Vado",
+        brand: "Specialized",
+        model: "Turbo Vado",
+        type: "Bike",
+        image:
+          "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=400",
+        basePrice: { perHour: 3, perDay: 20 },
+        specs: {
+          range: 80,
+          seats: 1,
+          features: [
+            "Pedal Assist",
+            "Integrated Lights",
+            "Mission Control App",
+          ],
+        },
+        description: "High-performance electric bike for sustainable transport",
       },
     ],
     []

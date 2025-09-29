@@ -36,6 +36,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { stations, Station } from "@/data/stations";
+import { getVehicles } from "@/data/vehicles";
 import {
   PageTransition,
   FadeIn,
@@ -47,6 +48,33 @@ const Stations = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const location = useLocation();
+
+  // Get vehicles data
+  const allVehicles = getVehicles("en");
+
+  // Function to get available vehicle models at a station
+  const getStationModels = (stationId: string) => {
+    const stationVehicles = allVehicles.filter(
+      (vehicle) =>
+        vehicle.stationId === stationId && vehicle.availability === "available"
+    );
+
+    const modelGroups = stationVehicles.reduce((groups, vehicle) => {
+      const modelKey = `${vehicle.brand} ${vehicle.model}`;
+      if (!groups[modelKey]) {
+        groups[modelKey] = {
+          brand: vehicle.brand,
+          model: vehicle.model,
+          type: vehicle.type,
+          count: 0,
+        };
+      }
+      groups[modelKey].count += 1;
+      return groups;
+    }, {} as Record<string, { brand: string; model: string; type: string; count: number }>);
+
+    return Object.values(modelGroups);
+  };
 
   // Check if user came from personal info update
   const fromPersonalInfo = location.state?.fromPersonalInfo || false;
@@ -649,6 +677,38 @@ const Stations = () => {
                               </span>
                             </p>
                           </div>
+
+                          {/* Available Vehicle Models */}
+                          {getStationModels(station.id).length > 0 && (
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">
+                                Available Models:
+                              </Label>
+                              <div className="flex flex-wrap gap-1">
+                                {getStationModels(station.id)
+                                  .slice(0, 3)
+                                  .map((model) => (
+                                    <Badge
+                                      key={`${model.brand}-${model.model}`}
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      {model.brand} {model.model} ({model.count}
+                                      )
+                                    </Badge>
+                                  ))}
+                                {getStationModels(station.id).length > 3 && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    +{getStationModels(station.id).length - 3}{" "}
+                                    more
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Amenities */}
                           <div className="space-y-2">
