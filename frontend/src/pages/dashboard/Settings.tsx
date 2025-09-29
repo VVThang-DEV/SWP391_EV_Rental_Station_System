@@ -21,6 +21,8 @@ import {
   FileText,
   Trash2,
   Globe,
+  Upload,
+  CheckCircle,
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
 
@@ -147,6 +149,170 @@ const Settings = () => {
                         defaultValue="2028-12-31"
                         className="text-black"
                       />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    {language === "vi"
+                      ? "Căn Cước Công Dân (CCCD)"
+                      : "Identity Verification"}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="cccdNumber">
+                        {language === "vi" ? "Số CCCD" : "ID Number"}
+                      </Label>
+                      <Input
+                        id="cccdNumber"
+                        defaultValue="079201012345"
+                        className="text-black"
+                        placeholder={
+                          language === "vi"
+                            ? "Nhập số CCCD 12 số"
+                            : "Enter 12-digit ID number"
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cccdIssueDate">
+                        {language === "vi" ? "Ngày cấp" : "Issue Date"}
+                      </Label>
+                      <Input
+                        id="cccdIssueDate"
+                        type="date"
+                        defaultValue="2021-01-15"
+                        className="text-black"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cccdExpiryDate">
+                        {language === "vi" ? "Ngày hết hạn" : "Expiry Date"}
+                      </Label>
+                      <Input
+                        id="cccdExpiryDate"
+                        type="date"
+                        defaultValue="2031-01-14"
+                        className="text-black"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cccdPlaceOfIssue">
+                        {language === "vi" ? "Nơi cấp" : "Place of Issue"}
+                      </Label>
+                      <Input
+                        id="cccdPlaceOfIssue"
+                        defaultValue={
+                          language === "vi"
+                            ? "Cục Cảnh sát ĐKQL cư trú và DLQG về dân cư"
+                            : "Police Department"
+                        }
+                        className="text-black"
+                      />
+                    </div>
+
+                    {/* CCCD Document Upload */}
+                    <div className="space-y-4">
+                      <Label className="text-base font-medium">
+                        {language === "vi"
+                          ? "Tải lên ảnh CCCD"
+                          : "Upload ID Documents"}
+                      </Label>
+
+                      {/* Front Side */}
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
+                        <div className="text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="mt-4">
+                            <Label className="cursor-pointer">
+                              <span className="mt-2 block text-sm font-medium text-gray-900">
+                                {language === "vi"
+                                  ? "Mặt trước CCCD"
+                                  : "ID Card Front Side"}
+                              </span>
+                              <input
+                                type="file"
+                                className="sr-only"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  // Handle file upload logic here
+                                  console.log(
+                                    "Front side file:",
+                                    e.target.files?.[0]
+                                  );
+                                }}
+                              />
+                              <span className="mt-2 block text-xs text-gray-500">
+                                {language === "vi"
+                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
+                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
+                              </span>
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Back Side */}
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
+                        <div className="text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="mt-4">
+                            <Label className="cursor-pointer">
+                              <span className="mt-2 block text-sm font-medium text-gray-900">
+                                {language === "vi"
+                                  ? "Mặt sau CCCD"
+                                  : "ID Card Back Side"}
+                              </span>
+                              <input
+                                type="file"
+                                className="sr-only"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  // Handle file upload logic here
+                                  console.log(
+                                    "Back side file:",
+                                    e.target.files?.[0]
+                                  );
+                                }}
+                              />
+                              <span className="mt-2 block text-xs text-gray-500">
+                                {language === "vi"
+                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
+                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
+                              </span>
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Upload Status */}
+                      <div className="rounded-lg bg-green-50 p-4 border border-green-200">
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            <CheckCircle className="h-5 w-5 text-green-400" />
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-green-800">
+                              {language === "vi"
+                                ? "Trạng thái xác minh"
+                                : "Verification Status"}
+                            </p>
+                            <p className="mt-1 text-sm text-green-700">
+                              {language === "vi"
+                                ? "✓ Đã xác minh thành công"
+                                : "✓ Successfully verified"}
+                            </p>
+                            <p className="mt-1 text-xs text-green-600">
+                              {language === "vi"
+                                ? "Cập nhật lần cuối: 15/01/2024"
+                                : "Last updated: Jan 15, 2024"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 // Barrel file for pages after reorganization
 export { default as Login } from "./auth/Login/Login";
 export { default as Register } from "./auth/Register";
+export { default as PersonalInfoUpdate } from "./auth/PersonalInfoUpdate";
 export { default as ForgotPassword } from "./auth/ForgotPassword";
 
 export { default as Dashboard } from "./dashboard/Dashboard";
@@ -11,6 +12,7 @@ export { default as Settings } from "./dashboard/Settings";
 
 export { default as Vehicles } from "./vehicles/Vehicles";
 export { default as VehicleDetails } from "./vehicles/VehicleDetails";
+export { default as VehicleModelFinder } from "./vehicles/VehicleModelFinder";
 export { default as BookingPage } from "./vehicles/BookingPage";
 
 export { default as Stations } from "./stations/Stations";

@@ -131,14 +131,16 @@ export const GoogleMaps = ({
             <div
               key={station.id}
               className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${x}px`, top: `${y}px` }}
+              style={{ left: `${x}px`, top: `${y}px`, padding: "20px" }}
               onClick={() => handleStationClick(station)}
+              onMouseDown={() => handleStationClick(station)}
+              onTouchStart={() => handleStationClick(station)}
             >
               {/* Station Marker */}
               <div className={`relative ${isSelected ? "z-20" : "z-10"}`}>
                 <div
                   className={`
-                  flex items-center justify-center w-12 h-12 rounded-full border-4 border-white shadow-lg
+                  flex items-center justify-center w-16 h-16 rounded-full border-4 border-white shadow-lg
                   ${
                     station.availableVehicles > 0
                       ? "bg-green-500 hover:bg-green-600"
@@ -152,7 +154,7 @@ export const GoogleMaps = ({
                   transition-all duration-200
                 `}
                 >
-                  <Car className="h-6 w-6 text-white" />
+                  <Car className="h-8 w-8 text-white" />
                 </div>
 
                 {/* Available vehicles count */}
