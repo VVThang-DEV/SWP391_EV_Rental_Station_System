@@ -367,12 +367,23 @@ const OTPVerificationCustom = ({
     setIsLoading(true);
 
     try {
-      // Just pass the OTP to parent, don't verify yet
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const res = await fetch(`${baseUrl}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otpCode: otp }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json?.message || "Invalid or expired OTP");
+      }
+
+      toast({ title: "OTP verified", description: "Bạn có thể đặt mật khẩu mới." });
       onVerifySuccess(otp);
     } catch (error) {
       toast({
         title: "Verification Failed",
-        description: (error as any)?.message || "An error occurred during verification. Please try again.",
+        description: (error as any)?.message || "OTP không hợp lệ hoặc đã hết hạn.",
         variant: "destructive",
       });
     } finally {

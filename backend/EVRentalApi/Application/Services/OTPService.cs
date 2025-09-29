@@ -102,9 +102,6 @@ public sealed class OTPService
                 return new OTPResponse(false, "Mã OTP không đúng");
             }
 
-            // Mark OTP as used
-            await _otpRepository.MarkOTPAsUsedAsync(request.Email, request.OTPCode);
-
             return new OTPResponse(true, "Xác thực OTP thành công", true);
         }
         catch (Exception ex)
@@ -117,5 +114,11 @@ public sealed class OTPService
     public async Task CleanupExpiredOTPsAsync()
     {
         await _otpRepository.CleanupExpiredOTPsAsync();
+    }
+
+    // Explicitly mark OTP as used (to be called after successful action like password reset)
+    public async Task<bool> MarkOtpAsUsedAsync(string email, string otpCode)
+    {
+        return await _otpRepository.MarkOTPAsUsedAsync(email, otpCode);
     }
 }

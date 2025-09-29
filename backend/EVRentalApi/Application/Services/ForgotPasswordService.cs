@@ -52,15 +52,14 @@ public sealed class ForgotPasswordService
                 return new ForgotPasswordResponse(false, "Không thể gửi mã xác thực. Vui lòng thử lại sau");
             }
 
-            // Send forgot password email
-            var subject = "EVRentals - Đặt lại mật khẩu";
+            // Send a notification email (OTP email already sent by OTPService)
+            var subject = "EVRentals - Hướng dẫn đặt lại mật khẩu";
             var body = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                     <h2 style='color: #2563eb;'>Đặt lại mật khẩu</h2>
-                    <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
-                    <p>Mã xác thực của bạn là:</p>
-                    <h1 style='letter-spacing: 4px; color: #2563eb; font-size: 32px; text-align: center; margin: 20px 0;'>{otpResult.ExpiresInSeconds}</h1>
-                    <p><strong>Lưu ý:</strong> Mã này sẽ hết hạn sau 5 phút.</p>
+                    <p>Chúng tôi đã gửi <strong>mã xác thực 6 số</strong> đến email của bạn.</p>
+                    <p>Vui lòng quay lại trang đặt lại mật khẩu và nhập mã để tiếp tục.</p>
+                    <p><strong>Lưu ý:</strong> Mã sẽ hết hạn sau 5 phút.</p>
                     <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
                     <hr style='margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;'>
                     <p style='color: #6b7280; font-size: 14px;'>EVRentals - Hệ thống thuê xe điện</p>
@@ -114,10 +113,10 @@ public sealed class ForgotPasswordService
                 return new ForgotPasswordResponse(false, "Mật khẩu phải có ít nhất 8 ký tự");
             }
 
-            // Verify OTP
+            // Verify OTP but do not mark as used yet
             var otpRequest = new OTPRequest(request.Email, request.OTPCode);
             var otpResult = await _otpService.VerifyOTPAsync(otpRequest);
-            
+
             if (!otpResult.Success)
             {
                 return new ForgotPasswordResponse(false, otpResult.Message);
@@ -132,6 +131,9 @@ public sealed class ForgotPasswordService
             {
                 return new ForgotPasswordResponse(false, "Không thể cập nhật mật khẩu. Vui lòng thử lại");
             }
+
+            // Mark OTP as used only after successful password update
+            await _otpService.MarkOtpAsUsedAsync(request.Email, request.OTPCode);
 
             return new ForgotPasswordResponse(true, "Mật khẩu đã được đặt lại thành công");
         }
