@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,6 @@ import { formatCurrency } from "@/lib/currency";
 import { useTranslation } from "@/contexts/TranslationContext";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 import { getVehicleById } from "@/data/vehicles";
-import DocumentUpload from "@/components/DocumentUpload";
 import PaymentSystem from "@/components/PaymentSystem";
 import {
   PageTransition,
@@ -61,18 +60,60 @@ const BookingPage = () => {
   const vehicle = id ? getVehicleById(id) : null;
 
   const now = new Date();
-const pad = (n: number) => n.toString().padStart(2, "0");
-const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const getTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const getTimeStr = () => {
+    const d = new Date();
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const handleRentalDurationChange = (value: string) => {
+    setBookingData((prev) => ({
+      ...prev,
+      rentalDuration: value,
+      ...(value === "daily"
+        ? { startDate: getTodayStr(), startTime: getTimeStr() }
+        : {}),
+    }));
+  };
+
+  useEffect(() => {
+    if (bookingData.rentalDuration === "daily") {
+      setBookingData((prev) => ({
+        ...prev,
+        startDate: getTodayStr(),
+        startTime: getTimeStr(),
+      }));
+    }
+
+  }, []);
+
+  const getCurrentUser = () => {
+    try {
+      const userStr = localStorage.getItem('currentUser') || localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const user = getCurrentUser();
+
+  const currentUserName = user?.fullName || user?.name || "John Doe";
+  const currentUserEmail = user?.email || "user@example.com";
+  const currentUserPhone = user?.phone || user?.phoneNumber || "0123456789";
 
   const [bookingData, setBookingData] = useState({
-    startDate: todayStr,
+    startDate: getTodayStr(),
     endDate: "",
-    startTime: currentTimeStr,
+    startTime: getTimeStr(),
     endTime: "17:00",
     rentalDuration: "daily",
     customerInfo: {
-      fullName: "John Doe", // Pre-filled from user context
+      fullName: "",
       email: "",
       phone: "",
       driverLicense: "",
@@ -83,9 +124,31 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     agreeToInsurance: false,
   });
 
-  const [uploadedDocuments, setUploadedDocuments] = useState<
-    Record<string, File>
-  >({});
+  useEffect(() => {
+    if (user) {
+      setBookingData(prev => ({
+        ...prev,
+        customerInfo: {
+          ...prev.customerInfo,
+          fullName: currentUserName,
+          email: currentUserEmail,
+          phone: currentUserPhone,  
+        }
+      }));
+    }
+  }, [currentUserName, currentUserEmail, currentUserPhone]);
+
+  console.log("User from localStorage:", user);
+  console.log("Extracted data:", { currentUserName, currentUserEmail, currentUserPhone });
+
+  // SỬA Ở ĐÂY: helper cập nhật startTime về giờ hiện tại (gọi khi upload document hoặc hành động tương tự)
+  const updateStartTimeNow = () => {
+    setBookingData((prev) => ({
+      ...prev,
+      startTime: getTimeStr(),
+    }));
+  };
+
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
 
   if (!vehicle) {
@@ -104,12 +167,7 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     );
   }
 
-  const handleDocumentUpload = (documentType: string, file: File) => {
-    setUploadedDocuments((prev) => ({
-      ...prev,
-      [documentType]: file,
-    }));
-  };
+  // Document upload removed from booking page per request
 
   const calculateCost = () => {
     if (!bookingData.startDate || !bookingData.endDate) return 0;
@@ -178,91 +236,92 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
       navigate("/dashboard");
     }
   };
-
+  // Document removal handler removed with upload section
   const renderBookingDetails = () => (
     <div className="space-y-6">
       {/* Rental Period */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Calendar className="h-5 w-5 mr-2" />
-            Rental Period
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="mb-2 block">Rental Type</Label>
-            <Select
-              value={bookingData.rentalDuration}
-              onValueChange={(value) =>
-                handleInputChange("rentalDuration", value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="hourly">Hourly Rental</SelectItem>
-                <SelectItem value="daily">Daily Rental</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <div id="rental-period">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="h-5 w-5 mr-2" />
+              Rental Period
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Rental Type</Label>
+              <Select
+                value={bookingData.rentalDuration}
+                onValueChange={(value) => handleRentalDurationChange(value)}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={bookingData.startDate}
-                onChange={(e) => handleInputChange("startDate", e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className="text-black"
-                required
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hourly">Hourly Rental</SelectItem>
+                  <SelectItem value="daily">Daily Rental</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label htmlFor="endDate">End Date *</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={bookingData.endDate}
-                onChange={(e) => handleInputChange("endDate", e.target.value)}
-                min={
-                  bookingData.startDate ||
-                  new Date().toISOString().split("T")[0]
-                }
-                className="text-black"
-                required
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startTime">Start Time</Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={bookingData.startTime}
-                onChange={(e) => handleInputChange("startTime", e.target.value)}
-                className="text-black"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Start Date *</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={bookingData.startDate}
+                  onChange={(e) => handleInputChange("startDate", e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="text-black"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">End Date *</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={bookingData.endDate}
+                  onChange={(e) => handleInputChange("endDate", e.target.value)}
+                  min={
+                    bookingData.startDate ||
+                    new Date().toISOString().split("T")[0]
+                  }
+                  className="text-black"
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="endTime">End Time</Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={bookingData.endTime}
-                onChange={(e) => handleInputChange("endTime", e.target.value)}
-                className="text-black"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startTime">Start Time</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={bookingData.startTime}
+                  onChange={(e) => handleInputChange("startTime", e.target.value)}
+                  className="text-black"
+                />
+              </div>
+              <div>
+                <Label htmlFor="endTime">End Time</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={bookingData.endTime}
+                  onChange={(e) => handleInputChange("endTime", e.target.value)}
+                  className="text-black"
+                />
+              </div>
+            </div>
+          </CardContent>
+
+        </Card>
+      </div>
       {/* Customer Information */}
       <Card>
         <CardHeader>
@@ -336,12 +395,7 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
         </CardContent>
       </Card>
 
-      {/* Document Upload */}
-      <DocumentUpload
-        onDocumentUpload={handleDocumentUpload}
-        requiredDocuments={["driverLicense", "nationalId"]}
-        uploadedDocuments={uploadedDocuments}
-      />
+      {/* Document Upload - removed */}
 
       {/* Insurance & Terms */}
       <Card>
@@ -408,6 +462,7 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
           setStep(3);
         }}
         paymentMethod={bookingData.paymentMethod as "qr_code" | "cash" | "card"}
+        onBack={() => setStep(1)}
       />
     </div>
   );
@@ -638,19 +693,17 @@ const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
                 {[1, 2, 3].map((stepNumber) => (
                   <div key={stepNumber} className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step >= stepNumber
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= stepNumber
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                        }`}
                     >
                       {stepNumber}
                     </div>
                     {stepNumber < 3 && (
                       <div
-                        className={`w-12 h-0.5 mx-2 ${
-                          step > stepNumber ? "bg-primary" : "bg-secondary"
-                        }`}
+                        className={`w-12 h-0.5 mx-2 ${step > stepNumber ? "bg-primary" : "bg-secondary"
+                          }`}
                       />
                     )}
                   </div>

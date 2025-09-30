@@ -12,6 +12,7 @@ import {
   VehicleDetails,
   Login,
   Register,
+  CompleteProfile,
   Dashboard,
   BookingPage,
   Stations,
@@ -30,6 +31,7 @@ import {
   StaffDashboard,
   AdminDashboard,
 } from "./pages/pages";
+import RegisterSuccess from "@/pages/auth/Register/RegisterSuccess";
 
 const queryClient = new QueryClient();
 
@@ -67,7 +69,12 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <div className="min-h-screen bg-background">
               <Navbar user={user} onLogout={handleLogout} />
               <Routes>
@@ -122,14 +129,12 @@ const App = () => {
                   element={
                     user?.role === "admin" ? (
                       <AdminDashboard
-                        user={
-                          {
-                            id: user.id,
-                            name: user.name,
-                            email: user.email,
-                            role: "admin",
-                          } as any
-                        }
+                        user={{
+                          id: user.id,
+                          name: user.name,
+                          email: user.email,
+                          role: "admin",
+                        }}
                       />
                     ) : (
                       <NotFound />
@@ -141,15 +146,13 @@ const App = () => {
                   element={
                     user?.role === "staff" ? (
                       <StaffDashboard
-                        user={
-                          {
-                            id: user.id,
-                            name: user.name,
-                            email: user.email,
-                            role: "staff",
-                            stationId: (user as any).stationId || "",
-                          } as any
-                        }
+                        user={{
+                          id: user.id,
+                          name: user.name,
+                          email: user.email,
+                          role: "staff",
+                          stationId: user.stationId || "",
+                        }}
                       />
                     ) : (
                       <NotFound />
@@ -161,6 +164,10 @@ const App = () => {
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route
+                  path="/auth/complete-profile"
+                  element={<CompleteProfile />}
+                />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
@@ -168,6 +175,7 @@ const App = () => {
                 <Route path="/about" element={<About />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/safety" element={<Safety />} />
+                <Route path="/register/success" element={<RegisterSuccess />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

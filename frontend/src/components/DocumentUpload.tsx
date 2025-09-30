@@ -43,10 +43,17 @@ const DocumentUpload = ({
 
   const documentTypes = {
     driverLicense: {
-      title: "Driver's License",
-      description: "Upload both front and back of your valid driver's license",
+      title: "Driver's License - Front",
+      description: "Upload front side of your valid driver's license",
       accept: "image/*,.pdf",
       maxSize: 5 * 1024 * 1024, // 5MB
+      icon: FileText,
+    },
+     driverLicenseBack: {
+      title: "Driver's License - Back",
+      description: "Upload back side of your valid driver's license",
+      accept: "image/*,application/pdf",
+      maxSize: 5 * 1024 * 1024,
       icon: FileText,
     },
     // split into front/back sides
@@ -135,9 +142,8 @@ const DocumentUpload = ({
     if (file.size > docType.maxSize) {
       toast({
         title: "File too large",
-        description: `File size should be less than ${
-          docType.maxSize / (1024 * 1024)
-        }MB`,
+        description: `File size should be less than ${docType.maxSize / (1024 * 1024)
+          }MB`,
         variant: "destructive",
       });
       return;
@@ -221,8 +227,8 @@ const DocumentUpload = ({
   };
 
   const handleRemove = (documentType: string) => {
-    if (typeof (onDocumentRemove as any) === "function") {
-      (onDocumentRemove as any)(documentType);
+    if (typeof onDocumentRemove === "function") {
+      onDocumentRemove(documentType);
       return;
     }
 
@@ -247,21 +253,21 @@ const DocumentUpload = ({
     return (
       <Card
         key={documentType}
-        className={`relative ${
-          dragActive === documentType ? "border-primary bg-primary/5" : ""
-        }`}
+        className={`relative h-full flex flex-col ${dragActive === documentType ? "border-primary bg-primary/5" : ""}`}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center space-x-2 text-lg">
-            <Icon className="h-5 w-5" />
-            <span>{docType.title}</span>
+        <CardHeader className="pb-3 space-y-1 min-h-[100px]">
+          <CardTitle className="flex items-start gap-2 text-lg leading-tight">
+            <Icon className="h-5 w-5 flex-shrink-0" />
+            <span className="break-words whitespace-normal">{docType.title}</span>
             {normalizedRequired.includes(documentType) && (
               <span className="text-destructive text-sm">*</span>
             )}
           </CardTitle>
-          <CardDescription>{docType.description}</CardDescription>
+          <CardDescription className="break-words whitespace-normal leading-snug">
+            {docType.description}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
           {isUploaded ? (
             <div className="p-4 bg-success-light rounded-lg">
               <div className="flex items-center space-x-2 min-w-0">
@@ -300,43 +306,42 @@ const DocumentUpload = ({
             </div>
           ) : (
             <>
-            <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                dragActive === documentType
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/25 hover:border-primary/50"
-              }`}
-              onDragEnter={(e) => handleDrag(e, documentType)}
-              onDragLeave={(e) => handleDrag(e, documentType)}
-              onDragOver={(e) => handleDrag(e, documentType)}
-              onDrop={(e) => handleDrop(e, documentType)}
-            >
-              <div className="space-y-4">
-                <div className="flex justify-center">
-                  <Upload className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <div className="space-y-2">
-                  <p className="font-medium">
-                    Drop files here or click to upload
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Max size: {docType.maxSize / (1024 * 1024)}MB
-                  </p>
-                </div>
-                
-              </div>
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors min-h-[240px] ${dragActive === documentType
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-primary/50"
+                  }`}
+                onDragEnter={(e) => handleDrag(e, documentType)}
+                onDragLeave={(e) => handleDrag(e, documentType)}
+                onDragOver={(e) => handleDrag(e, documentType)}
+                onDrop={(e) => handleDrop(e, documentType)}
+              >
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <Upload className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-medium break-words whitespace-normal">
+                      Drop files here or click to upload
+                    </p>
+                    <p className="text-sm text-muted-foreground break-words whitespace-normal">
+                      Max size: {docType.maxSize / (1024 * 1024)}MB
+                    </p>
+                  </div>
 
-              <input
-                ref={(el) => (fileInputRefs.current[documentType] = el)}
-                type="file"
-                accept={docType.accept}
-                onChange={(e) => handleFileSelect(e, documentType)}
-                className="hidden"
-              />
-            </div>
-             <div className="upload-actions">
+                </div>
+
+                <input
+                  ref={(el) => (fileInputRefs.current[documentType] = el)}
+                  type="file"
+                  accept={docType.accept}
+                  onChange={(e) => handleFileSelect(e, documentType)}
+                  className="hidden"
+                />
+              </div>
+              <div className="upload-actions mt-4 flex gap-3">
                 <Button
-                className="btn"
+                  className="btn"
                   variant="outline"
                   size="sm"
                   onClick={() => fileInputRefs.current[documentType]?.click()}
@@ -345,7 +350,7 @@ const DocumentUpload = ({
                   Choose File
                 </Button>
                 <Button
-                className="btn"
+                  className="btn"
                   variant="outline"
                   size="sm"
                   onClick={() => openCamera(documentType)}
