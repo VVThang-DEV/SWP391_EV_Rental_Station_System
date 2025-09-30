@@ -253,20 +253,21 @@ const DocumentUpload = ({
     return (
       <Card
         key={documentType}
-        className={`relative ${dragActive === documentType ? "border-primary bg-primary/5" : ""
-          }`}
+        className={`relative h-full flex flex-col ${dragActive === documentType ? "border-primary bg-primary/5" : ""}`}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center space-x-2 text-lg">
-            <Icon className="h-5 w-5" />
-            <span>{docType.title}</span>
+        <CardHeader className="pb-3 space-y-1 min-h-[100px]">
+          <CardTitle className="flex items-start gap-2 text-lg leading-tight">
+            <Icon className="h-5 w-5 flex-shrink-0" />
+            <span className="break-words whitespace-normal">{docType.title}</span>
             {normalizedRequired.includes(documentType) && (
               <span className="text-destructive text-sm">*</span>
             )}
           </CardTitle>
-          <CardDescription>{docType.description}</CardDescription>
+          <CardDescription className="break-words whitespace-normal leading-snug">
+            {docType.description}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
           {isUploaded ? (
             <div className="p-4 bg-success-light rounded-lg">
               <div className="flex items-center space-x-2 min-w-0">
@@ -306,7 +307,7 @@ const DocumentUpload = ({
           ) : (
             <>
               <div
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${dragActive === documentType
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors min-h-[240px] ${dragActive === documentType
                     ? "border-primary bg-primary/5"
                     : "border-muted-foreground/25 hover:border-primary/50"
                   }`}
@@ -320,10 +321,10 @@ const DocumentUpload = ({
                     <Upload className="h-10 w-10 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <p className="font-medium">
+                    <p className="font-medium break-words whitespace-normal">
                       Drop files here or click to upload
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground break-words whitespace-normal">
                       Max size: {docType.maxSize / (1024 * 1024)}MB
                     </p>
                   </div>
@@ -338,7 +339,7 @@ const DocumentUpload = ({
                   className="hidden"
                 />
               </div>
-              <div className="upload-actions">
+              <div className="upload-actions mt-4 flex gap-3">
                 <Button
                   className="btn"
                   variant="outline"

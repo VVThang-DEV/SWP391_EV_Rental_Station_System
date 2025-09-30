@@ -10,10 +10,9 @@ import {
   Index,
   Vehicles,
   VehicleDetails,
-  VehicleModelFinder,
   Login,
   Register,
-  PersonalInfoUpdate,
+  CompleteProfile,
   Dashboard,
   BookingPage,
   Stations,
@@ -32,6 +31,7 @@ import {
   StaffDashboard,
   AdminDashboard,
 } from "./pages/pages";
+import RegisterSuccess from "@/pages/auth/Register/RegisterSuccess";
 
 const queryClient = new QueryClient();
 
@@ -89,10 +89,6 @@ const App = () => {
                   element={<Register onRegister={handleLogin} />}
                 />
                 <Route
-                  path="/personal-info-update"
-                  element={<PersonalInfoUpdate user={user} />}
-                />
-                <Route
                   path="/dashboard"
                   element={
                     user?.role === "customer" ? (
@@ -131,12 +127,14 @@ const App = () => {
                   element={
                     user?.role === "admin" ? (
                       <AdminDashboard
-                        user={{
-                          id: user.id,
-                          name: user.name,
-                          email: user.email,
-                          role: "admin",
-                        }}
+                        user={
+                          {
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            role: "admin",
+                          } as any
+                        }
                       />
                     ) : (
                       <NotFound />
@@ -148,13 +146,15 @@ const App = () => {
                   element={
                     user?.role === "staff" ? (
                       <StaffDashboard
-                        user={{
-                          id: user.id,
-                          name: user.name,
-                          email: user.email,
-                          role: "staff",
-                          stationId: user.stationId || "",
-                        }}
+                        user={
+                          {
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            role: "staff",
+                            stationId: (user as any).stationId || "",
+                          } as any
+                        }
                       />
                     ) : (
                       <NotFound />
@@ -163,13 +163,10 @@ const App = () => {
                 />
                 <Route path="/stations" element={<Stations />} />
                 <Route path="/stations/:id" element={<StationDetails />} />
-                <Route
-                  path="/vehicle-model-finder"
-                  element={<VehicleModelFinder />}
-                />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/profile/complete" element={<CompleteProfile />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
@@ -177,6 +174,7 @@ const App = () => {
                 <Route path="/about" element={<About />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/safety" element={<Safety />} />
+                <Route path="/register/success" element={<RegisterSuccess />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
