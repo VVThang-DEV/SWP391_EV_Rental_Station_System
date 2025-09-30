@@ -32,6 +32,7 @@ import {
   AdminDashboard,
 } from "./pages/pages";
 import RegisterSuccess from "@/pages/auth/Register/RegisterSuccess";
+import VehicleModelFinder from "./pages/vehicles/VehicleModelFinder";
 
 const queryClient = new QueryClient();
 
@@ -167,6 +168,10 @@ const App = () => {
                 <Route
                   path="/auth/complete-profile"
                   element={<CompleteProfile />}
+                />
+                <Route
+                  path="vehicle-model-finder"
+                  element={<VehicleModelFinder />}
                 />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
