@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { GoogleMaps } from "@/components/GoogleMaps";
 import { stations } from "@/data/stations";
 import { getVehicles } from "@/data/vehicles";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   MapPin,
   Clock,
@@ -21,19 +22,28 @@ import {
   ArrowLeft,
   Navigation,
   CheckCircle,
+  Users,
+  Info,
 } from "lucide-react";
 
 const StationDetails = () => {
   const { id } = useParams<{ id: string }>();
   const { t, language } = useTranslation();
+  const { toast } = useToast();
+  const location = useLocation();
   const [selectedStation, setSelectedStation] = useState<string>("");
 
   const station = stations.find((s) => s.id === id);
   const vehicles = getVehicles(language);
 
+  // Check if user came from stations list with personal info completed
+  const fromStations = location.state?.fromStations || false;
+  const userReady = location.state?.userReady || false;
+
   // Get vehicles available at this station
   const stationVehicles = vehicles.filter(
-    (vehicle) => vehicle.location === station?.name
+    (vehicle) =>
+      vehicle.stationId === station?.id && vehicle.availability === "available"
   );
 
   useEffect(() => {
@@ -41,6 +51,18 @@ const StationDetails = () => {
       setSelectedStation(station.id);
     }
   }, [station]);
+
+  // Show a welcome message for users who completed personal info
+  useEffect(() => {
+    if (userReady) {
+      toast({
+        title: "You're all set!",
+        description:
+          "Your profile is complete. You can now rent any available vehicle.",
+        duration: 5000,
+      });
+    }
+  }, [userReady, toast]);
 
   if (!station) {
     return (
@@ -197,10 +219,94 @@ const StationDetails = () => {
               </CardContent>
             </Card>
 
+            {/* Vehicle Models Overview */}
+            {stationVehicles.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Available Vehicle Models</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from(
+                      stationVehicles.reduce((modelMap, vehicle) => {
+                        const key = `${vehicle.brand} ${vehicle.model}`;
+                        if (!modelMap.has(key)) {
+                          modelMap.set(key, {
+                            brand: vehicle.brand,
+                            model: vehicle.model,
+                            type: vehicle.type,
+                            count: 0,
+                            priceRange: {
+                              min: vehicle.pricePerHour,
+                              max: vehicle.pricePerHour,
+                            },
+                            image: vehicle.image,
+                          });
+                        }
+                        const existing = modelMap.get(key)!;
+                        existing.count += 1;
+                        existing.priceRange.min = Math.min(
+                          existing.priceRange.min,
+                          vehicle.pricePerHour
+                        );
+                        existing.priceRange.max = Math.max(
+                          existing.priceRange.max,
+                          vehicle.pricePerHour
+                        );
+                        return modelMap;
+                      }, new Map())
+                    ).map(([modelName, info]) => (
+                      <div
+                        key={modelName}
+                        className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50"
+                      >
+                        <img
+                          src={info.image}
+                          alt={modelName}
+                          className="w-16 h-12 object-cover rounded"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {modelName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {info.type}
+                          </p>
+                          <div className="flex items-center justify-between mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {info.count} available
+                            </Badge>
+                            <span className="text-xs font-medium">
+                              $
+                              {info.priceRange.min === info.priceRange.max
+                                ? info.priceRange.min
+                                : `${info.priceRange.min}-${info.priceRange.max}`}
+                              /hr
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Available Vehicles */}
             <Card>
               <CardHeader>
-                <CardTitle>{t("common.availableVehicles")}</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{t("common.availableVehicles")}</span>
+                  <Badge variant="secondary">
+                    {stationVehicles.length} available
+                  </Badge>
+                </CardTitle>
+                {userReady && (
+                  <div className="flex items-center space-x-2 text-sm text-green-600">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Ready to book - Documents verified</span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {stationVehicles.length > 0 ? (
@@ -213,12 +319,33 @@ const StationDetails = () => {
                   <div className="text-center py-8">
                     <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
-                      {t("common.noVehiclesFound")}
+                      No vehicles available at this station at the moment
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Try checking other stations or come back later
                     </p>
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Station Tips */}
+            {userReady && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-blue-900">
+                    <Info className="h-5 w-5 mr-2" />
+                    Booking Tips
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-blue-800 space-y-2">
+                  <p>✓ Your identity documents have been verified</p>
+                  <p>✓ You can book any available vehicle instantly</p>
+                  <p>✓ Payment is processed securely during booking</p>
+                  <p>✓ Station operating hours: {station?.operatingHours}</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -229,10 +356,22 @@ const StationDetails = () => {
                 <CardTitle>{t("dashboard.quickActions")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full" asChild>
-                  <Link to={`/book?station=${station.id}`}>
+                <Button
+                  className="w-full"
+                  asChild
+                  disabled={stationVehicles.length === 0}
+                >
+                  <Link
+                    to={
+                      stationVehicles.length > 0
+                        ? `/vehicles?station=${station.id}`
+                        : "#"
+                    }
+                  >
                     <Car className="h-4 w-4 mr-2" />
-                    {t("common.bookNow")}
+                    {stationVehicles.length > 0
+                      ? t("common.bookNow")
+                      : "No vehicles available"}
                   </Link>
                 </Button>
 

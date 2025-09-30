@@ -23,6 +23,7 @@ interface EnhancedSearchProps {
 
 // Mock suggestions data - moved outside component to avoid dependency issues
 const mockSuggestions: SearchSuggestion[] = [
+  // Location suggestions
   {
     id: "1",
     type: "location",
@@ -44,39 +45,185 @@ const mockSuggestions: SearchSuggestion[] = [
     label: "Airport Station",
     icon: <MapPin className="h-4 w-4" />,
   },
+  // Vehicle model suggestions with station availability info
   {
     id: "4",
     type: "vehicle",
     value: "Tesla Model 3",
-    label: "Tesla Model 3",
+    label: "Tesla Model 3 (Find at stations)",
     icon: <Car className="h-4 w-4" />,
   },
   {
     id: "5",
     type: "vehicle",
     value: "VinFast VF8",
-    label: "VinFast VF8",
+    label: "VinFast VF8 (Find at stations)",
     icon: <Car className="h-4 w-4" />,
   },
   {
     id: "6",
+    type: "vehicle",
+    value: "Hyundai Kona",
+    label: "Hyundai Kona (Find at stations)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "7",
+    type: "vehicle",
+    value: "BMW i3",
+    label: "BMW i3 (Find at stations)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "8",
+    type: "vehicle",
+    value: "Nissan Leaf",
+    label: "Nissan Leaf (Find at stations)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "9",
+    type: "vehicle",
+    value: "Audi e-tron",
+    label: "Audi e-tron (Find at stations)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  // Luxury models
+  {
+    id: "10",
+    type: "vehicle",
+    value: "Mercedes-Benz EQS",
+    label: "Mercedes-Benz EQS (Luxury)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "11",
+    type: "vehicle",
+    value: "Porsche Taycan",
+    label: "Porsche Taycan (Performance)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  // Budget models
+  {
+    id: "12",
+    type: "vehicle",
+    value: "Chevrolet Bolt",
+    label: "Chevrolet Bolt EV (Budget)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "13",
+    type: "vehicle",
+    value: "Volkswagen ID.3",
+    label: "Volkswagen ID.3 (Compact)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  // Performance models
+  {
+    id: "14",
+    type: "vehicle",
+    value: "Tesla Model S",
+    label: "Tesla Model S (Performance)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "15",
+    type: "vehicle",
+    value: "BMW i4",
+    label: "BMW i4 M50 (Sports)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  // Alternative vehicles
+  {
+    id: "16",
+    type: "vehicle",
+    value: "Yamaha EC-05",
+    label: "Yamaha EC-05 (Scooter)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "17",
+    type: "vehicle",
+    value: "Specialized Turbo",
+    label: "Specialized Turbo Vado (E-Bike)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "18",
+    type: "vehicle",
+    value: "Renault Master",
+    label: "Renault Master E-TECH (Van)",
+    icon: <Car className="h-4 w-4" />,
+  },
+  // Brand suggestions
+  {
+    id: "19",
     type: "brand",
     value: "Tesla",
     label: "Tesla vehicles",
     icon: <Car className="h-4 w-4" />,
   },
   {
-    id: "7",
+    id: "20",
     type: "brand",
     value: "VinFast",
     label: "VinFast vehicles",
     icon: <Car className="h-4 w-4" />,
   },
   {
-    id: "8",
+    id: "21",
     type: "brand",
     value: "BMW",
     label: "BMW vehicles",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "22",
+    type: "brand",
+    value: "Mercedes-Benz",
+    label: "Mercedes-Benz vehicles",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "23",
+    type: "brand",
+    value: "Porsche",
+    label: "Porsche vehicles",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "24",
+    type: "brand",
+    value: "Hyundai",
+    label: "Hyundai vehicles",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "25",
+    type: "brand",
+    value: "Nissan",
+    label: "Nissan vehicles",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "26",
+    type: "brand",
+    value: "Audi",
+    label: "Audi vehicles",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "27",
+    type: "brand",
+    value: "Chevrolet",
+    label: "Chevrolet vehicles",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    id: "28",
+    type: "brand",
+    value: "Volkswagen",
+    label: "Volkswagen vehicles",
     icon: <Car className="h-4 w-4" />,
   },
 ];

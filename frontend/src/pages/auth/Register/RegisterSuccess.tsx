@@ -8,7 +8,8 @@ const RegisterSuccess: React.FC = () => {
   const location = useLocation();
   const state = (location.state as any) || {};
   const pending =
-    state.pending || JSON.parse(localStorage.getItem("pendingRegister") || "null");
+    state.pending ||
+    JSON.parse(localStorage.getItem("pendingRegister") || "null");
   const fullName = pending?.fullName || "Người dùng";
 
   return (
@@ -25,16 +26,21 @@ const RegisterSuccess: React.FC = () => {
           Xin chào <span className="text-emerald-300">{fullName}</span>!
         </h1>
         <p className="mt-3 text-base md:text-lg text-white drop-shadow-lg">
-          Tài khoản của bạn đã sẵn sàng, bắt đầu hành trình thuê xe điện ngay thôi.
+          Tài khoản của bạn đã sẵn sàng, bắt đầu hành trình thuê xe điện ngay
+          thôi.
         </p>
         <p className="mt-2 text-base md:text-lg text-white drop-shadow-lg">
-          📋 Đừng quên <span className="font-semibold text-emerald-200">hoàn thành hồ sơ đăng ký</span> để trải nghiệm dịch vụ đầy đủ và nhanh chóng hơn nhé!
+          📋 Đừng quên{" "}
+          <span className="font-semibold text-emerald-200">
+            hoàn thành hồ sơ đăng ký
+          </span>{" "}
+          để trải nghiệm dịch vụ đầy đủ và nhanh chóng hơn nhé!
         </p>
         <div className="mt-6 flex justify-center">
           <Button
             size="lg"
             className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg"
-            onClick={() => navigate("/profile/complete")}
+            onClick={() => navigate("/auth/complete-profile")}
           >
             Hoàn thành hồ sơ đăng ký ngay
           </Button>
