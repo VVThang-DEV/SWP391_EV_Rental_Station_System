@@ -52,13 +52,13 @@ const Settings = () => {
         <Tabs defaultValue="profile" className="space-y-8">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="security">{t("settings.security")}</TabsTrigger>
             <TabsTrigger value="notifications">
               {t("settings.notifications")}
             </TabsTrigger>
             <TabsTrigger value="billing">{t("settings.billing")}</TabsTrigger>
             <TabsTrigger value="language">{t("settings.language")}</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -325,6 +325,30 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
+          {/* Documents Tab */}
+          <TabsContent value="documents">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FileText className="h-5 w-5 mr-2" />
+                  Upload/Update Identity Documents
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <p className="text-sm text-muted-foreground">
+                    Cập nhật CMND/CCCD và Bằng lái xe của bạn. Tài liệu rõ nét, đầy đủ 4 góc, tối đa 5MB mỗi ảnh.
+                  </p>
+                  <DocumentUpload
+                    onDocumentUpload={() => {}}
+                    requiredDocuments={["driverLicense", "driverLicenseBack", "nationalId"]}
+                    uploadedDocuments={{}}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Billing Tab */}
           <TabsContent value="billing">
             <div className="space-y-6">
@@ -402,30 +426,6 @@ const Settings = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          {/* Documents Tab */}
-          <TabsContent value="documents">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileText className="h-5 w-5 mr-2" />
-                  Upload/Update Identity Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <p className="text-sm text-muted-foreground">
-                    Cập nhật CMND/CCCD và Bằng lái xe của bạn. Tài liệu rõ nét, đầy đủ 4 góc, tối đa 5MB mỗi ảnh.
-                  </p>
-                  <DocumentUpload
-                    onDocumentUpload={() => {}}
-                    requiredDocuments={["driverLicense", "driverLicenseBack", "nationalId"]}
-                    uploadedDocuments={{}}
-                  />
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Language Tab */}
