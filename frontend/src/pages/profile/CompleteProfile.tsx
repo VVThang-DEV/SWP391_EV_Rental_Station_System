@@ -3,14 +3,9 @@ import { useNavigate } from "react-router-dom";
 import DocumentUpload from "@/components/DocumentUpload";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Info, ShieldCheck } from "lucide-react";
+import { documentStorage, type DocumentType } from "@/lib/utils";
 
-type RequiredDocKey =
-  | "driverLicense"
-  | "driverLicenseBack"
-  | "nationalId_front"
-  | "nationalId_back";
-
-const REQUIRED_DOCS: RequiredDocKey[] = [
+const REQUIRED_DOCS: DocumentType[] = [
   "driverLicense",
   "driverLicenseBack",
   "nationalId_front",
@@ -19,18 +14,23 @@ const REQUIRED_DOCS: RequiredDocKey[] = [
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
-  const [uploaded, setUploaded] = useState<Record<RequiredDocKey, File | null>>(
-    {
-      driverLicense: null,
-      driverLicenseBack: null,
-      nationalId_front: null,
-      nationalId_back: null,
+  const [uploaded, setUploaded] = useState<Record<DocumentType, File | null>>(
+    () => {
+      // Initialize from localStorage
+      const stored = documentStorage.getUploadedDocuments();
+      return {
+        driverLicense: null, // We can't restore File objects from localStorage
+        driverLicenseBack: null,
+        nationalId_front: null,
+        nationalId_back: null,
+      };
     }
   );
 
   const handleDocumentUpload = (documentType: string, file: File) => {
-    const key = documentType as RequiredDocKey;
+    const key = documentType as DocumentType;
     if (REQUIRED_DOCS.includes(key)) {
+      documentStorage.saveDocument(key, file);
       setUploaded((prev) => ({ ...prev, [key]: file }));
     }
   };
@@ -78,7 +78,7 @@ const CompleteProfile = () => {
             <ul className="space-y-2">
               {REQUIRED_DOCS.map((k) => {
                 const ok = Boolean(uploaded[k]);
-                const labelMap: Record<RequiredDocKey, string> = {
+                const labelMap: Record<DocumentType, string> = {
                   driverLicense: "Bằng lái xe - Mặt trước",
                   driverLicenseBack: "Bằng lái xe - Mặt sau",
                   nationalId_front: "CMND/CCCD - Mặt trước",

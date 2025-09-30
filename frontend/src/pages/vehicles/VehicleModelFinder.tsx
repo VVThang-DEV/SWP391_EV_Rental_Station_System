@@ -393,11 +393,14 @@ const VehicleModelFinder = () => {
       model.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const suggestions = searchTerm.trim() === "" ? [] : filteredModels.slice(0, 5).map(model => ({
-    id: model.modelId,
-    label: `${model.brand} ${model.name} (${model.type})`,
-    value: model.name
-  }));
+  const suggestions =
+    searchTerm.trim() === ""
+      ? []
+      : filteredModels.slice(0, 5).map((model) => ({
+          id: model.modelId,
+          label: `${model.brand} ${model.name} (${model.type})`,
+          value: model.name,
+        }));
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
@@ -467,32 +470,37 @@ const VehicleModelFinder = () => {
                           setSelectedSuggestionIndex(-1);
                         }}
                         onFocus={() => setShowSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        onBlur={() =>
+                          setTimeout(() => setShowSuggestions(false), 200)
+                        }
                         onKeyDown={(e) => {
-                          if (!showSuggestions || suggestions.length === 0) return;
-                          
+                          if (!showSuggestions || suggestions.length === 0)
+                            return;
+
                           switch (e.key) {
-                            case 'ArrowDown':
+                            case "ArrowDown":
                               e.preventDefault();
-                              setSelectedSuggestionIndex(prev => 
+                              setSelectedSuggestionIndex((prev) =>
                                 prev < suggestions.length - 1 ? prev + 1 : 0
                               );
                               break;
-                            case 'ArrowUp':
+                            case "ArrowUp":
                               e.preventDefault();
-                              setSelectedSuggestionIndex(prev => 
+                              setSelectedSuggestionIndex((prev) =>
                                 prev > 0 ? prev - 1 : suggestions.length - 1
                               );
                               break;
-                            case 'Enter':
+                            case "Enter":
                               e.preventDefault();
                               if (selectedSuggestionIndex >= 0) {
-                                setSearchTerm(suggestions[selectedSuggestionIndex].value);
+                                setSearchTerm(
+                                  suggestions[selectedSuggestionIndex].value
+                                );
                                 setShowSuggestions(false);
                                 setSelectedSuggestionIndex(-1);
                               }
                               break;
-                            case 'Escape':
+                            case "Escape":
                               setShowSuggestions(false);
                               setSelectedSuggestionIndex(-1);
                               break;
@@ -506,9 +514,9 @@ const VehicleModelFinder = () => {
                             <div
                               key={suggestion.id}
                               className={`px-4 py-2 cursor-pointer text-sm ${
-                                index === selectedSuggestionIndex 
-                                  ? 'bg-blue-100 text-blue-900' 
-                                  : 'hover:bg-gray-100'
+                                index === selectedSuggestionIndex
+                                  ? "bg-blue-100 text-blue-900"
+                                  : "hover:bg-gray-100"
                               }`}
                               onClick={() => {
                                 setSearchTerm(suggestion.value);
