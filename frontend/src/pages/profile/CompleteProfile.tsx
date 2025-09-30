@@ -19,6 +19,8 @@ const REQUIRED_DOCS: RequiredDocKey[] = [
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
+  const [cccdNumber, setCccdNumber] = useState<string>("");
+  const [licenseNumber, setLicenseNumber] = useState<string>("");
   const [uploaded, setUploaded] = useState<Record<RequiredDocKey, File | null>>(
     {
       driverLicense: null,
@@ -35,7 +37,10 @@ const CompleteProfile = () => {
     }
   };
 
-  const allDone = REQUIRED_DOCS.every((k) => Boolean(uploaded[k]));
+  const cccdValid = /^\d{12}$/.test(cccdNumber);
+  const licenseValid = /^[A-Za-z0-9]{6,12}$/.test(licenseNumber);
+  const allDocsUploaded = REQUIRED_DOCS.every((k) => Boolean(uploaded[k]));
+  const allDone = allDocsUploaded && cccdValid && licenseValid;
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,8 +67,45 @@ const CompleteProfile = () => {
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Uploader */}
-        <div className="lg:col-span-2">
+        {/* Left: Inputs + Uploader */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="rounded-xl border bg-card text-card-foreground shadow p-5">
+            <h2 className="text-base font-semibold mb-4">Thông tin định danh</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="cccd" className="text-sm font-medium">
+                  Số CCCD (12 số)
+                </label>
+                <input
+                  id="cccd"
+                  inputMode="numeric"
+                  pattern="\\d{12}"
+                  className="mt-1 w-full h-10 rounded-md border px-3 text-sm bg-background text-foreground"
+                  placeholder="Ví dụ: 079201012345"
+                  value={cccdNumber}
+                  onChange={(e) => setCccdNumber(e.target.value.replace(/\D/g, ""))}
+                />
+                {!cccdValid && cccdNumber !== "" && (
+                  <p className="mt-1 text-xs text-destructive">CCCD phải gồm 12 chữ số.</p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="license" className="text-sm font-medium">
+                  Số giấy phép lái xe
+                </label>
+                <input
+                  id="license"
+                  className="mt-1 w-full h-10 rounded-md border px-3 text-sm bg-background text-foreground"
+                  placeholder="Ví dụ: B123456789"
+                  value={licenseNumber}
+                  onChange={(e) => setLicenseNumber(e.target.value.trim())}
+                />
+                {!licenseValid && licenseNumber !== "" && (
+                  <p className="mt-1 text-xs text-destructive">Tối thiểu 6, tối đa 12 ký tự chữ/số.</p>
+                )}
+              </div>
+            </div>
+          </div>
           <DocumentUpload
             onDocumentUpload={handleDocumentUpload}
             requiredDocuments={REQUIRED_DOCS}
