@@ -26,16 +26,29 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
 import DocumentUpload from "@/components/DocumentUpload";
+import { documentStorage, type DocumentType } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
   const { t, language, setLanguage } = useTranslation();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState({
     emailBooking: true,
     emailPromotions: false,
     smsReminders: true,
     pushNotifications: true,
   });
-
+  const [uploadedDocuments, setUploadedDocuments] = useState(() =>
+    documentStorage.getUploadedDocuments()
+  );
+  const [pendingUploads, setPendingUploads] = useState<
+    Record<DocumentType, File | null>
+  >({
+    driverLicense: null,
+    driverLicenseBack: null,
+    nationalId_front: null,
+    nationalId_back: null,
+  });
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -151,170 +164,6 @@ const Settings = () => {
                         defaultValue="2028-12-31"
                         className="text-black"
                       />
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">
-                    {language === "vi"
-                      ? "Căn Cước Công Dân (CCCD)"
-                      : "Identity Verification"}
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="cccdNumber">
-                        {language === "vi" ? "Số CCCD" : "ID Number"}
-                      </Label>
-                      <Input
-                        id="cccdNumber"
-                        defaultValue="079201012345"
-                        className="text-black"
-                        placeholder={
-                          language === "vi"
-                            ? "Nhập số CCCD 12 số"
-                            : "Enter 12-digit ID number"
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cccdIssueDate">
-                        {language === "vi" ? "Ngày cấp" : "Issue Date"}
-                      </Label>
-                      <Input
-                        id="cccdIssueDate"
-                        type="date"
-                        defaultValue="2021-01-15"
-                        className="text-black"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cccdExpiryDate">
-                        {language === "vi" ? "Ngày hết hạn" : "Expiry Date"}
-                      </Label>
-                      <Input
-                        id="cccdExpiryDate"
-                        type="date"
-                        defaultValue="2031-01-14"
-                        className="text-black"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cccdPlaceOfIssue">
-                        {language === "vi" ? "Nơi cấp" : "Place of Issue"}
-                      </Label>
-                      <Input
-                        id="cccdPlaceOfIssue"
-                        defaultValue={
-                          language === "vi"
-                            ? "Cục Cảnh sát ĐKQL cư trú và DLQG về dân cư"
-                            : "Police Department"
-                        }
-                        className="text-black"
-                      />
-                    </div>
-
-                    {/* CCCD Document Upload */}
-                    <div className="space-y-4">
-                      <Label className="text-base font-medium">
-                        {language === "vi"
-                          ? "Tải lên ảnh CCCD"
-                          : "Upload ID Documents"}
-                      </Label>
-
-                      {/* Front Side */}
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
-                        <div className="text-center">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="mt-4">
-                            <Label className="cursor-pointer">
-                              <span className="mt-2 block text-sm font-medium text-gray-900">
-                                {language === "vi"
-                                  ? "Mặt trước CCCD"
-                                  : "ID Card Front Side"}
-                              </span>
-                              <input
-                                type="file"
-                                className="sr-only"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  // Handle file upload logic here
-                                  console.log(
-                                    "Front side file:",
-                                    e.target.files?.[0]
-                                  );
-                                }}
-                              />
-                              <span className="mt-2 block text-xs text-gray-500">
-                                {language === "vi"
-                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
-                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
-                              </span>
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Back Side */}
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
-                        <div className="text-center">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="mt-4">
-                            <Label className="cursor-pointer">
-                              <span className="mt-2 block text-sm font-medium text-gray-900">
-                                {language === "vi"
-                                  ? "Mặt sau CCCD"
-                                  : "ID Card Back Side"}
-                              </span>
-                              <input
-                                type="file"
-                                className="sr-only"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  // Handle file upload logic here
-                                  console.log(
-                                    "Back side file:",
-                                    e.target.files?.[0]
-                                  );
-                                }}
-                              />
-                              <span className="mt-2 block text-xs text-gray-500">
-                                {language === "vi"
-                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
-                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
-                              </span>
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Upload Status */}
-                      <div className="rounded-lg bg-green-50 p-4 border border-green-200">
-                        <div className="flex">
-                          <div className="flex-shrink-0">
-                            <CheckCircle className="h-5 w-5 text-green-400" />
-                          </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-green-800">
-                              {language === "vi"
-                                ? "Trạng thái xác minh"
-                                : "Verification Status"}
-                            </p>
-                            <p className="mt-1 text-sm text-green-700">
-                              {language === "vi"
-                                ? "✓ Đã xác minh thành công"
-                                : "✓ Successfully verified"}
-                            </p>
-                            <p className="mt-1 text-xs text-green-600">
-                              {language === "vi"
-                                ? "Cập nhật lần cuối: 15/01/2024"
-                                : "Last updated: Jan 15, 2024"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -576,19 +425,200 @@ const Settings = () => {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
-                  Upload/Update Identity Documents
+                  Identity Documents
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <p className="text-sm text-muted-foreground">
-                    Cập nhật CMND/CCCD và Bằng lái xe của bạn. Tài liệu rõ nét, đầy đủ 4 góc, tối đa 5MB mỗi ảnh.
-                  </p>
-                  <DocumentUpload
-                    onDocumentUpload={() => {}}
-                    requiredDocuments={["driverLicense", "driverLicenseBack", "nationalId"]}
-                    uploadedDocuments={{}}
-                  />
+                  {/* Current Status */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">
+                      Current Document Status
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(uploadedDocuments).map(([key, doc]) => {
+                        const pendingFile = pendingUploads[key as DocumentType];
+                        const hasConfirmed = doc !== null;
+                        const hasPending = pendingFile !== null;
+
+                        return (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between p-3 border rounded-lg"
+                          >
+                            <div className="flex items-center gap-3">
+                              <CheckCircle
+                                className={`h-5 w-5 ${
+                                  hasConfirmed
+                                    ? "text-green-500"
+                                    : hasPending
+                                    ? "text-yellow-500"
+                                    : "text-gray-300"
+                                }`}
+                              />
+                              <div>
+                                <p className="font-medium">
+                                  {key === "driverLicense" &&
+                                    "Driver License (Front)"}
+                                  {key === "driverLicenseBack" &&
+                                    "Driver License (Back)"}
+                                  {key === "nationalId_front" &&
+                                    "National ID (Front)"}
+                                  {key === "nationalId_back" &&
+                                    "National ID (Back)"}
+                                </p>
+                                {hasConfirmed && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Confirmed:{" "}
+                                    {new Date(
+                                      doc.uploadedAt
+                                    ).toLocaleDateString()}
+                                  </p>
+                                )}
+                                {hasPending && !hasConfirmed && (
+                                  <p className="text-sm text-yellow-600">
+                                    Pending confirmation
+                                  </p>
+                                )}
+                                {hasPending && hasConfirmed && (
+                                  <p className="text-sm text-blue-600">
+                                    New version pending confirmation
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {hasConfirmed && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  documentStorage.removeDocument(
+                                    key as DocumentType
+                                  );
+                                  setUploadedDocuments(
+                                    documentStorage.getUploadedDocuments()
+                                  );
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {documentStorage.isProfileComplete() &&
+                      Object.values(pendingUploads).every(
+                        (file) => file === null
+                      ) && (
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center gap-2 text-green-800">
+                            <CheckCircle className="h-5 w-5" />
+                            <span className="font-medium">
+                              Profile Complete!
+                            </span>
+                          </div>
+                          <p className="text-sm text-green-700 mt-1">
+                            All required documents have been uploaded and
+                            verified.
+                          </p>
+                        </div>
+                      )}
+                  </div>
+
+                  <Separator />
+
+                  {/* Upload Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">
+                      Upload/Update Documents
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Cập nhật CMND/CCCD và Bằng lái xe của bạn. Tài liệu rõ
+                      nét, đầy đủ 4 góc, tối đa 5MB mỗi ảnh.
+                    </p>
+                    <DocumentUpload
+                      stagingMode={true}
+                      showProgress={false}
+                      onDocumentStaged={(documentType, file) => {
+                        // Store in pending uploads instead of saving immediately
+                        setPendingUploads((prev) => ({
+                          ...prev,
+                          [documentType as DocumentType]: file,
+                        }));
+                      }}
+                      requiredDocuments={[
+                        "driverLicense",
+                        "driverLicenseBack",
+                        "nationalId_front",
+                        "nationalId_back",
+                      ]}
+                      uploadedDocuments={{}}
+                    />
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      {Object.values(pendingUploads).some(
+                        (file) => file !== null
+                      ) && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setPendingUploads({
+                              driverLicense: null,
+                              driverLicenseBack: null,
+                              nationalId_front: null,
+                              nationalId_back: null,
+                            });
+                          }}
+                          className="min-w-24"
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => {
+                          // Save all pending uploads
+                          Object.entries(pendingUploads).forEach(
+                            ([type, file]) => {
+                              if (file) {
+                                documentStorage.saveDocument(
+                                  type as DocumentType,
+                                  file
+                                );
+                              }
+                            }
+                          );
+
+                          // Update the displayed documents
+                          setUploadedDocuments(
+                            documentStorage.getUploadedDocuments()
+                          );
+
+                          // Clear pending uploads
+                          setPendingUploads({
+                            driverLicense: null,
+                            driverLicenseBack: null,
+                            nationalId_front: null,
+                            nationalId_back: null,
+                          });
+
+                          toast({
+                            title: "Documents Confirmed",
+                            description:
+                              "Your documents have been successfully submitted for verification.",
+                          });
+                        }}
+                        disabled={Object.values(pendingUploads).every(
+                          (file) => file === null
+                        )}
+                        className="min-w-32"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Confirm Documents
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
