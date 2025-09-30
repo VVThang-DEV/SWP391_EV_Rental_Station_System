@@ -125,19 +125,24 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
   };
 
   const handleOTPVerifySuccess = () => {
-    // Complete the registration process
+    // Lưu tạm dữ liệu đã đăng ký để trang success hiển thị
+    localStorage.setItem(
+      "pendingRegister",
+      JSON.stringify({ fullName: formData.fullName, email: formData.email })
+    );
+    // Thiết lập user đăng nhập ngay sau khi xác thực OTP thành công
     const userData: UserType = {
       id: `user_${Date.now()}`,
       name: formData.fullName,
       email: formData.email,
       role: "customer",
     };
+    // Gọi callback để App cập nhật navbar & lưu localStorage
     onRegister(userData);
-    toast({
-      title: t("register.welcome"),
-      description: t("register.accountCreated"),
+    // chuyển tới trang thành công đăng ký
+    navigate("/register/success", {
+      state: { pending: { fullName: formData.fullName, email: formData.email } },
     });
-    navigate("/dashboard");
   };
 
   const handleBackToForm = () => {
@@ -235,9 +240,10 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
   })();
 
   return (
-    <>
+    <div className="w-full">
+      <div className="w-full">
       {step === "form" && (
-        <Card className="shadow-premium w-full max-w-md">
+        <Card className="shadow-premium w-full">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">
               {t("register.createAccount")}
@@ -499,6 +505,7 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
           description="We've sent a 6-digit verification code to complete your registration."
         />
       )}
-    </>
+      </div>
+    </div>
   );
 };

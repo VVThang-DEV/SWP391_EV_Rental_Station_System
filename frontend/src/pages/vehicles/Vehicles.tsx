@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,7 +26,15 @@ import {
   type SearchSuggestion,
 } from "@/components/EnhancedSearch";
 import { getVehicles } from "@/data/vehicles";
-import { Search, Filter, Grid, List, SlidersHorizontal } from "lucide-react";
+import { stations } from "@/data/stations";
+import {
+  Search,
+  Filter,
+  Grid,
+  List,
+  SlidersHorizontal,
+  MapPin,
+} from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
 
 const Vehicles = () => {
@@ -42,6 +50,9 @@ const Vehicles = () => {
     searchParams.get("search") || ""
   );
   const [locationFilter, setLocationFilter] = useState("all");
+  const [stationFilter, setStationFilter] = useState(
+    searchParams.get("station") || "all"
+  );
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [priceRange, setPriceRange] = useState([0, 50]);
   const [sortBy, setSortBy] = useState("name");
@@ -150,6 +161,9 @@ const Vehicles = () => {
       case "location":
         setLocationFilter(value);
         break;
+      case "station":
+        setStationFilter(value);
+        break;
       case "availability":
         setAvailabilityFilter(value);
         break;
@@ -190,6 +204,9 @@ const Vehicles = () => {
       const matchesLocation =
         locationFilter === "all" || vehicle.location === locationFilter;
 
+      const matchesStation =
+        stationFilter === "all" || vehicle.stationId === stationFilter;
+
       const matchesAvailability =
         availabilityFilter === "all" ||
         vehicle.availability === availabilityFilter;
@@ -206,6 +223,7 @@ const Vehicles = () => {
       return (
         matchesSearch &&
         matchesLocation &&
+        matchesStation &&
         matchesAvailability &&
         matchesPrice &&
         matchesVehicleType
@@ -232,6 +250,7 @@ const Vehicles = () => {
   }, [
     searchTerm,
     locationFilter,
+    stationFilter,
     availabilityFilter,
     priceRange,
     sortBy,
@@ -278,6 +297,13 @@ const Vehicles = () => {
                   }}
                   placeholder={t("common.searchPlaceholder")}
                 />
+                <p className="text-sm text-muted-foreground mt-2">
+                  💡 <strong>Tip:</strong> Search for specific models (e.g.,
+                  "Tesla Model 3", "VinFast VF8") to see all available vehicles
+                  across stations, or use the{" "}
+                  <strong>"Find Model at Stations"</strong> button for detailed
+                  availability mapping.
+                </p>
               </div>
 
               {/* Quick Filters */}
@@ -337,6 +363,17 @@ const Vehicles = () => {
                   <SlidersHorizontal className="h-4 w-4 mr-2" />
                   {t("common.filter")}
                 </Button>
+
+                <Button
+                  asChild
+                  variant="default"
+                  className="px-4 bg-primary hover:bg-primary/90"
+                >
+                  <Link to="/vehicle-model-finder">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Find Model at Stations
+                  </Link>
+                </Button>
               </div>
             </div>
 
@@ -358,6 +395,18 @@ const Vehicles = () => {
                         key: "location",
                         label: `Location: ${locationFilter}`,
                         onRemove: () => handleFilterChange("location", "all"),
+                      },
+                    ]
+                  : []),
+                ...(stationFilter !== "all"
+                  ? [
+                      {
+                        key: "station",
+                        label: `Station: ${
+                          stations.find((s) => s.id === stationFilter)?.name ||
+                          stationFilter
+                        }`,
+                        onRemove: () => handleFilterChange("station", "all"),
                       },
                     ]
                   : []),
@@ -394,6 +443,7 @@ const Vehicles = () => {
               onClearAll={() => {
                 handleSearchChange("");
                 handleFilterChange("location", "all");
+                handleFilterChange("station", "all");
                 handleFilterChange("availability", "all");
                 handleFilterChange("vehicleType", "all");
                 handleFilterChange("sortBy", "name");
@@ -454,6 +504,32 @@ const Vehicles = () => {
                         <SelectItem value="Van">Van</SelectItem>
                         <SelectItem value="Bus">Bus</SelectItem>
                         <SelectItem value="Truck">Truck</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Station Filter */}
+                  <div>
+                    <label className="text-sm font-medium mb-3 block">
+                      Station
+                    </label>
+                    <Select
+                      value={stationFilter}
+                      onValueChange={(value) => {
+                        setStationFilter(value);
+                        updateSearchParams("station", value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select station" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Stations</SelectItem>
+                        {stations.map((station) => (
+                          <SelectItem key={station.id} value={station.id}>
+                            {station.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -585,6 +661,7 @@ const Vehicles = () => {
                     onClick={() => {
                       setSearchTerm("");
                       setLocationFilter("all");
+                      setStationFilter("all");
                       setAvailabilityFilter("all");
                       setPriceRange([0, 50]);
                     }}
