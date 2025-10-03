@@ -6,12 +6,6 @@
   margin-top: 1rem;
 }
 
-/* Ensure upload cards in the same row align vertically */
-.grid > .card,
-.grid > div > .card {
-  height: 100%;
-}
-
 .upload-actions .btn {
   font-size: 0.95rem;
   padding: 0.4rem 1rem;
