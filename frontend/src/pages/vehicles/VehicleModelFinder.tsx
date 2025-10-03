@@ -40,6 +40,7 @@ import {
   getVehicleModels,
   findStationsWithModel,
   getVehicleAvailabilitySummary,
+  getStationsWithVehicleInfo, // Thêm dòng này
   StationLocation,
   VehicleModel,
 } from "@/lib/vehicle-station-utils";
@@ -88,265 +89,40 @@ const VehicleModelFinder = () => {
   } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
-  // Demo data - in production, this would come from the API
-  const mockVehicleModels: VehicleModel[] = useMemo(
-    () => [
-      // Original models
-      {
-        modelId: "VF8",
-        name: "VinFast VF8",
-        brand: "VinFast",
-        model: "VF8",
-        type: "SUV",
-        image:
-          "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=400",
-        basePrice: { perHour: 15, perDay: 120 },
-        specs: {
-          range: 420,
-          seats: 5,
-          features: ["Premium Sound", "Autopilot", "Fast Charging"],
-        },
-        description: "Premium electric SUV with cutting-edge technology",
-      },
-      {
-        modelId: "MODEL3",
-        name: "Tesla Model 3",
-        brand: "Tesla",
-        model: "Model 3",
-        type: "Sedan",
-        image:
-          "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400",
-        basePrice: { perHour: 18, perDay: 150 },
-        specs: {
-          range: 358,
-          seats: 5,
-          features: ["Autopilot", "Supercharging", "Premium Interior"],
-        },
-        description: "Iconic electric sedan with unmatched performance",
-      },
-      {
-        modelId: "KONA",
-        name: "Hyundai Kona Electric",
-        brand: "Hyundai",
-        model: "Kona Electric",
-        type: "Crossover",
-        image:
-          "https://images.unsplash.com/photo-1549399735-cef2e2c3f638?w=400",
-        basePrice: { perHour: 12, perDay: 90 },
-        specs: {
-          range: 305,
-          seats: 5,
-          features: ["Fast Charging", "Safety Tech", "Eco Mode"],
-        },
-        description: "Affordable electric crossover for city driving",
-      },
-      // Luxury models
-      {
-        modelId: "MERCEDES_EQS",
-        name: "Mercedes-Benz EQS",
-        brand: "Mercedes-Benz",
-        model: "EQS",
-        type: "Sedan",
-        image:
-          "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=400",
-        basePrice: { perHour: 35, perDay: 280 },
-        specs: {
-          range: 516,
-          seats: 5,
-          features: ["MBUX Hyperscreen", "Massage Seats", "Air Suspension"],
-        },
-        description:
-          "Ultimate luxury electric sedan with cutting-edge technology",
-      },
-      {
-        modelId: "PORSCHE_TAYCAN",
-        name: "Porsche Taycan",
-        brand: "Porsche",
-        model: "Taycan",
-        type: "Sedan",
-        image:
-          "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400",
-        basePrice: { perHour: 42, perDay: 350 },
-        specs: {
-          range: 484,
-          seats: 4,
-          features: ["Launch Control", "Sport Chrono", "Carbon Interior"],
-        },
-        description: "Pure performance meets electric efficiency",
-      },
-      // Budget models
-      {
-        modelId: "CHEVROLET_BOLT",
-        name: "Chevrolet Bolt EV",
-        brand: "Chevrolet",
-        model: "Bolt EV",
-        type: "Hatchback",
-        image:
-          "https://images.unsplash.com/photo-1549399735-cef2e2c3f638?w=400",
-        basePrice: { perHour: 9, perDay: 65 },
-        specs: {
-          range: 327,
-          seats: 5,
-          features: [
-            "Regenerative Braking",
-            "OnStar",
-            "Smartphone Integration",
-          ],
-        },
-        description: "Affordable electric vehicle perfect for daily commuting",
-      },
-      {
-        modelId: "VOLKSWAGEN_ID3",
-        name: "Volkswagen ID.3",
-        brand: "Volkswagen",
-        model: "ID.3",
-        type: "Hatchback",
-        image:
-          "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=400",
-        basePrice: { perHour: 11, perDay: 75 },
-        specs: {
-          range: 340,
-          seats: 5,
-          features: ["ID.Light", "App Connect", "Wireless Charging"],
-        },
-        description: "Compact and efficient electric car for urban mobility",
-      },
-      // Performance models
-      {
-        modelId: "TESLA_MODEL_S",
-        name: "Tesla Model S",
-        brand: "Tesla",
-        model: "Model S",
-        type: "Sedan",
-        image:
-          "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400",
-        basePrice: { perHour: 28, perDay: 220 },
-        specs: {
-          range: 652,
-          seats: 5,
-          features: ["Ludicrous Mode", "17'' Touchscreen", "Autopilot"],
-        },
-        description: "High-performance luxury sedan with incredible range",
-      },
-      {
-        modelId: "BMW_I4",
-        name: "BMW i4 M50",
-        brand: "BMW",
-        model: "i4 M50",
-        type: "Sedan",
-        image:
-          "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400",
-        basePrice: { perHour: 25, perDay: 200 },
-        specs: {
-          range: 435,
-          seats: 5,
-          features: [
-            "M Sport Package",
-            "Harman Kardon Audio",
-            "Head-Up Display",
-          ],
-        },
-        description: "Sports performance meets electric efficiency",
-      },
-      // Alternative vehicles
-      {
-        modelId: "YAMAHA_EC05",
-        name: "Yamaha EC-05",
-        brand: "Yamaha",
-        model: "EC-05",
-        type: "Scooter",
-        image:
-          "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400",
-        basePrice: { perHour: 4, perDay: 25 },
-        specs: {
-          range: 110,
-          seats: 2,
-          features: ["Smart Key", "USB Charging", "LED Lighting"],
-        },
-        description: "Convenient electric scooter for city commuting",
-      },
-      {
-        modelId: "SPECIALIZED_TURBO",
-        name: "Specialized Turbo Vado",
-        brand: "Specialized",
-        model: "Turbo Vado",
-        type: "Bike",
-        image:
-          "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=400",
-        basePrice: { perHour: 3, perDay: 20 },
-        specs: {
-          range: 80,
-          seats: 1,
-          features: [
-            "Pedal Assist",
-            "Integrated Lights",
-            "Mission Control App",
-          ],
-        },
-        description: "High-performance electric bike for sustainable transport",
-      },
-    ],
-    []
-  );
-
-  const mockStationAvailability = useMemo(
-    () => ({
-      VF8: [
-        {
-          stationId: "st1",
-          stationName: "District 1 Station",
-          count: 1,
-          distance: 1.2,
-        },
-        {
-          stationId: "st2",
-          stationName: "District 7 Station",
-          count: 1,
-          distance: 8.5,
-        },
-      ],
-      MODEL3: [
-        {
-          stationId: "st1",
-          stationName: "District 1 Station",
-          count: 1,
-          distance: 1.2,
-        },
-        {
-          stationId: "st2",
-          stationName: "District 7 Station",
-          count: 1,
-          distance: 8.5,
-        },
-      ],
-      KONA: [
-        {
-          stationId: "st3",
-          stationName: "Airport Station",
-          count: 2,
-          distance: 15.3,
-        },
-      ],
-    }),
-    []
-  );
-
   useEffect(() => {
-    // Load availability data
-    const data = mockVehicleModels.map((model) => ({
-      model,
-      stations:
-        mockStationAvailability[
-          model.modelId as keyof typeof mockStationAvailability
-        ] || [],
-      totalAvailable: (
-        mockStationAvailability[
-          model.modelId as keyof typeof mockStationAvailability
-        ] || []
-      ).reduce((sum, station) => sum + station.count, 0),
-    }));
+    // Load availability data từ dữ liệu thực tế
+    const models = getVehicleModels(); // Lấy danh sách mẫu xe thực tế
+    const stationsWithInfo = getStationsWithVehicleInfo(); // Lấy thông tin trạm và xe
+
+    const data = models.map((model) => {
+      const stationAvailability = stationsWithInfo
+        .filter((station) =>
+          station.availableModels.some((m) => m.modelId === model.modelId)
+        )
+        .map((station) => {
+          const modelData = station.availableModels.find(
+            (m) => m.modelId === model.modelId
+          );
+          return {
+            stationId: station.id,
+            stationName: station.name,
+            count: modelData?.count || 0,
+            distance: 0, // Nếu cần, tính khoảng cách từ vị trí người dùng
+          };
+        });
+
+      return {
+        model,
+        stations: stationAvailability,
+        totalAvailable: stationAvailability.reduce(
+          (sum, station) => sum + station.count,
+          0
+        ),
+      };
+    });
+
     setAvailabilityData(data);
-  }, [mockVehicleModels, mockStationAvailability]); // Include dependencies
+  }, []); // Include dependencies
 
   const handleGetLocation = () => {
     setIsLoadingLocation(true);
@@ -384,12 +160,14 @@ const VehicleModelFinder = () => {
     }
   };
 
-  const filteredModels = mockVehicleModels.filter(
-    (model) =>
-      model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      model.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      model.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredModels = availabilityData
+    .map((data) => data.model)
+    .filter(
+      (model) =>
+        model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.type.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
@@ -404,13 +182,13 @@ const VehicleModelFinder = () => {
             );
             return station
               ? {
-                  id: station.id,
-                  name: station.name,
-                  address: station.address,
-                  distance: s.distance,
-                  operatingHours: station.operatingHours,
-                  rating: station.rating,
-                }
+                id: station.id,
+                name: station.name,
+                address: station.address,
+                distance: s.distance,
+                operatingHours: station.operatingHours,
+                rating: station.rating,
+              }
               : null;
           })
           .filter((station): station is StationWithModel => station !== null)
@@ -490,9 +268,8 @@ const VehicleModelFinder = () => {
                             className="w-full h-48 object-cover rounded-t-lg"
                           />
                           <Badge
-                            className={`absolute top-3 right-3 ${
-                              totalAvailable > 0 ? "bg-green-500" : "bg-red-500"
-                            }`}
+                            className={`absolute top-3 right-3 ${totalAvailable > 0 ? "bg-green-500" : "bg-red-500"
+                              }`}
                           >
                             {totalAvailable} available
                           </Badge>
@@ -576,11 +353,24 @@ const VehicleModelFinder = () => {
                           >
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-medium">{station.name}</h4>
-                              {station.distance && (
-                                <Badge variant="outline">
-                                  {station.distance.toFixed(1)} km
-                                </Badge>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {/* ✅ THÊM MỚI: Hiển thị số lượng xe */}
+                                {(() => {
+                                  const modelData = availabilityData.find((d) => d.model.modelId === selectedModel);
+                                  const stationData = modelData?.stations.find((s) => s.stationId === station.id);
+                                  const vehicleCount = stationData?.count || 0;
+                                  return (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700">
+                                      {vehicleCount} available
+                                    </Badge>
+                                  );
+                                })()}
+                                {station.distance && (
+                                  <Badge variant="outline">
+                                    {station.distance.toFixed(1)} km
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             <p className="text-sm text-muted-foreground mb-3">
                               {station.address}
@@ -634,17 +424,11 @@ const VehicleModelFinder = () => {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Total Models:
-                      </span>
-                      <span className="font-medium">
-                        {mockVehicleModels.length}
-                      </span>
+                      <span className="text-sm text-muted-foreground">Total Models:</span>
+                      <span className="font-medium">{availabilityData.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Available Vehicles:
-                      </span>
+                      <span className="text-sm text-muted-foreground">Available Vehicles:</span>
                       <span className="font-medium text-green-600">
                         {availabilityData.reduce(
                           (sum, data) => sum + data.totalAvailable,
@@ -653,9 +437,7 @@ const VehicleModelFinder = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Total Stations:
-                      </span>
+                      <span className="text-sm text-muted-foreground">Total Stations:</span>
                       <span className="font-medium">{stations.length}</span>
                     </div>
                   </div>
