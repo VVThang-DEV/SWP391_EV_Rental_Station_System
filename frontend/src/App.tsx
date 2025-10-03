@@ -10,10 +10,9 @@ import {
   Index,
   Vehicles,
   VehicleDetails,
-  VehicleModelFinder,
   Login,
   Register,
-  PersonalInfoUpdate,
+  CompleteProfile,
   Dashboard,
   BookingPage,
   Stations,
@@ -32,6 +31,8 @@ import {
   StaffDashboard,
   AdminDashboard,
 } from "./pages/pages";
+import RegisterSuccess from "@/pages/auth/Register/RegisterSuccess";
+import VehicleModelFinder from "./pages/vehicles/VehicleModelFinder";
 
 const queryClient = new QueryClient();
 
@@ -69,10 +70,12 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <div className="min-h-screen bg-background">
               <Navbar user={user} onLogout={handleLogout} />
               <Routes>
@@ -87,10 +90,6 @@ const App = () => {
                 <Route
                   path="/register"
                   element={<Register onRegister={handleLogin} />}
-                />
-                <Route
-                  path="/personal-info-update"
-                  element={<PersonalInfoUpdate user={user} />}
                 />
                 <Route
                   path="/dashboard"
@@ -163,13 +162,17 @@ const App = () => {
                 />
                 <Route path="/stations" element={<Stations />} />
                 <Route path="/stations/:id" element={<StationDetails />} />
-                <Route
-                  path="/vehicle-model-finder"
-                  element={<VehicleModelFinder />}
-                />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route
+                  path="/auth/complete-profile"
+                  element={<CompleteProfile />}
+                />
+                <Route
+                  path="vehicle-model-finder"
+                  element={<VehicleModelFinder />}
+                />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
@@ -177,6 +180,7 @@ const App = () => {
                 <Route path="/about" element={<About />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/safety" element={<Safety />} />
+                <Route path="/register/success" element={<RegisterSuccess />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
