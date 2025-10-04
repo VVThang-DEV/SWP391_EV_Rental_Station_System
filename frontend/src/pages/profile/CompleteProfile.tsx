@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DocumentUpload from "@/components/DocumentUpload";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Info, ShieldCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle2, Info, ShieldCheck, User, Camera, MapPin } from "lucide-react";
 import { documentStorage, type DocumentType } from "@/lib/utils";
 
 const REQUIRED_DOCS: DocumentType[] = [
@@ -27,6 +30,13 @@ const CompleteProfile = () => {
     }
   );
 
+  // State for additional information
+  const [additionalInfo, setAdditionalInfo] = useState({
+    citizenId: "",
+    driverLicenseNumber: "",
+    currentAddress: "",
+  });
+
   const handleDocumentUpload = (documentType: string, file: File) => {
     const key = documentType as DocumentType;
     if (REQUIRED_DOCS.includes(key)) {
@@ -35,7 +45,28 @@ const CompleteProfile = () => {
     }
   };
 
-  const allDone = REQUIRED_DOCS.every((k) => Boolean(uploaded[k]));
+  const handleInfoChange = (field: keyof typeof additionalInfo, value: string) => {
+    setAdditionalInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const validateCitizenId = (id: string) => {
+    return /^\d{9}(\d{3})?$/.test(id); // 9 digits for CCCD, 12 for CMND
+  };
+
+  const validateDriverLicenseNumber = (number: string) => {
+    return /^\d{12}$/.test(number); // 12 digits for Vietnamese driver license
+  };
+
+  // Check if all documents uploaded AND additional info filled
+  const documentsComplete = REQUIRED_DOCS.every((k) => Boolean(uploaded[k]));
+  const infoValid = validateCitizenId(additionalInfo.citizenId) && 
+                   validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) && 
+                   additionalInfo.currentAddress.trim().length >= 10; // Minimum address length
+
+  const allDone = documentsComplete && infoValid;
 
   return (
     <div className="min-h-screen bg-background">
@@ -61,47 +92,183 @@ const CompleteProfile = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Uploader */}
-        <div className="lg:col-span-2">
-          <DocumentUpload
-            onDocumentUpload={handleDocumentUpload}
-            requiredDocuments={REQUIRED_DOCS}
-            uploadedDocuments={uploaded as unknown as Record<string, File>}
-          />
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+        {/* Additional Information Section */}
+        <div className="bg-card rounded-xl border p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <User className="h-6 w-6 text-blue-600" />
+            <h2 className="text-xl font-semibold">Thông tin bổ sung</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Citizen ID */}
+            <div className="space-y-2">
+              <Label htmlFor="citizenId" className="text-sm font-medium">
+                Số căn cước công dân / CMND
+              </Label>
+              <div className="relative">
+                <Input
+                  id="citizenId"
+                  type="text"
+                  placeholder="Nhập số căn cước công dân"
+                  value={additionalInfo.citizenId}
+                  onChange={(e) => handleInfoChange('citizenId', e.target.value)}
+                  maxLength={12}
+                  className={`${
+                    additionalInfo.citizenId && !validateCitizenId(additionalInfo.citizenId)
+                      ? 'border-red-500 focus:border-red-500'
+                      : ''
+                  }`}
+                />
+                {additionalInfo.citizenId && validateCitizenId(additionalInfo.citizenId) && (
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Nhập 9 số (CCCD) hoặc 12 số (CMND)
+              </p>
+            </div>
+
+            {/* Driver License Number */}
+            <div className="space-y-2">
+              <Label htmlFor="driverLicenseNumber" className="text-sm font-medium">
+                Số bằng lái xe
+              </Label>
+              <div className="relative">
+                <Input
+                  id="driverLicenseNumber"
+                  type="text"
+                  placeholder="Nhập số bằng lái xe"
+                  value={additionalInfo.driverLicenseNumber}
+                  onChange={(e) => handleInfoChange('driverLicenseNumber', e.target.value)}
+                  maxLength={12}
+                  className={`${
+                    additionalInfo.driverLicenseNumber && !validateDriverLicenseNumber(additionalInfo.driverLicenseNumber)
+                      ? 'border-red-500 focus:border-red-500'
+                      : ''
+                  }`}
+                />
+                {additionalInfo.driverLicenseNumber && validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) && (
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Nhập 12 số bằng lái xe Việt Nam
+              </p>
+            </div>
+
+            {/* Current Address */}
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="currentAddress" className="text-sm font-medium">
+                Địa chỉ hiện tại
+              </Label>
+              <div className="relative">
+                <Textarea
+                  id="currentAddress"
+                  placeholder="Nhập địa chỉ hiện tại đầy đủ (số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố)"
+                  value={additionalInfo.currentAddress}
+                  onChange={(e) => handleInfoChange('currentAddress', e.target.value)}
+                  className={`min-h-[80px] ${
+                    additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length < 10
+                      ? 'border-red-500 focus:border-red-500'
+                      : ''
+                  }`}
+                />
+                {additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length >= 10 && (
+                  <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-500" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Địa chỉ phải có ít nhất 10 ký tự
+              </p>
+            </div>
+          </div>
         </div>
+
+        {/* Upload Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left: Uploader */}
+          <div className="lg:col-span-2">
+            <DocumentUpload
+              onDocumentUpload={handleDocumentUpload}
+              requiredDocuments={REQUIRED_DOCS}
+              uploadedDocuments={uploaded as unknown as Record<string, File>}
+            />
+          </div>
 
         {/* Right: Summary / Tips */}
         <aside className="space-y-6">
           <div className="rounded-xl border bg-card text-card-foreground shadow p-5">
-            <h2 className="text-base font-semibold mb-3">Yêu cầu bắt buộc</h2>
-            <ul className="space-y-2">
-              {REQUIRED_DOCS.map((k) => {
-                const ok = Boolean(uploaded[k]);
-                const labelMap: Record<DocumentType, string> = {
-                  driverLicense: "Bằng lái xe - Mặt trước",
-                  driverLicenseBack: "Bằng lái xe - Mặt sau",
-                  nationalId_front: "CMND/CCCD - Mặt trước",
-                  nationalId_back: "CMND/CCCD - Mặt sau",
-                };
-                return (
-                  <li key={k} className="flex items-center gap-2 text-sm">
-                    <CheckCircle2
-                      className={`h-4 w-4 ${
-                        ok ? "text-emerald-500" : "text-muted-foreground"
-                      }`}
-                    />
-                    <span
-                      className={
-                        ok ? "text-foreground" : "text-muted-foreground"
-                      }
-                    >
-                      {labelMap[k]}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+            <h2 className="text-base font-semibold mb-3">Tình trạng hoàn tất</h2>
+            
+            {/* Additional Info Status */}
+            <div className="mb-4">
+              <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Thông tin bổ sung
+              </h3>
+              <ul className="space-y-1 text-xs">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className={`h-3 w-3 ${
+                    validateCitizenId(additionalInfo.citizenId) ? "text-emerald-500" : "text-muted-foreground"
+                  }`} />
+                  <span className={validateCitizenId(additionalInfo.citizenId) ? "text-foreground" : "text-muted-foreground"}>
+                    Số CCCD/CMND
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className={`h-3 w-3 ${
+                    validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) ? "text-emerald-500" : "text-muted-foreground"
+                  }`} />
+                  <span className={validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) ? "text-foreground" : "text-muted-foreground"}>
+                    Số bằng lái xe
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className={`h-3 w-3 ${
+                    additionalInfo.currentAddress.trim().length >= 10 ? "text-emerald-500" : "text-muted-foreground"
+                  }`} />
+                  <span className={additionalInfo.currentAddress.trim().length >= 10 ? "text-foreground" : "text-muted-foreground"}>
+                    Địa chỉ hiện tại
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Documents Status */}
+            <div>
+              <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Tài liệu bắt buộc
+              </h3>
+              <ul className="space-y-1 text-xs">
+                {REQUIRED_DOCS.map((k) => {
+                  const ok = Boolean(uploaded[k]);
+                  const labelMap: Record<DocumentType, string> = {
+                    driverLicense: "Bằng lái xe - Mặt trước",
+                    driverLicenseBack: "Bằng lái xe - Mặt sau",
+                    nationalId_front: "CMND/CCCD - Mặt trước",
+                    nationalId_back: "CMND/CCCD - Mặt sau",
+                  };
+                  return (
+                    <li key={k} className="flex items-center gap-2">
+                      <CheckCircle2
+                        className={`h-3 w-3 ${
+                          ok ? "text-emerald-500" : "text-muted-foreground"
+                        }`}
+                      />
+                      <span
+                        className={
+                          ok ? "text-foreground" : "text-muted-foreground"
+                        }
+                      >
+                        {labelMap[k]}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
 
           <div className="rounded-xl border bg-card text-card-foreground shadow p-5">
@@ -129,15 +296,26 @@ const CompleteProfile = () => {
               disabled={!allDone}
               onClick={() => navigate("/stations")}
             >
-              Hoàn tất và tiếp tục
+              {allDone ? "Hoàn tất và tiếp tục" : "Chưa hoàn tất"}
             </Button>
             {!allDone && (
-              <p className="mt-2 text-xs text-muted-foreground text-center">
-                Vui lòng tải đủ 4 ảnh để tiếp tục.
+              <div className="mt-2 text-xs text-muted-foreground text-center space-y-1">
+                {!documentsComplete && (
+                  <p>• Vui lòng tải đủ 4 ảnh giấy tờ</p>
+                )}
+                {!infoValid && (
+                  <p>• Vui lòng điền đầy đủ thông tin bổ sung</p>
+                )}
+              </div>
+            )}
+            {allDone && (
+              <p className="mt-2 text-xs text-green-600 text-center font-medium">
+                ✓ Tất cả các yêu cầu đã được hoàn tất!
               </p>
             )}
           </div>
         </aside>
+        </div>
       </div>
     </div>
   );

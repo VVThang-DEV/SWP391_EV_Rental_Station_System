@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +24,7 @@ import {
   Globe,
   Upload,
   CheckCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
 import DocumentUpload from "@/components/DocumentUpload";
@@ -49,6 +51,29 @@ const Settings = () => {
     nationalId_front: null,
     nationalId_back: null,
   });
+  
+  // Additional information state
+  const [additionalInfo, setAdditionalInfo] = useState({
+    citizenId: "",
+    driverLicenseNumber: "",
+    currentAddress: "",
+  });
+
+  const handleInfoChange = (field: keyof typeof additionalInfo, value: string) => {
+    setAdditionalInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const validateCitizenId = (id: string) => {
+    return /^\d{9}(\d{3})?$/.test(id); // 9 digits for CCCD, 12 for CMND
+  };
+
+  const validateDriverLicenseNumber = (number: string) => {
+    return /^\d{12}$/.test(number); // 12 digits for Vietnamese driver license
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -141,29 +166,82 @@ const Settings = () => {
 
                 <div>
                   <h3 className="text-lg font-semibold mb-4">
-                    {t("settings.driversLicense")}
+                    Thông tin bổ sung
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="licenseNumber">
-                        {t("settings.licenseNumber")}
+                      <Label htmlFor="citizenId">
+                        Số căn cước công dân / CMND
                       </Label>
-                      <Input
-                        id="licenseNumber"
-                        defaultValue="B1234567890"
-                        className="text-black"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="citizenId"
+                          placeholder="Nhập số căn cước công dân"
+                          value={additionalInfo.citizenId}
+                          onChange={(e) => handleInfoChange('citizenId', e.target.value)}
+                          maxLength={12}
+                          className={`text-black ${
+                            additionalInfo.citizenId && !validateCitizenId(additionalInfo.citizenId)
+                              ? 'border-red-500 focus:border-red-500'
+                              : ''
+                          }`}
+                        />
+                        {additionalInfo.citizenId && validateCitizenId(additionalInfo.citizenId) && (
+                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                        )}
+                      </div>
+                      {additionalInfo.citizenId && !validateCitizenId(additionalInfo.citizenId) && (
+                        <p className="text-xs text-red-500 mt-1">Vui lòng nhập 9 hoặc 12 số</p>
+                      )}
                     </div>
                     <div>
-                      <Label htmlFor="licenseExpiry">
-                        {t("settings.expiryDate")}
+                      <Label htmlFor="driverLicenseNumber">
+                        Số bằng lái xe
                       </Label>
-                      <Input
-                        id="licenseExpiry"
-                        type="date"
-                        defaultValue="2028-12-31"
-                        className="text-black"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="driverLicenseNumber"
+                          placeholder="Nhập số bằng lái xe"
+                          value={additionalInfo.driverLicenseNumber}
+                          onChange={(e) => handleInfoChange('driverLicenseNumber', e.target.value)}
+                          maxLength={12}
+                          className={`text-black ${
+                            additionalInfo.driverLicenseNumber && !validateDriverLicenseNumber(additionalInfo.driverLicenseNumber)
+                              ? 'border-red-500 focus:border-red-500'
+                              : ''
+                          }`}
+                        />
+                        {additionalInfo.driverLicenseNumber && validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) && (
+                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                        )}
+                      </div>
+                      {additionalInfo.driverLicenseNumber && !validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) && (
+                        <p className="text-xs text-red-500 mt-1">Vui lòng nhập đúng 12 số</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="currentAddress">
+                        Địa chỉ hiện tại
+                      </Label>
+                      <div className="relative">
+                        <Textarea
+                          id="currentAddress"
+                          placeholder="Nhập địa chỉ hiện tại đầy đủ (số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố)"
+                          value={additionalInfo.currentAddress}
+                          onChange={(e) => handleInfoChange('currentAddress', e.target.value)}
+                          className={`text-black min-h-[80px] ${
+                            additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length < 10
+                              ? 'border-red-500 focus:border-red-500'
+                              : ''
+                          }`}
+                        />
+                        {additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length >= 10 && (
+                          <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-500" />
+                        )}
+                      </div>
+                      {additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length < 10 && (
+                        <p className="text-xs text-red-500 mt-1">Địa chỉ phải có ít nhất 10 ký tự</p>
+                      )}
                     </div>
                   </div>
                 </div>

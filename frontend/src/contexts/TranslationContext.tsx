@@ -159,7 +159,6 @@ export interface Translations {
     staffAccessRequired: string;
     fillAllFields: string;
     signInSuccess: string;
-    invalidEmail?: string;
     chargers: string;
     searchPlaceholder: string;
     vehiclesHeaderTitle: string;
@@ -331,6 +330,12 @@ export interface Translations {
     Bus: string;
     Van: string;
     Truck: string;
+  };
+
+  // Login
+  login: {
+    invalidEmail: string;
+    invalidCredentials: string;
   };
 
   // Settings
@@ -598,7 +603,6 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         staffAccessRequired: "Staff access required.",
         fillAllFields: "Please fill in all fields.",
         signInSuccess: "You have successfully signed in.",
-        invalidEmail: "Please enter a valid email.",
         chargers: "Chargers",
         searchPlaceholder: "Search by vehicle name or brand...",
         vehiclesHeaderTitle: "Find Your Perfect EV",
@@ -852,6 +856,10 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         tax: "Tax",
         total: "Total",
       },
+      login: {
+        invalidEmail: "Please enter a valid email.",
+        invalidCredentials: "Invalid email or password.",
+      },
       footer: {
         aboutUs: "About Us",
         contact: "Contact",
@@ -1008,7 +1016,6 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         staffAccessRequired: "Cần quyền truy cập nhân viên.",
         fillAllFields: "Vui lòng điền đầy đủ thông tin.",
         signInSuccess: "Bạn đã đăng nhập thành công.",
-        invalidEmail: "Vui lòng nhập email hợp lệ.",
         chargers: "Trạm sạc",
         searchPlaceholder: "Tìm kiếm theo tên xe hoặc thương hiệu...",
         vehiclesHeaderTitle: "Tìm Xe Điện Hoàn Hảo Của Bạn",
@@ -1260,6 +1267,10 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         subtotal: "Tạm tính",
         tax: "Thuế",
         total: "Tổng cộng",
+      },
+      login: {
+        invalidEmail: "Vui lòng nhập email hợp lệ.",
+        invalidCredentials: "Email hoặc mật khẩu không đúng.",
       },
       footer: {
         aboutUs: "Về chúng tôi",
