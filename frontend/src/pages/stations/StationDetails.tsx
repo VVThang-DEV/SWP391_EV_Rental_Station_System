@@ -40,11 +40,24 @@ const StationDetails = () => {
   const fromStations = location.state?.fromStations || false;
   const userReady = location.state?.userReady || false;
 
-  // Get vehicles available at this station
-  const stationVehicles = vehicles.filter(
-    (vehicle) =>
-      vehicle.stationId === station?.id && vehicle.availability === "available"
+  // Get ALL vehicles at this station (available, rented, maintenance)
+  const allStationVehicles = vehicles.filter(
+    (vehicle) => vehicle.stationId === station?.id
   );
+
+  // Group vehicles by availability status
+  const availableVehicles = allStationVehicles.filter(
+    (v) => v.availability === "available"
+  );
+  const rentedVehicles = allStationVehicles.filter(
+    (v) => v.availability === "rented"
+  );
+  const maintenanceVehicles = allStationVehicles.filter(
+    (v) => v.availability === "maintenance"
+  );
+
+  // For backward compatibility
+  const stationVehicles = availableVehicles;
 
   useEffect(() => {
     if (station) {
@@ -292,14 +305,37 @@ const StationDetails = () => {
               </Card>
             )}
 
-            {/* Available Vehicles */}
+            {/* All Vehicles at Station */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{t("common.availableVehicles")}</span>
-                  <Badge variant="secondary">
-                    {stationVehicles.length} available
-                  </Badge>
+                <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+                  <span>Vehicles at this Station</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {availableVehicles.length > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="bg-green-50 text-green-700 border-green-200"
+                      >
+                        {availableVehicles.length} Available
+                      </Badge>
+                    )}
+                    {rentedVehicles.length > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="bg-orange-50 text-orange-700 border-orange-200"
+                      >
+                        {rentedVehicles.length} Rented
+                      </Badge>
+                    )}
+                    {maintenanceVehicles.length > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="bg-red-50 text-red-700 border-red-200"
+                      >
+                        {maintenanceVehicles.length} Maintenance
+                      </Badge>
+                    )}
+                  </div>
                 </CardTitle>
                 {userReady && (
                   <div className="flex items-center space-x-2 text-sm text-green-600">
@@ -309,20 +345,69 @@ const StationDetails = () => {
                 )}
               </CardHeader>
               <CardContent>
-                {stationVehicles.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {stationVehicles.map((vehicle) => (
-                      <VehicleCard key={vehicle.id} vehicle={vehicle} />
-                    ))}
+                {allStationVehicles.length > 0 ? (
+                  <div className="space-y-6">
+                    {/* Available Vehicles Section */}
+                    {availableVehicles.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <h3 className="font-semibold text-green-700">
+                            Available Now ({availableVehicles.length})
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {availableVehicles.map((vehicle) => (
+                            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Rented Vehicles Section */}
+                    {rentedVehicles.length > 0 && (
+                      <div>
+                        <Separator className="my-4" />
+                        <div className="flex items-center gap-2 mb-3">
+                          <Clock className="h-5 w-5 text-orange-600" />
+                          <h3 className="font-semibold text-orange-700">
+                            Currently Rented ({rentedVehicles.length})
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {rentedVehicles.map((vehicle) => (
+                            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Maintenance Vehicles Section */}
+                    {maintenanceVehicles.length > 0 && (
+                      <div>
+                        <Separator className="my-4" />
+                        <div className="flex items-center gap-2 mb-3">
+                          <Info className="h-5 w-5 text-red-600" />
+                          <h3 className="font-semibold text-red-700">
+                            Under Maintenance ({maintenanceVehicles.length})
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {maintenanceVehicles.map((vehicle) => (
+                            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-8">
                     <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">
-                      No vehicles available at this station at the moment
+                      No vehicles at this station at the moment
                     </p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Try checking other stations or come back later
+                      Try checking other stations
                     </p>
                   </div>
                 )}
@@ -359,19 +444,22 @@ const StationDetails = () => {
                 <Button
                   className="w-full"
                   asChild
-                  disabled={stationVehicles.length === 0}
+                  disabled={availableVehicles.length === 0}
+                  variant={availableVehicles.length > 0 ? "default" : "outline"}
                 >
                   <Link
                     to={
-                      stationVehicles.length > 0
+                      availableVehicles.length > 0
                         ? `/vehicles?station=${station.id}`
                         : "#"
                     }
                   >
                     <Car className="h-4 w-4 mr-2" />
-                    {stationVehicles.length > 0
+                    {availableVehicles.length > 0
                       ? t("common.bookNow")
-                      : "No vehicles available"}
+                      : allStationVehicles.length > 0
+                      ? `All ${allStationVehicles.length} vehicles busy`
+                      : "No vehicles at station"}
                   </Link>
                 </Button>
 
@@ -392,15 +480,51 @@ const StationDetails = () => {
             {/* Station Status */}
             <Card>
               <CardHeader>
-                <CardTitle>{t("common.availability")}</CardTitle>
+                <CardTitle>Vehicle Status</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm">
-                      {t("common.availableVehicles")}
-                    </span>
-                    <Badge variant="default">{station.availableVehicles}</Badge>
+                    <span className="text-sm text-green-700">Available</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-green-50 text-green-700 border-green-200"
+                    >
+                      {availableVehicles.length}
+                    </Badge>
+                  </div>
+
+                  {rentedVehicles.length > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-orange-700">Rented</span>
+                      <Badge
+                        variant="outline"
+                        className="bg-orange-50 text-orange-700 border-orange-200"
+                      >
+                        {rentedVehicles.length}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {maintenanceVehicles.length > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-red-700">Maintenance</span>
+                      <Badge
+                        variant="outline"
+                        className="bg-red-50 text-red-700 border-red-200"
+                      >
+                        {maintenanceVehicles.length}
+                      </Badge>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="flex justify-between items-center font-semibold">
+                    <span className="text-sm">Total Vehicles</span>
+                    <Badge variant="secondary">
+                      {allStationVehicles.length}
+                    </Badge>
                   </div>
 
                   <div className="flex justify-between items-center">

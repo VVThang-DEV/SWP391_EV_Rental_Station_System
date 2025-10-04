@@ -20,6 +20,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   Search,
   MapPin,
   Car,
@@ -57,9 +70,15 @@ interface AvailabilityData {
     stationId: string;
     stationName: string;
     count: number;
+    availableCount: number;
+    rentedCount: number;
+    maintenanceCount: number;
     distance: number;
   }>;
   totalAvailable: number;
+  totalRented: number;
+  totalMaintenance: number;
+  totalVehicles: number;
 }
 
 interface StationWithModel {
@@ -76,6 +95,7 @@ const VehicleModelFinder = () => {
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [stationsWithModel, setStationsWithModel] = useState<
     StationWithModel[]
@@ -90,39 +110,87 @@ const VehicleModelFinder = () => {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   useEffect(() => {
-    // Load availability data từ dữ liệu thực tế
-    const models = getVehicleModels(); // Lấy danh sách mẫu xe thực tế
-    const stationsWithInfo = getStationsWithVehicleInfo(); // Lấy thông tin trạm và xe
+    // Load ALL vehicles (available, rented, maintenance)
+    const allVehicles = getVehicles("en");
+    const models = getVehicleModels();
 
     const data = models.map((model) => {
-      const stationAvailability = stationsWithInfo
-        .filter((station) =>
-          station.availableModels.some((m) => m.modelId === model.modelId)
-        )
-        .map((station) => {
-          const modelData = station.availableModels.find(
-            (m) => m.modelId === model.modelId
-          );
-          return {
-            stationId: station.id,
-            stationName: station.name,
-            count: modelData?.count || 0,
-            distance: 0, // Nếu cần, tính khoảng cách từ vị trí người dùng
-          };
-        });
+      // Get all vehicles of this model across all stations
+      const modelVehicles = allVehicles.filter(
+        (v) => v.modelId === model.modelId
+      );
+
+      // Group by station
+      const stationMap = new Map<
+        string,
+        {
+          stationId: string;
+          stationName: string;
+          availableCount: number;
+          rentedCount: number;
+          maintenanceCount: number;
+        }
+      >();
+
+      modelVehicles.forEach((vehicle) => {
+        const station = stations.find((s) => s.id === vehicle.stationId);
+        if (station) {
+          if (!stationMap.has(station.id)) {
+            stationMap.set(station.id, {
+              stationId: station.id,
+              stationName: station.name,
+              availableCount: 0,
+              rentedCount: 0,
+              maintenanceCount: 0,
+            });
+          }
+
+          const stationData = stationMap.get(station.id)!;
+          if (vehicle.availability === "available") {
+            stationData.availableCount++;
+          } else if (vehicle.availability === "rented") {
+            stationData.rentedCount++;
+          } else if (vehicle.availability === "maintenance") {
+            stationData.maintenanceCount++;
+          }
+        }
+      });
+
+      const stationAvailability = Array.from(stationMap.values()).map((s) => ({
+        stationId: s.stationId,
+        stationName: s.stationName,
+        count: s.availableCount + s.rentedCount + s.maintenanceCount,
+        availableCount: s.availableCount,
+        rentedCount: s.rentedCount,
+        maintenanceCount: s.maintenanceCount,
+        distance: 0,
+      }));
+
+      const totalAvailable = stationAvailability.reduce(
+        (sum, s) => sum + s.availableCount,
+        0
+      );
+      const totalRented = stationAvailability.reduce(
+        (sum, s) => sum + s.rentedCount,
+        0
+      );
+      const totalMaintenance = stationAvailability.reduce(
+        (sum, s) => sum + s.maintenanceCount,
+        0
+      );
 
       return {
         model,
         stations: stationAvailability,
-        totalAvailable: stationAvailability.reduce(
-          (sum, station) => sum + station.count,
-          0
-        ),
+        totalAvailable,
+        totalRented,
+        totalMaintenance,
+        totalVehicles: totalAvailable + totalRented + totalMaintenance,
       };
     });
 
     setAvailabilityData(data);
-  }, []); // Include dependencies
+  }, []);
 
   const handleGetLocation = () => {
     setIsLoadingLocation(true);
@@ -169,6 +237,22 @@ const VehicleModelFinder = () => {
         model.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+  const searchSuggestions = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+
+    const allModels = availabilityData.map((data) => data.model);
+    const suggestions = allModels
+      .filter(
+        (model) =>
+          model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          model.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          model.type.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .slice(0, 8); // Limit to 8 suggestions
+
+    return suggestions;
+  }, [searchTerm, availabilityData]);
+
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
     const modelData = availabilityData.find((d) => d.model.modelId === modelId);
@@ -182,13 +266,13 @@ const VehicleModelFinder = () => {
             );
             return station
               ? {
-                id: station.id,
-                name: station.name,
-                address: station.address,
-                distance: s.distance,
-                operatingHours: station.operatingHours,
-                rating: station.rating,
-              }
+                  id: station.id,
+                  name: station.name,
+                  address: station.address,
+                  distance: s.distance,
+                  operatingHours: station.operatingHours,
+                  rating: station.rating,
+                }
               : null;
           })
           .filter((station): station is StationWithModel => station !== null)
@@ -227,13 +311,66 @@ const VehicleModelFinder = () => {
                 <CardContent className="pt-6">
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-                      <Input
-                        placeholder="Search by model, brand, or vehicle type..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
+                      <Popover
+                        open={isSuggestionsOpen}
+                        onOpenChange={setIsSuggestionsOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
+                            <Input
+                              placeholder="Search by model, brand, or vehicle type..."
+                              value={searchTerm}
+                              onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setIsSuggestionsOpen(e.target.value.length > 0);
+                              }}
+                              onFocus={() =>
+                                setIsSuggestionsOpen(searchTerm.length > 0)
+                              }
+                              className="pl-10"
+                            />
+                          </div>
+                        </PopoverTrigger>
+                        {searchSuggestions.length > 0 && (
+                          <PopoverContent
+                            className="w-[--radix-popover-trigger-width] p-0"
+                            align="start"
+                          >
+                            <Command>
+                              <CommandList>
+                                <CommandEmpty>No models found.</CommandEmpty>
+                                <CommandGroup>
+                                  {searchSuggestions.map((model) => (
+                                    <CommandItem
+                                      key={model.modelId}
+                                      value={`${model.brand} ${model.name}`}
+                                      onSelect={() => {
+                                        setSearchTerm(
+                                          `${model.brand} ${model.name}`
+                                        );
+                                        setIsSuggestionsOpen(false);
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Car className="h-4 w-4" />
+                                        <div>
+                                          <div className="font-medium">
+                                            {model.name}
+                                          </div>
+                                          <div className="text-sm text-muted-foreground">
+                                            {model.brand} • {model.type}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        )}
+                      </Popover>
                     </div>
                     <Button
                       variant="outline"
@@ -267,12 +404,17 @@ const VehicleModelFinder = () => {
                             alt={model.name}
                             className="w-full h-48 object-cover rounded-t-lg"
                           />
-                          <Badge
-                            className={`absolute top-3 right-3 ${totalAvailable > 0 ? "bg-green-500" : "bg-red-500"
+                          <div className="absolute top-3 right-3 flex gap-2">
+                            <Badge
+                              className={`${
+                                totalAvailable > 0
+                                  ? "bg-green-500"
+                                  : "bg-gray-500"
                               }`}
-                          >
-                            {totalAvailable} available
-                          </Badge>
+                            >
+                              {totalAvailable} available
+                            </Badge>
+                          </div>
                         </div>
 
                         <CardContent className="p-6 flex-1 flex flex-col">
@@ -294,6 +436,38 @@ const VehicleModelFinder = () => {
                                 {model.specs.seats} seats
                               </span>
                             </div>
+
+                            {/* Vehicle Status Breakdown */}
+                            <div className="flex items-center gap-2 mb-3 flex-wrap">
+                              {availability && (
+                                <>
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-green-50 text-green-700 border-green-200"
+                                  >
+                                    {availability.totalAvailable} Available
+                                  </Badge>
+                                  {availability.totalRented > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-orange-50 text-orange-700 border-orange-200"
+                                    >
+                                      {availability.totalRented} Rented
+                                    </Badge>
+                                  )}
+                                  {availability.totalMaintenance > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-red-50 text-red-700 border-red-200"
+                                    >
+                                      {availability.totalMaintenance}{" "}
+                                      Maintenance
+                                    </Badge>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
                             <p className="text-sm text-muted-foreground">
                               {model.description}
                             </p>
@@ -318,11 +492,19 @@ const VehicleModelFinder = () => {
                             <Button
                               className="w-full"
                               onClick={() => handleModelSelect(model.modelId)}
-                              disabled={totalAvailable === 0}
+                              disabled={
+                                !availability ||
+                                availability.totalVehicles === 0
+                              }
+                              variant={
+                                totalAvailable > 0 ? "default" : "outline"
+                              }
                             >
-                              {totalAvailable > 0
-                                ? "Find Stations"
-                                : "Not Available"}
+                              {availability && availability.totalVehicles > 0
+                                ? totalAvailable > 0
+                                  ? "Find Stations"
+                                  : `View ${availability.totalVehicles} Stations (All Busy)`
+                                : "No Vehicles"}
                             </Button>
                           </div>
                         </CardContent>
@@ -354,17 +536,6 @@ const VehicleModelFinder = () => {
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-medium">{station.name}</h4>
                               <div className="flex items-center gap-2">
-                                {/* ✅ THÊM MỚI: Hiển thị số lượng xe */}
-                                {(() => {
-                                  const modelData = availabilityData.find((d) => d.model.modelId === selectedModel);
-                                  const stationData = modelData?.stations.find((s) => s.stationId === station.id);
-                                  const vehicleCount = stationData?.count || 0;
-                                  return (
-                                    <Badge variant="outline" className="bg-green-50 text-green-700">
-                                      {vehicleCount} available
-                                    </Badge>
-                                  );
-                                })()}
                                 {station.distance && (
                                   <Badge variant="outline">
                                     {station.distance.toFixed(1)} km
@@ -375,6 +546,50 @@ const VehicleModelFinder = () => {
                             <p className="text-sm text-muted-foreground mb-3">
                               {station.address}
                             </p>
+
+                            {/* Vehicle Status Breakdown at this Station */}
+                            {(() => {
+                              const modelData = availabilityData.find(
+                                (d) => d.model.modelId === selectedModel
+                              );
+                              const stationData = modelData?.stations.find(
+                                (s) => s.stationId === station.id
+                              );
+
+                              if (!stationData) return null;
+
+                              return (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {stationData.availableCount > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-green-50 text-green-700 border-green-200"
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      {stationData.availableCount} Available
+                                    </Badge>
+                                  )}
+                                  {stationData.rentedCount > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-orange-50 text-orange-700 border-orange-200"
+                                    >
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      {stationData.rentedCount} Rented
+                                    </Badge>
+                                  )}
+                                  {stationData.maintenanceCount > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-red-50 text-red-700 border-red-200"
+                                    >
+                                      <AlertCircle className="h-3 w-3 mr-1" />
+                                      {stationData.maintenanceCount} Maintenance
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })()}
                             <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
@@ -424,11 +639,17 @@ const VehicleModelFinder = () => {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Models:</span>
-                      <span className="font-medium">{availabilityData.length}</span>
+                      <span className="text-sm text-muted-foreground">
+                        Total Models:
+                      </span>
+                      <span className="font-medium">
+                        {availabilityData.length}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Available Vehicles:</span>
+                      <span className="text-sm text-muted-foreground">
+                        Available Vehicles:
+                      </span>
                       <span className="font-medium text-green-600">
                         {availabilityData.reduce(
                           (sum, data) => sum + data.totalAvailable,
@@ -437,7 +658,9 @@ const VehicleModelFinder = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Stations:</span>
+                      <span className="text-sm text-muted-foreground">
+                        Total Stations:
+                      </span>
                       <span className="font-medium">{stations.length}</span>
                     </div>
                   </div>
