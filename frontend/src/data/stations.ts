@@ -30,7 +30,7 @@ export const stations: Station[] = [
     operatingHours: "24/7",
     fastCharging: true,
     image:
-      "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=600&fit=crop&crop=center",
+      "https://iwater.vn/Image/Picture/New/Quan-1.jpg",
   },
   {
     id: "st2",
@@ -45,7 +45,7 @@ export const stations: Station[] = [
     operatingHours: "6:00 AM - 10:00 PM",
     fastCharging: true,
     image:
-      "https://images.unsplash.com/photo-1617788138017-80ad40651399?w=800&h=600&fit=crop&crop=center",
+      "https://cdn.vntrip.vn/cam-nang/wp-content/uploads/2017/09/1-12-e1505536237895.jpg",
   },
   {
     id: "st3",
@@ -60,7 +60,7 @@ export const stations: Station[] = [
     operatingHours: "24/7",
     fastCharging: true,
     image:
-      "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=800&h=600&fit=crop&crop=center",
+      "https://vj-prod-website-cms.s3.ap-southeast-1.amazonaws.com/shutterstock4163434601640951746845-1710837275629.png",
   },
   {
     id: "st4",
@@ -75,7 +75,7 @@ export const stations: Station[] = [
     operatingHours: "7:00 AM - 9:00 PM",
     fastCharging: false,
     image:
-      "https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800&h=600&fit=crop&crop=center",
+      "https://nasaland.vn/wp-content/uploads/2022/09/Quan-3-1.jpg",
   },
   {
     id: "st5",
@@ -90,7 +90,7 @@ export const stations: Station[] = [
     operatingHours: "24/7",
     fastCharging: true,
     image:
-      "https://images.unsplash.com/photo-1617469165786-8007eda4bf80?w=800&h=600&fit=crop&crop=center",
+      "https://cdn.vietnammoi.vn/171464242508312576/2021/6/30/mttq-quan-5-16250453134831325127756.jpg",
   },
   {
     id: "st6",
@@ -105,7 +105,7 @@ export const stations: Station[] = [
     operatingHours: "6:00 AM - 11:00 PM",
     fastCharging: true,
     image:
-      "https://images.unsplash.com/photo-1614200179396-2bdb77ebf81b?w=800&h=600&fit=crop&crop=center",
+      "https://bizweb.dktcdn.net/thumb/1024x1024/100/414/214/products/toan-thap.jpg?v=1676254526307",
   },
   {
     id: "st7",
@@ -120,12 +120,12 @@ export const stations: Station[] = [
     operatingHours: "8:00 AM - 8:00 PM",
     fastCharging: false,
     image:
-      "https://images.unsplash.com/photo-1571607388263-1044f9ea01dd?w=800&h=600&fit=crop&crop=center",
+      "https://quanlykhachsan.edu.vn/wp-content/uploads/2021/12/dia-diem-chup-anh-dep-o-quan-8.jpg",
   },
   {
     id: "st8",
-    name: "Downtown Station",
-    address: "159 Dong Khoi Street",
+    name: "District 4 Station",
+    address: "38 Khanh Hoi Street",
     city: "Ho Chi Minh City",
     coordinates: { lat: 10.7743, lng: 106.7046 },
     availableVehicles: 5,
@@ -135,6 +135,6 @@ export const stations: Station[] = [
     operatingHours: "24/7",
     fastCharging: true,
     image:
-      "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&h=600&fit=crop&crop=center",
+      "https://static.vinwonders.com/production/quan-4-co-gi-choi-top-banner.jpg",
   },
 ];

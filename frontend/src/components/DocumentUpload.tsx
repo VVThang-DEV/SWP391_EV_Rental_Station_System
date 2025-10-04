@@ -19,16 +19,13 @@ import {
   Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import "./DocumentUpload.css";
+import './DocumentUpload.css';
 
 interface DocumentUploadProps {
-  onDocumentUpload?: (documentType: string, file: File) => void;
+  onDocumentUpload: (documentType: string, file: File) => void;
   requiredDocuments?: string[];
   uploadedDocuments?: Record<string, File>;
   onDocumentRemove?: (documentType: string) => void;
-  stagingMode?: boolean;
-  onDocumentStaged?: (documentType: string, file: File) => void;
-  showProgress?: boolean;
 }
 
 const DocumentUpload = ({
@@ -36,9 +33,6 @@ const DocumentUpload = ({
   requiredDocuments = ["driverLicense", "nationalId", "collateral"],
   uploadedDocuments = {},
   onDocumentRemove,
-  stagingMode = false,
-  onDocumentStaged,
-  showProgress = true,
 }: DocumentUploadProps) => {
   const [dragActive, setDragActive] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
@@ -55,7 +49,7 @@ const DocumentUpload = ({
       maxSize: 5 * 1024 * 1024, // 5MB
       icon: FileText,
     },
-    driverLicenseBack: {
+     driverLicenseBack: {
       title: "Driver's License - Back",
       description: "Upload back side of your valid driver's license",
       accept: "image/*,application/pdf",
@@ -148,9 +142,8 @@ const DocumentUpload = ({
     if (file.size > docType.maxSize) {
       toast({
         title: "File too large",
-        description: `File size should be less than ${
-          docType.maxSize / (1024 * 1024)
-        }MB`,
+        description: `File size should be less than ${docType.maxSize / (1024 * 1024)
+          }MB`,
         variant: "destructive",
       });
       return;
@@ -186,24 +179,16 @@ const DocumentUpload = ({
         const currentProgress = prev[documentType] || 0;
         if (currentProgress >= 100) {
           clearInterval(progressInterval);
-          if (stagingMode && onDocumentStaged) {
-            onDocumentStaged(documentType, file);
-            toast({
-              title: "Document staged",
-              description: `${docType.title} has been staged for confirmation`,
-            });
-          } else if (onDocumentUpload) {
-            onDocumentUpload(documentType, file);
-            toast({
-              title: "Document uploaded",
-              description: `${docType.title} has been uploaded successfully`,
-            });
-          }
+          onDocumentUpload(documentType, file);
+          toast({
+            title: "Document uploaded",
+            description: `${docType.title} has been uploaded successfully`,
+          });
           return prev;
         }
-        return { ...prev, [documentType]: currentProgress + 5 };
+        return { ...prev, [documentType]: currentProgress + 10 };
       });
-    }, 150);
+    }, 200);
   };
 
   const openCamera = (documentType: string) => {
@@ -227,7 +212,7 @@ const DocumentUpload = ({
     }
 
     try {
-      const url = URL.createObjectURL(file);
+      const url = URL.createObjectURL(file as any);
       // open in new tab/window
       window.open(url, "_blank");
       // revoke after a short delay to allow the new tab to load
@@ -268,25 +253,20 @@ const DocumentUpload = ({
     return (
       <Card
         key={documentType}
-        className={`relative h-full flex flex-col ${
-          dragActive === documentType ? "border-primary bg-primary/5" : ""
-        }`}
+        className={`relative ${dragActive === documentType ? "border-primary bg-primary/5" : ""
+          }`}
       >
-        <CardHeader className="pb-3 space-y-1 min-h-[100px]">
-          <CardTitle className="flex items-start gap-2 text-lg leading-tight">
-            <Icon className="h-5 w-5 flex-shrink-0" />
-            <span className="break-words whitespace-normal">
-              {docType.title}
-            </span>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center space-x-2 text-lg">
+            <Icon className="h-5 w-5" />
+            <span>{docType.title}</span>
             {normalizedRequired.includes(documentType) && (
               <span className="text-destructive text-sm">*</span>
             )}
           </CardTitle>
-          <CardDescription className="break-words whitespace-normal leading-snug">
-            {docType.description}
-          </CardDescription>
+          <CardDescription>{docType.description}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
+        <CardContent className="space-y-4">
           {isUploaded ? (
             <div className="p-4 bg-success-light rounded-lg">
               <div className="flex items-center space-x-2 min-w-0">
@@ -326,11 +306,10 @@ const DocumentUpload = ({
           ) : (
             <>
               <div
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors min-h-[240px] ${
-                  dragActive === documentType
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${dragActive === documentType
                     ? "border-primary bg-primary/5"
                     : "border-muted-foreground/25 hover:border-primary/50"
-                }`}
+                  }`}
                 onDragEnter={(e) => handleDrag(e, documentType)}
                 onDragLeave={(e) => handleDrag(e, documentType)}
                 onDragOver={(e) => handleDrag(e, documentType)}
@@ -341,13 +320,14 @@ const DocumentUpload = ({
                     <Upload className="h-10 w-10 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <p className="font-medium break-words whitespace-normal">
+                    <p className="font-medium">
                       Drop files here or click to upload
                     </p>
-                    <p className="text-sm text-muted-foreground break-words whitespace-normal">
+                    <p className="text-sm text-muted-foreground">
                       Max size: {docType.maxSize / (1024 * 1024)}MB
                     </p>
                   </div>
+
                 </div>
 
                 <input
@@ -358,7 +338,7 @@ const DocumentUpload = ({
                   className="hidden"
                 />
               </div>
-              <div className="upload-actions mt-4 flex gap-3">
+              <div className="upload-actions">
                 <Button
                   className="btn"
                   variant="outline"
@@ -407,36 +387,32 @@ const DocumentUpload = ({
   return (
     <div className="space-y-6">
       {/* Upload Status */}
-      {showProgress && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">
-                Document Upload Progress
-              </h3>
-              <div className="flex items-center space-x-2">
-                {status.completed ? (
-                  <CheckCircle className="h-5 w-5 text-success" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-warning" />
-                )}
-                <span className="text-sm font-medium">
-                  {status.uploaded}/{status.total} documents uploaded
-                </span>
-              </div>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Document Upload Progress</h3>
+            <div className="flex items-center space-x-2">
+              {status.completed ? (
+                <CheckCircle className="h-5 w-5 text-success" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-warning" />
+              )}
+              <span className="text-sm font-medium">
+                {status.uploaded}/{status.total} documents uploaded
+              </span>
             </div>
-            <Progress
-              value={(status.uploaded / status.total) * 100}
-              className="h-2"
-            />
-            <p className="text-sm text-muted-foreground mt-2">
-              {status.completed
-                ? "All required documents have been uploaded successfully"
-                : `${status.total - status.uploaded} documents remaining`}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <Progress
+            value={(status.uploaded / status.total) * 100}
+            className="h-2"
+          />
+          <p className="text-sm text-muted-foreground mt-2">
+            {status.completed
+              ? "All required documents have been uploaded successfully"
+              : `${status.total - status.uploaded} documents remaining`}
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Document Upload Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
