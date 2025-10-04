@@ -16,6 +16,7 @@ const LoginForm = ({ onLogin }: Props) => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -23,18 +24,60 @@ const LoginForm = ({ onLogin }: Props) => {
 
   // Simple email format check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  // Password validation function
+  const validatePassword = (pwd: string) => {
+    if (!pwd) {
+      setPasswordError("");
+      return;
+    }
+    
+    if (pwd.length < 8) {
+      setPasswordError(`Còn thiếu ${8 - pwd.length} ký tự`);
+      return;
+    }
+    
+    if (pwd.length > 8) {
+      setPasswordError("Mật khẩu chỉ được có 8 ký tự");
+      return;
+    }
+    
+    if (pwd.length === 8) {
+      setPasswordError(""); // Clear error if valid
+      return;
+    }
+  };
+  
+  // Handle password change
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    validatePassword(newPassword);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // validate email format before continuing
     if (!email.trim() || !emailRegex.test(email.trim())) {
       toast({
-        title: t("common.error") || "Lỗi",
-        description: t("login.invalidEmail") || "Vui lòng nhập email hợp lệ.",
+        title: t("common.error"),
+        description: t("login.invalidEmail"),
         variant: "destructive",
       });
       return;
     }
+
+    // Kiểm tra password phải chính xác 8 ký tự
+    if (!password || password.length !== 8) {
+      toast({
+        title: "Lỗi interval",
+        description: "Mật khẩu phải chính xác 8 ký tự.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+
     setIsLoading(true);
 
     try {
@@ -72,7 +115,7 @@ const LoginForm = ({ onLogin }: Props) => {
     } catch (err) {
       toast({
         title: t("common.error"),
-        description: t("login.invalidCredentials") || "Email hoặc mật khẩu không đúng.",
+        description: t("login.invalidCredentials"),
         variant: "destructive",
       });
     } finally {
@@ -82,51 +125,59 @@ const LoginForm = ({ onLogin }: Props) => {
 
   return (
     <form onSubmit={handleSubmit} className="login-form space-y-4">
-     
+
 
       {/* Email */}
-<div className="relative mb-6">
-  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-  <Input
-    id="email"
-    type="email"
-    value={email}
-    onChange={(e) => setEmail(e.target.value)}
-    className="pl-10 text-black"
-    placeholder=" "
-    required
-  />
-  <label htmlFor="email">{t("common.emailAddress")}</label>
-</div>
+      <div className="relative mb-6">
+        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="pl-10 text-black"
+          placeholder=" "
+          required
+        />
+        <label htmlFor="email">{t("common.emailAddress")}</label>
+      </div>
 
-{/* Password */}
-<div className="relative mb-6">
-  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-  <Input
-    id="password"
-    type={showPassword ? "text" : "password"}
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    className="pl-10 pr-10 text-black"
-    placeholder=" "
-    required
-  />
-  <label htmlFor="password" style={{ zIndex: 10 }}>{t("common.password")}</label>
-  <Button
-    type="button"
-    variant="ghost"
-    size="sm"
-    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-    onClick={() => setShowPassword(!showPassword)}
-    tabIndex={-1}
-  >
-    {showPassword ? (
-      <EyeOff className="h-4 w-4 text-muted-foreground" />
-    ) : (
-      <Eye className="h-4 w-4 text-muted-foreground" />
-    )}
-  </Button>
-</div>
+      {/* Password */}
+      <div className="relative mb-6">
+        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          value={password}
+          onChange={handlePasswordChange}
+          className="pl-10 pr-10 text-black"
+          placeholder=" "
+          title="Mật khẩu phải chính xác 8 ký tự"
+          required
+        />
+        <label htmlFor="password" style={{ zIndex: 10 }}>{t("common.password")}</label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+          onClick={() => setShowPassword(!showPassword)}
+          tabIndex={-1}
+        >
+          {showPassword ? (
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Eye className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      </div>
+      
+      {/* Password Error Message */}
+      {passwordError && (
+        <div className="text-red-500 text-sm mt-2 mb-2">
+          {passwordError}
+        </div>
+      )}
 
       {/* Forgot Password */}
       <div className="text-right">
@@ -142,7 +193,7 @@ const LoginForm = ({ onLogin }: Props) => {
       <Button
         type="submit"
         className="w-full btn-hero"
-        disabled={isLoading}
+        disabled={isLoading || passwordError !== ""}
       >
         {isLoading ? t("common.signingIn") : t("common.signIn")}
       </Button>

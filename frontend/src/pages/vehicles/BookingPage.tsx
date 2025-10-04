@@ -88,12 +88,23 @@ const BookingPage = () => {
         startTime: getTimeStr(),
       }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // chạy 1 lần khi mở trang
-  // SỬA Ở ĐÂY: nếu bạn có context/auth cung cấp current user, lấy tên ở đây
-  // Ví dụ: const { currentUser } = useAuth(); -> thay thế theo project của bạn
-  // Using a placeholder for current user name - replace with actual user context in production
-  const currentUserName = "John Doe";
+
+  }, []);
+
+  const getCurrentUser = () => {
+    try {
+      const userStr = localStorage.getItem('currentUser') || localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const user = getCurrentUser();
+
+  const currentUserName = user?.fullName || user?.name || "John Doe";
+  const currentUserEmail = user?.email || "user@example.com";
+  const currentUserPhone = user?.phone || user?.phoneNumber || "0123456789";
 
   const [bookingData, setBookingData] = useState({
     startDate: getTodayStr(),
@@ -102,7 +113,7 @@ const BookingPage = () => {
     endTime: "17:00",
     rentalDuration: "daily",
     customerInfo: {
-      fullName: currentUserName, // Pre-filled from user context
+      fullName: "",
       email: "",
       phone: "",
       driverLicense: "",
@@ -112,6 +123,23 @@ const BookingPage = () => {
     agreeToTerms: false,
     agreeToInsurance: false,
   });
+
+  useEffect(() => {
+    if (user) {
+      setBookingData(prev => ({
+        ...prev,
+        customerInfo: {
+          ...prev.customerInfo,
+          fullName: currentUserName,
+          email: currentUserEmail,
+          phone: currentUserPhone,  
+        }
+      }));
+    }
+  }, [currentUserName, currentUserEmail, currentUserPhone]);
+
+  console.log("User from localStorage:", user);
+  console.log("Extracted data:", { currentUserName, currentUserEmail, currentUserPhone });
 
   // SỬA Ở ĐÂY: helper cập nhật startTime về giờ hiện tại (gọi khi upload document hoặc hành động tương tự)
   const updateStartTimeNow = () => {
@@ -139,6 +167,8 @@ const BookingPage = () => {
     );
   }
 
+  // Document upload removed from booking page per request
+
   const calculateCost = () => {
     if (!bookingData.startDate || !bookingData.endDate) return 0;
 
@@ -160,7 +190,7 @@ const BookingPage = () => {
   const deposit = 200; // Fixed deposit
   const totalCost = baseCost + insuranceCost + deposit;
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: any) => {
     if (field.includes(".")) {
       const [parent, child] = field.split(".");
       setBookingData((prev) => ({
@@ -206,7 +236,7 @@ const BookingPage = () => {
       navigate("/dashboard");
     }
   };
-
+  // Document removal handler removed with upload section
   const renderBookingDetails = () => (
     <div className="space-y-6">
       {/* Rental Period */}
@@ -224,6 +254,7 @@ const BookingPage = () => {
               <Select
                 value={bookingData.rentalDuration}
                 onValueChange={(value) => handleRentalDurationChange(value)}
+
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -242,9 +273,7 @@ const BookingPage = () => {
                   id="startDate"
                   type="date"
                   value={bookingData.startDate}
-                  onChange={(e) =>
-                    handleInputChange("startDate", e.target.value)
-                  }
+                  onChange={(e) => handleInputChange("startDate", e.target.value)}
                   min={new Date().toISOString().split("T")[0]}
                   className="text-black"
                   required
@@ -274,9 +303,7 @@ const BookingPage = () => {
                   id="startTime"
                   type="time"
                   value={bookingData.startTime}
-                  onChange={(e) =>
-                    handleInputChange("startTime", e.target.value)
-                  }
+                  onChange={(e) => handleInputChange("startTime", e.target.value)}
                   className="text-black"
                 />
               </div>
@@ -292,6 +319,7 @@ const BookingPage = () => {
               </div>
             </div>
           </CardContent>
+
         </Card>
       </div>
       {/* Customer Information */}
@@ -367,22 +395,7 @@ const BookingPage = () => {
         </CardContent>
       </Card>
 
-      {/* Document Verification Notice */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="pt-6">
-          <div className="flex items-center space-x-3">
-            <CheckCircle className="h-5 w-5 text-blue-600" />
-            <div>
-              <h4 className="font-medium text-blue-900">Documents Verified</h4>
-              <p className="text-sm text-blue-700">
-                Your identity documents (CCCD and driver's license) have been
-                verified during registration. No additional document upload is
-                required for this booking.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Document Upload - removed */}
 
       {/* Insurance & Terms */}
       <Card>
@@ -680,19 +693,17 @@ const BookingPage = () => {
                 {[1, 2, 3].map((stepNumber) => (
                   <div key={stepNumber} className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step >= stepNumber
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= stepNumber
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                        }`}
                     >
                       {stepNumber}
                     </div>
                     {stepNumber < 3 && (
                       <div
-                        className={`w-12 h-0.5 mx-2 ${
-                          step > stepNumber ? "bg-primary" : "bg-secondary"
-                        }`}
+                        className={`w-12 h-0.5 mx-2 ${step > stepNumber ? "bg-primary" : "bg-secondary"
+                          }`}
                       />
                     )}
                   </div>
