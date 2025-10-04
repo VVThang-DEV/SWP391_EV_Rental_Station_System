@@ -36,6 +36,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { getVehicleModels } from "@/data/vehicles";
 
 const Vehicles = () => {
   const { t, language } = useTranslation();
