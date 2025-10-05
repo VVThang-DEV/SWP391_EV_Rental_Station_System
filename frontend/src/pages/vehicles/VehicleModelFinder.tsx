@@ -54,6 +54,7 @@ import {
   findStationsWithModel,
   getVehicleAvailabilitySummary,
   getStationsWithVehicleInfo, // Thêm dòng này
+  calculateDistance,
   StationLocation,
   VehicleModel,
 } from "@/lib/vehicle-station-utils";
@@ -108,6 +109,8 @@ const VehicleModelFinder = () => {
     lng: number;
   } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [manualLocation, setManualLocation] = useState("");
+  const [isManualLocationOpen, setIsManualLocationOpen] = useState(false);
 
   useEffect(() => {
     // Load ALL vehicles (available, rented, maintenance)
@@ -156,15 +159,35 @@ const VehicleModelFinder = () => {
         }
       });
 
-      const stationAvailability = Array.from(stationMap.values()).map((s) => ({
-        stationId: s.stationId,
-        stationName: s.stationName,
-        count: s.availableCount + s.rentedCount + s.maintenanceCount,
-        availableCount: s.availableCount,
-        rentedCount: s.rentedCount,
-        maintenanceCount: s.maintenanceCount,
-        distance: 0,
-      }));
+      const stationAvailability = Array.from(stationMap.values())
+        .map((s) => {
+          const station = stations.find((st) => st.id === s.stationId);
+          const distance =
+            userLocation && station
+              ? calculateDistance(
+                  userLocation.lat,
+                  userLocation.lng,
+                  station.coordinates.lat,
+                  station.coordinates.lng
+                )
+              : 0;
+
+          return {
+            stationId: s.stationId,
+            stationName: s.stationName,
+            count: s.availableCount + s.rentedCount + s.maintenanceCount,
+            availableCount: s.availableCount,
+            rentedCount: s.rentedCount,
+            maintenanceCount: s.maintenanceCount,
+            distance,
+          };
+        })
+        .sort((a, b) => {
+          if (userLocation) {
+            return a.distance - b.distance;
+          }
+          return 0; // Keep original order if no location
+        });
 
       const totalAvailable = stationAvailability.reduce(
         (sum, s) => sum + s.availableCount,
@@ -190,7 +213,7 @@ const VehicleModelFinder = () => {
     });
 
     setAvailabilityData(data);
-  }, []);
+  }, [userLocation]);
 
   const handleGetLocation = () => {
     setIsLoadingLocation(true);
@@ -223,6 +246,54 @@ const VehicleModelFinder = () => {
       toast({
         title: "Location Not Supported",
         description: "Geolocation is not supported by this browser.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleManualLocationSubmit = async () => {
+    if (!manualLocation.trim()) {
+      toast({
+        title: "Location Required",
+        description: "Please enter a location to search.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Use a geocoding service to convert address to coordinates
+      const response = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+          manualLocation
+        )}&key=demo&limit=1`
+      );
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        const location = {
+          lat: data.results[0].geometry.lat,
+          lng: data.results[0].geometry.lng,
+        };
+        setUserLocation(location);
+        setIsManualLocationOpen(false);
+        setManualLocation("");
+        toast({
+          title: "Location Set",
+          description: "Location updated successfully.",
+        });
+      } else {
+        toast({
+          title: "Location Not Found",
+          description: "Please enter a valid address or city.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error geocoding location:", error);
+      toast({
+        title: "Geocoding Error",
+        description: "Unable to find coordinates for this location.",
         variant: "destructive",
       });
     }
@@ -372,19 +443,71 @@ const VehicleModelFinder = () => {
                         )}
                       </Popover>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleGetLocation}
-                      disabled={isLoadingLocation}
-                    >
-                      <Navigation className="h-4 w-4 mr-2" />
-                      {isLoadingLocation
-                        ? "Getting Location..."
-                        : "Use My Location"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleGetLocation}
+                        disabled={isLoadingLocation}
+                      >
+                        <Navigation className="h-4 w-4 mr-2" />
+                        {isLoadingLocation
+                          ? "Getting Location..."
+                          : "Use My Location"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setIsManualLocationOpen(!isManualLocationOpen)
+                        }
+                      >
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Enter Location
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Manual Location Input */}
+              {isManualLocationOpen && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="relative flex-1">
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
+                        <Input
+                          placeholder="Enter your city, address, or location..."
+                          value={manualLocation}
+                          onChange={(e) => setManualLocation(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              handleManualLocationSubmit();
+                            }
+                          }}
+                          className="pl-10"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleManualLocationSubmit}
+                          disabled={!manualLocation.trim()}
+                        >
+                          Set Location
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsManualLocationOpen(false);
+                            setManualLocation("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Vehicle Models Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -405,15 +528,29 @@ const VehicleModelFinder = () => {
                             className="w-full h-48 object-cover rounded-t-lg"
                           />
                           <div className="absolute top-3 right-3 flex gap-2">
-                            <Badge
-                              className={`${
-                                totalAvailable > 0
-                                  ? "bg-green-500"
-                                  : "bg-gray-500"
-                              }`}
-                            >
-                              {totalAvailable} available
-                            </Badge>
+                            {totalAvailable > 0 ? (
+                              <Badge className="bg-green-500 hover:bg-green-600 text-white shadow-lg animate-pulse">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {totalAvailable} ready
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="bg-gray-100 text-gray-600 border border-gray-300"
+                              >
+                                <Clock className="h-3 w-3 mr-1" />
+                                Unavailable
+                              </Badge>
+                            )}
+                            {stationCount > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 border-blue-200"
+                              >
+                                <MapPin className="h-3 w-3 mr-1" />
+                                {stationCount} stations
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
@@ -438,47 +575,57 @@ const VehicleModelFinder = () => {
                             </div>
 
                             {/* Vehicle Status Breakdown */}
-                            <div className="flex items-center gap-2 mb-3 flex-wrap">
-                              {availability && (
-                                <>
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-green-50 text-green-700 border-green-200"
-                                  >
-                                    {availability.totalAvailable} Available
-                                  </Badge>
-                                  {availability.totalRented > 0 && (
+                            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                              <div className="text-xs font-medium text-gray-600 mb-2">
+                                Fleet Status
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {availability && (
+                                  <>
                                     <Badge
                                       variant="outline"
-                                      className="bg-orange-50 text-orange-700 border-orange-200"
+                                      className="bg-green-50 text-green-700 border-green-200"
                                     >
-                                      {availability.totalRented} Rented
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      {availability.totalAvailable} Available
                                     </Badge>
-                                  )}
-                                  {availability.totalMaintenance > 0 && (
-                                    <Badge
-                                      variant="outline"
-                                      className="bg-red-50 text-red-700 border-red-200"
-                                    >
-                                      {availability.totalMaintenance}{" "}
-                                      Maintenance
-                                    </Badge>
-                                  )}
-                                </>
-                              )}
+                                    {availability.totalRented > 0 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-orange-50 text-orange-700 border-orange-200"
+                                      >
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {availability.totalRented} Rented
+                                      </Badge>
+                                    )}
+                                    {availability.totalMaintenance > 0 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-red-50 text-red-700 border-red-200"
+                                      >
+                                        <AlertCircle className="h-3 w-3 mr-1" />
+                                        {availability.totalMaintenance}{" "}
+                                        Maintenance
+                                      </Badge>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
 
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground mb-3">
                               {model.description}
                             </p>
-                          </div>
 
-                          <div className="mb-4">
-                            <div className="flex justify-between items-center text-sm">
-                              <span className="font-medium">Available at:</span>
-                              <span className="text-primary">
-                                {stationCount}{" "}
-                                {stationCount === 1 ? "station" : "stations"}
+                            {/* Station Availability Info */}
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>
+                                Available at {stationCount} station
+                                {stationCount !== 1 ? "s" : ""}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Zap className="h-3 w-3" />
+                                {model.specs.range} km range
                               </span>
                             </div>
                           </div>
@@ -528,18 +675,69 @@ const VehicleModelFinder = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {stationsWithModel.length > 0 ? (
-                        stationsWithModel.map((station) => (
+                        stationsWithModel.map((station, index) => (
                           <div
                             key={station.id}
-                            className="p-4 border rounded-lg"
+                            className={`p-4 border rounded-lg transition-all duration-200 ${
+                              index === 0 && userLocation
+                                ? "border-primary bg-primary/5 shadow-sm"
+                                : "hover:shadow-sm"
+                            }`}
                           >
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-medium">{station.name}</h4>
-                              <div className="flex items-center gap-2">
-                                {station.distance && (
-                                  <Badge variant="outline">
-                                    {station.distance.toFixed(1)} km
-                                  </Badge>
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold text-lg">
+                                    {station.name}
+                                  </h4>
+                                  {userLocation && (
+                                    <Badge
+                                      variant="secondary"
+                                      className={`text-xs font-bold ${
+                                        index === 0
+                                          ? "bg-primary text-primary-foreground"
+                                          : index === 1
+                                          ? "bg-orange-500 text-white"
+                                          : index === 2
+                                          ? "bg-amber-500 text-white"
+                                          : "bg-gray-500 text-white"
+                                      }`}
+                                    >
+                                      #{index + 1}
+                                    </Badge>
+                                  )}
+                                  {index === 0 && userLocation && (
+                                    <Badge className="bg-primary text-primary-foreground shadow-sm">
+                                      <Navigation className="h-3 w-3 mr-1" />
+                                      Nearest
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                {/* Distance Display - Only show when location is set */}
+                                {station.distance && userLocation && (
+                                  <div className="flex items-center gap-2">
+                                    <Badge
+                                      variant="secondary"
+                                      className={`font-semibold ${
+                                        station.distance < 5
+                                          ? "bg-green-100 text-green-800 border-green-200"
+                                          : station.distance < 15
+                                          ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                          : "bg-red-100 text-red-800 border-red-200"
+                                      }`}
+                                    >
+                                      <MapPin className="h-3 w-3 mr-1" />
+                                      {station.distance.toFixed(1)} km away
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {station.distance < 5
+                                        ? "🚗 Very close"
+                                        : station.distance < 15
+                                        ? "🚙 Nearby"
+                                        : "🚛 Far"}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                             </div>
