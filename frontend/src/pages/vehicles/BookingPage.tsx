@@ -70,31 +70,65 @@ const BookingPage = () => {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  const handleRentalDurationChange = (value: string) => {
-    setBookingData((prev) => ({
-      ...prev,
-      rentalDuration: value,
-      ...(value === "daily"
-        ? { startDate: getTodayStr(), startTime: getTimeStr() }
-        : {}),
-    }));
+  // THÊM MỚI: Helper function để tính End Time tối thiểu (Start Time + 1 giờ)
+  const calculateMinimumEndTime = (startTime: string) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDate = new Date();
+    startDate.setHours(hours, minutes, 0, 0);
+
+    // Thêm 1 giờ
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+    const endHours = endDate.getHours().toString().padStart(2, '0');
+    const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
+
+    return `${endHours}:${endMinutes}`;
+  };
+  // THÊM MỚI: Validate thời gian thuê tối thiểu cho hourly
+  const validateHourlyRental = (startTime: string, endTime: string) => {
+    const start = new Date(`2000-01-01T${startTime}`);
+    const end = new Date(`2000-01-01T${endTime}`);
+    const diffMs = end.getTime() - start.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    return diffHours >= 1; // Tối thiểu 1 giờ
   };
 
-  useEffect(() => {
-    if (bookingData.rentalDuration === "daily") {
-      setBookingData((prev) => ({
-        ...prev,
-        startDate: getTodayStr(),
-        startTime: getTimeStr(),
-      }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // chạy 1 lần khi mở trang
-  // SỬA Ở ĐÂY: nếu bạn có context/auth cung cấp current user, lấy tên ở đây
-  // Ví dụ: const { currentUser } = useAuth(); -> thay thế theo project của bạn
-  // Using a placeholder for current user name - replace with actual user context in production
-  const currentUserName = "John Doe";
+  const handleRentalDurationChange = (value: string) => {
+    setBookingData((prev) => {
+      if (value === "hourly") {
+        // Khi chọn hourly: End Date = Start Date và End Time = Start Time + 1 giờ
+        const currentStartTime = prev.startTime || getTimeStr();
+        const endTime = calculateMinimumEndTime(currentStartTime);
 
+        return {
+          ...prev,
+          rentalDuration: value,
+          endDate: prev.startDate, // End Date = Start Date
+          endTime: endTime,
+        };
+      } else {
+        // Daily rental: giữ logic cũ
+        const today = new Date();
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000); // Tính ngày hôm sau
+        const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+        return {
+          ...prev,
+          rentalDuration: value,
+          startDate: getTodayStr(), //  Chỉ cần set ngày bắt đầu
+          endDate: tomorrowStr,  //  End Date sẽ được chọn bởi user
+        };
+      }
+    });
+  };
+
+  const currentUserData = {
+    fullName: "John Doe",
+    email: "john.doe@example.com",
+    phone: "+84 901 234 567",
+    driverLicense: "B123456789",
+
+  };
   const [bookingData, setBookingData] = useState({
     startDate: getTodayStr(),
     endDate: "",
@@ -102,24 +136,14 @@ const BookingPage = () => {
     endTime: "17:00",
     rentalDuration: "daily",
     customerInfo: {
-      fullName: currentUserName, // Pre-filled from user context
-      email: "",
-      phone: "",
-      driverLicense: "",
-      emergencyContact: "",
+      fullName: currentUserData.fullName, // ✅ Auto-filled từ profile
+      email: currentUserData.email, // ✅ Auto-filled từ profile  
+      phone: currentUserData.phone, // ✅ Auto-filled từ profile
+      driverLicense: currentUserData.driverLicense, // ✅ Auto-filled từ profile
     },
     paymentMethod: "qr_code",
-    agreeToTerms: false,
-    agreeToInsurance: false,
-  });
 
-  // SỬA Ở ĐÂY: helper cập nhật startTime về giờ hiện tại (gọi khi upload document hoặc hành động tương tự)
-  const updateStartTimeNow = () => {
-    setBookingData((prev) => ({
-      ...prev,
-      startTime: getTimeStr(),
-    }));
-  };
+  });
 
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
 
@@ -142,23 +166,27 @@ const BookingPage = () => {
   const calculateCost = () => {
     if (!bookingData.startDate || !bookingData.endDate) return 0;
 
-    const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
-    const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
-    const diffMs = end.getTime() - start.getTime();
-
     if (bookingData.rentalDuration === "hourly") {
+      const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+      const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+      const diffMs = end.getTime() - start.getTime();
       const hours = Math.ceil(diffMs / (1000 * 60 * 60));
       return hours * vehicle.pricePerHour;
     } else {
-      const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      // DAILY: chỉ tính theo ngày, không cần thời gian
+      const start = new Date(`${bookingData.startDate}T00:00:00`);
+      const end = new Date(`${bookingData.endDate}T00:00:00`);
+      const diffMs = end.getTime() - start.getTime();
+      const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24)); // Tính số ngày
       return days * vehicle.pricePerDay;
     }
   };
 
   const baseCost = calculateCost();
-  const insuranceCost = bookingData.agreeToInsurance ? baseCost * 0.1 : 0;
+
   const deposit = 200; // Fixed deposit
-  const totalCost = baseCost + insuranceCost + deposit;
+
+  const totalCost = baseCost + deposit;
 
   const handleInputChange = (field: string, value: string | boolean) => {
     if (field.includes(".")) {
@@ -171,10 +199,36 @@ const BookingPage = () => {
         },
       }));
     } else {
-      setBookingData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
+      setBookingData((prev) => {
+        const newData = { ...prev, [field]: value };
+
+        // XỬ LÝ LOGIC ĐẶC BIỆT CHO HOURLY RENTAL
+        if (prev.rentalDuration === "hourly") {
+          if (field === "startDate") {
+            // Khi thay đổi Start Date trong hourly: End Date cũng thay đổi theo
+            newData.endDate = value as string;
+          } else if (field === "startTime") {
+            // Khi thay đổi Start Time: tự động cập nhật End Time (ít nhất +1h)
+            newData.endTime = calculateMinimumEndTime(value as string);
+          } else if (field === "endTime") {
+            // Validate End Time phải sau Start Time ít nhất 1h
+            const isValid = validateHourlyRental(prev.startTime, value as string);
+            if (!isValid) {
+              // Nếu không hợp lệ, set về minimum time
+              newData.endTime = calculateMinimumEndTime(prev.startTime);
+            }
+          }
+        }
+
+     // XỬ LÝ LOGIC CHO DAILY RENTAL
+     if (prev.rentalDuration === "daily" && field === "startDate") {
+       const startDate = new Date(value as string);
+       const tomorrow = new Date(startDate.getTime() + 24 * 60 * 60 * 1000); // Tính ngày hôm sau
+       newData.endDate = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+     }
+
+        return newData;
+      });
     }
   };
 
@@ -184,15 +238,40 @@ const BookingPage = () => {
       if (
         !bookingData.startDate ||
         !bookingData.endDate ||
-        !bookingData.agreeToTerms
+        (bookingData.rentalDuration === "hourly" && (!bookingData.startTime || !bookingData.endTime))
       ) {
         toast({
           title: "Missing Information",
-          description: "Please fill in all required fields and agree to terms.",
+          description: "Please fill in all required fields.",
           variant: "destructive",
         });
         return;
       }
+
+      // THÊM VALIDATION CHO HOURLY RENTAL
+      if (bookingData.rentalDuration === "hourly") {
+        // Kiểm tra Start Date = End Date
+        if (bookingData.startDate !== bookingData.endDate) {
+          toast({
+            title: "Invalid Date Range",
+            description: "For hourly rental, start and end date must be the same.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Kiểm tra thời gian thuê tối thiểu 1h
+        const isValidTime = validateHourlyRental(bookingData.startTime, bookingData.endTime);
+        if (!isValidTime) {
+          toast({
+            title: "Invalid Time Range",
+            description: "Minimum rental duration is 1 hour.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       setStep(2);
     } else if (step === 2) {
       // Process payment (mock)
@@ -229,10 +308,21 @@ const BookingPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="hourly">Hourly Rental</SelectItem>
-                  <SelectItem value="daily">Daily Rental</SelectItem>
+                  <SelectItem value="hourly">
+                    Hourly Rental - ${vehicle.pricePerHour}/hour
+                  </SelectItem>
+                  <SelectItem value="daily">
+                    Daily Rental - ${vehicle.pricePerDay}/day
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              <div className="mt-2 text-sm text-muted-foreground">
+                {bookingData.rentalDuration === "hourly" ? (
+                  <span>Selected: Hourly Rental - ${vehicle.pricePerHour} per hour for {vehicle.name}</span>
+                ) : (
+                  <span>Selected: Daily Rental - ${vehicle.pricePerDay} per day for {vehicle.name}</span>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -263,34 +353,51 @@ const BookingPage = () => {
                   }
                   className="text-black"
                   required
+                  disabled={bookingData.rentalDuration === "hourly"} // DISABLE KHI HOURLY
                 />
+                {/* THÊM THÔNG BÁO CHO HOURLY */}
+                {bookingData.rentalDuration === "hourly" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    For hourly rental, end date is same as start date
+                  </p>
+                )}
               </div>
             </div>
+            {/* THÊM: Start Time và End Time chỉ hiển thị khi Hourly Rental */}
+            {bookingData.rentalDuration === "hourly" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="startTime">Start Time *</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={bookingData.startTime}
+                    onChange={(e) =>
+                      handleInputChange("startTime", e.target.value)
+                    }
+                    className="text-black"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endTime">End Time *</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={bookingData.endTime}
+                    onChange={(e) => handleInputChange("endTime", e.target.value)}
+                    className="text-black"
+                    min={calculateMinimumEndTime(bookingData.startTime)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Minimum rental duration: 1 hour
+                  </p>
+                </div>
+              </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="startTime">Start Time</Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={bookingData.startTime}
-                  onChange={(e) =>
-                    handleInputChange("startTime", e.target.value)
-                  }
-                  className="text-black"
-                />
-              </div>
-              <div>
-                <Label htmlFor="endTime">End Time</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={bookingData.endTime}
-                  onChange={(e) => handleInputChange("endTime", e.target.value)}
-                  className="text-black"
-                />
-              </div>
-            </div>
+
           </CardContent>
         </Card>
       </div>
@@ -301,6 +408,11 @@ const BookingPage = () => {
             <User className="h-5 w-5 mr-2" />
             Customer Information
           </CardTitle>
+          {/* THÊM: Thông báo thông tin auto-fill */}
+          <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+            <CheckCircle className="h-4 w-4" />
+            <span>Information automatically filled from your profile. You can edit if needed.</span>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -314,6 +426,7 @@ const BookingPage = () => {
                 }
                 className="text-black"
                 required
+                placeholder="Enter your full name"
               />
             </div>
             <div>
@@ -364,6 +477,7 @@ const BookingPage = () => {
               />
             </div>
           </div>
+
         </CardContent>
       </Card>
 
@@ -383,56 +497,9 @@ const BookingPage = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Insurance & Terms */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Shield className="h-5 w-5 mr-2" />
-            Insurance & Terms
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="insurance"
-              checked={bookingData.agreeToInsurance}
-              onCheckedChange={(checked) =>
-                handleInputChange("agreeToInsurance", !!checked)
-              }
-            />
-            <label htmlFor="insurance" className="text-sm">
-              Add premium insurance coverage (+{(baseCost * 0.1).toFixed(0)}$ -
-              10% of rental cost)
-            </label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="terms"
-              checked={bookingData.agreeToTerms}
-              onCheckedChange={(checked) =>
-                handleInputChange("agreeToTerms", !!checked)
-              }
-            />
-            <label htmlFor="terms" className="text-sm">
-              I agree to the{" "}
-              <Link to="/terms" className="text-primary hover:underline">
-                Terms and Conditions
-              </Link>{" "}
-              and{" "}
-              <Link
-                to="/rental-agreement"
-                className="text-primary hover:underline"
-              >
-                Rental Agreement
-              </Link>
-              *
-            </label>
-          </div>
-        </CardContent>
-      </Card>
+      
     </div>
+
   );
 
   const renderPaymentStep = () => (
@@ -534,7 +601,7 @@ const BookingPage = () => {
                     <span className="text-muted-foreground">Start Date:</span>
                     <div className="font-medium">{bookingData.startDate}</div>
                     <div className="text-xs text-muted-foreground">
-                      {bookingData.startTime || "09:00"}
+                      {bookingData.rentalDuration === "hourly" ? bookingData.startTime : "All day"}
                     </div>
                   </div>
                   <div>
@@ -552,7 +619,7 @@ const BookingPage = () => {
                     <span className="text-muted-foreground">End Date:</span>
                     <div className="font-medium">{bookingData.endDate}</div>
                     <div className="text-xs text-muted-foreground">
-                      {bookingData.endTime || "18:00"}
+                      {bookingData.rentalDuration === "hourly" ? bookingData.endTime : "All day"}
                     </div>
                   </div>
                   <div>
@@ -572,12 +639,7 @@ const BookingPage = () => {
                     <span>Base Cost:</span>
                     <span>${baseCost.toFixed(2)}</span>
                   </div>
-                  {bookingData.agreeToInsurance && (
-                    <div className="flex justify-between">
-                      <span>Insurance:</span>
-                      <span>${insuranceCost.toFixed(2)}</span>
-                    </div>
-                  )}
+
                   <div className="flex justify-between">
                     <span>Deposit:</span>
                     <span>${deposit.toFixed(2)}</span>
@@ -680,19 +742,17 @@ const BookingPage = () => {
                 {[1, 2, 3].map((stepNumber) => (
                   <div key={stepNumber} className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step >= stepNumber
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= stepNumber
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                        }`}
                     >
                       {stepNumber}
                     </div>
                     {stepNumber < 3 && (
                       <div
-                        className={`w-12 h-0.5 mx-2 ${
-                          step > stepNumber ? "bg-primary" : "bg-secondary"
-                        }`}
+                        className={`w-12 h-0.5 mx-2 ${step > stepNumber ? "bg-primary" : "bg-secondary"
+                          }`}
                       />
                     )}
                   </div>
@@ -743,12 +803,7 @@ const BookingPage = () => {
                               <span>Base Cost:</span>
                               <span>${baseCost.toFixed(2)}</span>
                             </div>
-                            {bookingData.agreeToInsurance && (
-                              <div className="flex justify-between">
-                                <span>Insurance:</span>
-                                <span>${insuranceCost.toFixed(2)}</span>
-                              </div>
-                            )}
+
                             <div className="flex justify-between">
                               <span>Deposit:</span>
                               <span>${deposit.toFixed(2)}</span>
@@ -766,9 +821,13 @@ const BookingPage = () => {
                           onClick={handleStepSubmit}
                           disabled={
                             step === 1 &&
-                            (!bookingData.agreeToTerms ||
-                              !bookingData.startDate ||
-                              !bookingData.endDate)
+                            (!bookingData.startDate ||
+                              !bookingData.endDate ||
+                              (bookingData.rentalDuration === "hourly" && (!bookingData.startTime || !bookingData.endTime)) ||
+                              !bookingData.customerInfo.fullName ||
+                              !bookingData.customerInfo.email ||
+                              !bookingData.customerInfo.phone ||
+                              !bookingData.customerInfo.driverLicense)
                           }
                         >
                           {step === 1 && "Continue to Payment"}

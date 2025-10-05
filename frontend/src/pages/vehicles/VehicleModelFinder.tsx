@@ -32,7 +32,7 @@ import {
   AlertCircle,
   Filter,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { stations } from "@/data/stations";
 import { getVehicles } from "@/data/vehicles";
@@ -74,7 +74,7 @@ interface StationWithModel {
 const VehicleModelFinder = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
-
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [stationsWithModel, setStationsWithModel] = useState<
@@ -169,32 +169,12 @@ const VehicleModelFinder = () => {
         model.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-  const handleModelSelect = (modelId: string) => {
-    setSelectedModel(modelId);
-    const modelData = availabilityData.find((d) => d.model.modelId === modelId);
-    if (modelData) {
-      // In real implementation, this would call the utility functions
-      setStationsWithModel(
-        modelData.stations
-          .map((s) => {
-            const station = stations.find(
-              (station) => station.id === s.stationId
-            );
-            return station
-              ? {
-                id: station.id,
-                name: station.name,
-                address: station.address,
-                distance: s.distance,
-                operatingHours: station.operatingHours,
-                rating: station.rating,
-              }
-              : null;
-          })
-          .filter((station): station is StationWithModel => station !== null)
-      );
-    }
-  };
+    const handleModelSelect = (modelId: string) => {
+        // setSelectedModel nếu muốn vẫn hiển thị thông tin bên phải khi ở trang finder
+         setSelectedModel(modelId);
+        // điều hướng sang trang riêng hiển thị Available Locations
+          navigate(`/models/${modelId}/stations`);
+      };
 
   return (
     <PageTransition>
