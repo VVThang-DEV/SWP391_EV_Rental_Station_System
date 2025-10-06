@@ -75,8 +75,6 @@ const VehicleModelFinder = () => {
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [stationsWithModel, setStationsWithModel] = useState<
     StationWithModel[]
@@ -393,15 +391,6 @@ const VehicleModelFinder = () => {
       model.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const suggestions =
-    searchTerm.trim() === ""
-      ? []
-      : filteredModels.slice(0, 5).map((model) => ({
-          id: model.modelId,
-          label: `${model.brand} ${model.name} (${model.type})`,
-          value: model.name,
-        }));
-
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
     const modelData = availabilityData.find((d) => d.model.modelId === modelId);
@@ -464,71 +453,9 @@ const VehicleModelFinder = () => {
                       <Input
                         placeholder="Search by model, brand, or vehicle type..."
                         value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setShowSuggestions(true);
-                          setSelectedSuggestionIndex(-1);
-                        }}
-                        onFocus={() => setShowSuggestions(true)}
-                        onBlur={() =>
-                          setTimeout(() => setShowSuggestions(false), 200)
-                        }
-                        onKeyDown={(e) => {
-                          if (!showSuggestions || suggestions.length === 0)
-                            return;
-
-                          switch (e.key) {
-                            case "ArrowDown":
-                              e.preventDefault();
-                              setSelectedSuggestionIndex((prev) =>
-                                prev < suggestions.length - 1 ? prev + 1 : 0
-                              );
-                              break;
-                            case "ArrowUp":
-                              e.preventDefault();
-                              setSelectedSuggestionIndex((prev) =>
-                                prev > 0 ? prev - 1 : suggestions.length - 1
-                              );
-                              break;
-                            case "Enter":
-                              e.preventDefault();
-                              if (selectedSuggestionIndex >= 0) {
-                                setSearchTerm(
-                                  suggestions[selectedSuggestionIndex].value
-                                );
-                                setShowSuggestions(false);
-                                setSelectedSuggestionIndex(-1);
-                              }
-                              break;
-                            case "Escape":
-                              setShowSuggestions(false);
-                              setSelectedSuggestionIndex(-1);
-                              break;
-                          }
-                        }}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10"
                       />
-                      {showSuggestions && suggestions.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
-                          {suggestions.map((suggestion, index) => (
-                            <div
-                              key={suggestion.id}
-                              className={`px-4 py-2 cursor-pointer text-sm ${
-                                index === selectedSuggestionIndex
-                                  ? "bg-blue-100 text-blue-900"
-                                  : "hover:bg-gray-100"
-                              }`}
-                              onClick={() => {
-                                setSearchTerm(suggestion.value);
-                                setShowSuggestions(false);
-                                setSelectedSuggestionIndex(-1);
-                              }}
-                            >
-                              {suggestion.label}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <Button
                       variant="outline"
