@@ -13,7 +13,6 @@ public interface IUserRepository
     Task<(bool success, int userId)> RegisterCustomerAsync(string fullName, string email, string phone, DateTime dateOfBirth, string passwordHash);
     Task<bool> UserExistsByEmailAsync(string email);
     Task<bool> UpdatePasswordAsync(string email, string newPasswordHash);
-    Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth, string? avatarUrl);
 }
 
 public sealed class UserRepository : IUserRepository
@@ -214,47 +213,6 @@ WHERE email = @Email AND is_active = 1";
 
         cmd.Parameters.AddWithValue("@Email", email);
         cmd.Parameters.AddWithValue("@NewPasswordHash", newPasswordHash);
-        cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.UtcNow);
-
-        try
-        {
-            var rowsAffected = await cmd.ExecuteNonQueryAsync();
-            return rowsAffected > 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    // Update personal information
-    public async Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth, string? avatarUrl)
-    {
-        const string sql = @"
-UPDATE users 
-SET cccd = @Cccd,
-    license_number = @LicenseNumber,
-    address = @Address,
-    gender = @Gender,
-    date_of_birth = @DateOfBirth,
-    avatar_url = @AvatarUrl,
-    updated_at = @UpdatedAt
-WHERE email = @Email AND is_active = 1";
-
-        await using var conn = _connFactory();
-        await conn.OpenAsync();
-        await using var cmd = new SqlCommand(sql, conn)
-        {
-            CommandType = CommandType.Text
-        };
-
-        cmd.Parameters.AddWithValue("@Email", email);
-        cmd.Parameters.AddWithValue("@Cccd", cccd ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@LicenseNumber", licenseNumber ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@Address", address ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@Gender", gender ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@DateOfBirth", dateOfBirth ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@AvatarUrl", avatarUrl ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.UtcNow);
 
         try
