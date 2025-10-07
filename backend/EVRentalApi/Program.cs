@@ -39,12 +39,22 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<OTPService>();
 builder.Services.AddScoped<ForgotPasswordService>();
+builder.Services.AddScoped<PersonalInfoService>();
 builder.Services.AddHostedService<OtpCleanupService>();
+
+// Add controllers
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
 // Middleware
 app.UseCors();
+
+// Serve static files (for uploaded documents)
+app.UseStaticFiles();
+
+// Map controllers
+app.MapControllers();
 
 // Utility hash (shared)
 static string Sha256(string input)
@@ -180,10 +190,47 @@ app.MapPost("/auth/reset-password", async (ResetPasswordRequest req, ForgotPassw
     return Results.BadRequest(new { success = false, message = result.Message });
 });
 
+// Update personal information endpoint
+app.MapPost("/auth/update-personal-info", async (UpdatePersonalInfoRequest req, PersonalInfoService personalInfoService) =>
+{
+    var result = await personalInfoService.UpdatePersonalInfoAsync(req);
+    if (result.Success)
+    {
+        return Results.Ok(new { success = true, message = result.Message });
+    }
+    return Results.BadRequest(new { success = false, message = result.Message });
+});
+
+// Update document endpoint
+app.MapPost("/auth/update-document", async (UpdatePersonalInfoRequest req, PersonalInfoService personalInfoService) =>
+{
+    var result = await personalInfoService.UpdateDocumentAsync(req);
+    if (result.Success)
+    {
+        return Results.Ok(new { success = true, message = result.Message });
+    }
+    return Results.BadRequest(new { success = false, message = result.Message });
+});
+
 // Health
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-app.Run("http://0.0.0.0:5000");
+// Debug endpoint
+app.MapPost("/auth/debug-update", (UpdatePersonalInfoRequest req) =>
+{
+    Console.WriteLine($"[DEBUG] Received request:");
+    Console.WriteLine($"  Email: {req.Email}");
+    Console.WriteLine($"  CCCD: {req.Cccd}");
+    Console.WriteLine($"  LicenseNumber: {req.LicenseNumber}");
+    Console.WriteLine($"  Address: {req.Address}");
+    Console.WriteLine($"  Gender: {req.Gender}");
+    Console.WriteLine($"  DateOfBirth: {req.DateOfBirth}");
+    Console.WriteLine($"  Phone: {req.Phone}");
+    
+    return Results.Ok(new { success = true, message = "Debug data received", data = req });
+});
+
+app.Run("http://localhost:5000");
 
 record LoginRequest(string Email, string Password);
 

@@ -7,7 +7,8 @@ public record UpdatePersonalInfoRequest(
     string? Address,
     string? Gender,
     string? DateOfBirth,
+    string? Phone,
     string? AvatarUrl,
-    string? DocumentUrl
-    
+    string? DocumentUrl,
+    string? DocumentType
 );
