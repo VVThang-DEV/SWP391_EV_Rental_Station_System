@@ -20,6 +20,27 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
   Search,
   MapPin,
   Car,
@@ -31,8 +52,14 @@ import {
   CheckCircle,
   AlertCircle,
   Filter,
+  X,
+  GitCompare,
+  Map,
+  Calendar,
+  DollarSign,
+  Maximize2,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { stations } from "@/data/stations";
 import { getVehicles } from "@/data/vehicles";
@@ -41,6 +68,7 @@ import {
   findStationsWithModel,
   getVehicleAvailabilitySummary,
   getStationsWithVehicleInfo, // Thêm dòng này
+  calculateDistance,
   StationLocation,
   VehicleModel,
 } from "@/lib/vehicle-station-utils";
@@ -57,9 +85,15 @@ interface AvailabilityData {
     stationId: string;
     stationName: string;
     count: number;
+    availableCount: number;
+    rentedCount: number;
+    maintenanceCount: number;
     distance: number;
   }>;
   totalAvailable: number;
+  totalRented: number;
+  totalMaintenance: number;
+  totalVehicles: number;
 }
 
 interface StationWithModel {
@@ -74,8 +108,9 @@ interface StationWithModel {
 const VehicleModelFinder = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const navigate = useNavigate();
+
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [stationsWithModel, setStationsWithModel] = useState<
     StationWithModel[]
@@ -88,41 +123,125 @@ const VehicleModelFinder = () => {
     lng: number;
   } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [manualLocation, setManualLocation] = useState("");
+  const [isManualLocationOpen, setIsManualLocationOpen] = useState(false);
+
+  // New filter states
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 200]);
+  const [seatsFilter, setSeatsFilter] = useState<number[]>([]);
+  const [rangeFilter, setRangeFilter] = useState<[number, number]>([0, 500]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Comparison mode
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
+  const [showComparisonDialog, setShowComparisonDialog] = useState(false);
+
+  // View mode
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   useEffect(() => {
-    // Load availability data từ dữ liệu thực tế
-    const models = getVehicleModels(); // Lấy danh sách mẫu xe thực tế
-    const stationsWithInfo = getStationsWithVehicleInfo(); // Lấy thông tin trạm và xe
+    // Load ALL vehicles (available, rented, maintenance)
+    const allVehicles = getVehicles("en");
+    const models = getVehicleModels();
 
     const data = models.map((model) => {
-      const stationAvailability = stationsWithInfo
-        .filter((station) =>
-          station.availableModels.some((m) => m.modelId === model.modelId)
-        )
-        .map((station) => {
-          const modelData = station.availableModels.find(
-            (m) => m.modelId === model.modelId
-          );
+      // Get all vehicles of this model across all stations
+      const modelVehicles = allVehicles.filter(
+        (v) => v.modelId === model.modelId
+      );
+
+      // Group by station
+      interface StationData {
+        stationId: string;
+        stationName: string;
+        availableCount: number;
+        rentedCount: number;
+        maintenanceCount: number;
+      }
+
+      const stationMap: Record<string, StationData> = {};
+
+      modelVehicles.forEach((vehicle) => {
+        const station = stations.find((s) => s.id === vehicle.stationId);
+        if (station) {
+          if (!stationMap[station.id]) {
+            stationMap[station.id] = {
+              stationId: station.id,
+              stationName: station.name,
+              availableCount: 0,
+              rentedCount: 0,
+              maintenanceCount: 0,
+            };
+          }
+
+          const stationData = stationMap[station.id];
+          if (vehicle.availability === "available") {
+            stationData.availableCount++;
+          } else if (vehicle.availability === "rented") {
+            stationData.rentedCount++;
+          } else if (vehicle.availability === "maintenance") {
+            stationData.maintenanceCount++;
+          }
+        }
+      });
+
+      const stationAvailability = Object.values(stationMap)
+        .map((s) => {
+          const station = stations.find((st) => st.id === s.stationId);
+          const distance =
+            userLocation && station
+              ? calculateDistance(
+                  userLocation.lat,
+                  userLocation.lng,
+                  station.coordinates.lat,
+                  station.coordinates.lng
+                )
+              : 0;
+
           return {
-            stationId: station.id,
-            stationName: station.name,
-            count: modelData?.count || 0,
-            distance: 0, // Nếu cần, tính khoảng cách từ vị trí người dùng
+            stationId: s.stationId,
+            stationName: s.stationName,
+            count: s.availableCount + s.rentedCount + s.maintenanceCount,
+            availableCount: s.availableCount,
+            rentedCount: s.rentedCount,
+            maintenanceCount: s.maintenanceCount,
+            distance,
           };
+        })
+        .sort((a, b) => {
+          if (userLocation) {
+            return a.distance - b.distance;
+          }
+          return 0; // Keep original order if no location
         });
+
+      const totalAvailable = stationAvailability.reduce(
+        (sum, s) => sum + s.availableCount,
+        0
+      );
+      const totalRented = stationAvailability.reduce(
+        (sum, s) => sum + s.rentedCount,
+        0
+      );
+      const totalMaintenance = stationAvailability.reduce(
+        (sum, s) => sum + s.maintenanceCount,
+        0
+      );
 
       return {
         model,
         stations: stationAvailability,
-        totalAvailable: stationAvailability.reduce(
-          (sum, station) => sum + station.count,
-          0
-        ),
+        totalAvailable,
+        totalRented,
+        totalMaintenance,
+        totalVehicles: totalAvailable + totalRented + totalMaintenance,
       };
     });
 
     setAvailabilityData(data);
-  }, []); // Include dependencies
+  }, [userLocation]);
 
   const handleGetLocation = () => {
     setIsLoadingLocation(true);
@@ -160,21 +279,169 @@ const VehicleModelFinder = () => {
     }
   };
 
+  const handleManualLocationSubmit = async () => {
+    if (!manualLocation.trim()) {
+      toast({
+        title: "Location Required",
+        description: "Please enter a location to search.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Use a geocoding service to convert address to coordinates
+      const response = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+          manualLocation
+        )}&key=demo&limit=1`
+      );
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        const location = {
+          lat: data.results[0].geometry.lat,
+          lng: data.results[0].geometry.lng,
+        };
+        setUserLocation(location);
+        setIsManualLocationOpen(false);
+        setManualLocation("");
+        toast({
+          title: "Location Set",
+          description: "Location updated successfully.",
+        });
+      } else {
+        toast({
+          title: "Location Not Found",
+          description: "Please enter a valid address or city.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error geocoding location:", error);
+      toast({
+        title: "Geocoding Error",
+        description: "Unable to find coordinates for this location.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Enhanced filtering with all filters
   const filteredModels = availabilityData
     .map((data) => data.model)
-    .filter(
-      (model) =>
+    .filter((model) => {
+      // Search filter
+      const matchesSearch =
         model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         model.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        model.type.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+        model.type.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const handleModelSelect = (modelId: string) => {
-        // setSelectedModel nếu muốn vẫn hiển thị thông tin bên phải khi ở trang finder
-         setSelectedModel(modelId);
-        // điều hướng sang trang riêng hiển thị Available Locations
-          navigate(`/models/${modelId}/stations`);
-      };
+      // Price filter (check per-hour rate)
+      const matchesPrice =
+        model.basePrice.perHour >= priceRange[0] &&
+        model.basePrice.perHour <= priceRange[1];
+
+      // Seats filter
+      const matchesSeats =
+        seatsFilter.length === 0 || seatsFilter.includes(model.specs.seats);
+
+      // Range filter
+      const matchesRange =
+        model.specs.range >= rangeFilter[0] &&
+        model.specs.range <= rangeFilter[1];
+
+      // Type filter
+      const matchesType =
+        typeFilter.length === 0 || typeFilter.includes(model.type);
+
+      return (
+        matchesSearch &&
+        matchesPrice &&
+        matchesSeats &&
+        matchesRange &&
+        matchesType
+      );
+    });
+
+  const searchSuggestions = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+
+    const allModels = availabilityData.map((data) => data.model);
+    const suggestions = allModels
+      .filter(
+        (model) =>
+          model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          model.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          model.type.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .slice(0, 8); // Limit to 8 suggestions
+
+    return suggestions;
+  }, [searchTerm, availabilityData]);
+
+  const handleModelSelect = (modelId: string) => {
+    setSelectedModel(modelId);
+    const modelData = availabilityData.find((d) => d.model.modelId === modelId);
+    if (modelData) {
+      // In real implementation, this would call the utility functions
+      setStationsWithModel(
+        modelData.stations
+          .map((s) => {
+            const station = stations.find(
+              (station) => station.id === s.stationId
+            );
+            return station
+              ? {
+                  id: station.id,
+                  name: station.name,
+                  address: station.address,
+                  distance: s.distance,
+                  operatingHours: station.operatingHours,
+                  rating: station.rating,
+                }
+              : null;
+          })
+          .filter((station): station is StationWithModel => station !== null)
+      );
+    }
+  };
+
+  // Comparison handlers
+  const toggleComparison = (modelId: string) => {
+    if (selectedForComparison.includes(modelId)) {
+      setSelectedForComparison(selectedForComparison.filter((id) => id !== modelId));
+    } else if (selectedForComparison.length < 3) {
+      setSelectedForComparison([...selectedForComparison, modelId]);
+    } else {
+      toast({
+        title: "Maximum Comparison Reached",
+        description: "You can compare up to 3 models at a time",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const clearFilters = () => {
+    setPriceRange([0, 200]);
+    setSeatsFilter([]);
+    setRangeFilter([0, 500]);
+    setTypeFilter([]);
+  };
+
+  const activeFiltersCount =
+    (priceRange[0] !== 0 || priceRange[1] !== 200 ? 1 : 0) +
+    seatsFilter.length +
+    (rangeFilter[0] !== 0 || rangeFilter[1] !== 500 ? 1 : 0) +
+    typeFilter.length;
+
+  // Get unique types and seat options
+  const vehicleTypes = Array.from(
+    new Set(availabilityData.map((d) => d.model.type))
+  );
+  const seatOptions = Array.from(
+    new Set(availabilityData.map((d) => d.model.specs.seats))
+  ).sort((a, b) => a - b);
 
   return (
     <PageTransition>
@@ -199,6 +466,63 @@ const VehicleModelFinder = () => {
         </FadeIn>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Toolbar */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant={comparisonMode ? "default" : "outline"}
+                onClick={() => {
+                  setComparisonMode(!comparisonMode);
+                  if (comparisonMode) setSelectedForComparison([]);
+                }}
+                className="gap-2"
+              >
+                <GitCompare className="h-4 w-4" />
+                {comparisonMode ? "Exit Compare" : "Compare Models"}
+                {comparisonMode && selectedForComparison.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {selectedForComparison.length}
+                  </Badge>
+                )}
+              </Button>
+
+              {comparisonMode && selectedForComparison.length >= 2 && (
+                <Button
+                  onClick={() => setShowComparisonDialog(true)}
+                  className="gap-2"
+                >
+                  View Comparison
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filters
+                {activeFiltersCount > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
+
+              {activeFiltersCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold">{filteredModels.length}</span> of{" "}
+              <span className="font-semibold">{availabilityData.length}</span> models
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Search and Models */}
             <div className="lg:col-span-2 space-y-6">
@@ -207,27 +531,270 @@ const VehicleModelFinder = () => {
                 <CardContent className="pt-6">
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-                      <Input
-                        placeholder="Search by model, brand, or vehicle type..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
+                      <Popover
+                        open={isSuggestionsOpen}
+                        onOpenChange={setIsSuggestionsOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
+                            <Input
+                              placeholder="Search by model, brand, or vehicle type..."
+                              value={searchTerm}
+                              onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setIsSuggestionsOpen(e.target.value.length > 0);
+                              }}
+                              onFocus={() =>
+                                setIsSuggestionsOpen(searchTerm.length > 0)
+                              }
+                              className="pl-10"
+                            />
+                          </div>
+                        </PopoverTrigger>
+                        {searchSuggestions.length > 0 && (
+                          <PopoverContent
+                            className="w-[--radix-popover-trigger-width] p-0"
+                            align="start"
+                          >
+                            <Command>
+                              <CommandList>
+                                <CommandEmpty>No models found.</CommandEmpty>
+                                <CommandGroup>
+                                  {searchSuggestions.map((model) => (
+                                    <CommandItem
+                                      key={model.modelId}
+                                      value={`${model.brand} ${model.name}`}
+                                      onSelect={() => {
+                                        setSearchTerm(
+                                          `${model.brand} ${model.name}`
+                                        );
+                                        setIsSuggestionsOpen(false);
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Car className="h-4 w-4" />
+                                        <div>
+                                          <div className="font-medium">
+                                            {model.name}
+                                          </div>
+                                          <div className="text-sm text-muted-foreground">
+                                            {model.brand} • {model.type}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        )}
+                      </Popover>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleGetLocation}
-                      disabled={isLoadingLocation}
-                    >
-                      <Navigation className="h-4 w-4 mr-2" />
-                      {isLoadingLocation
-                        ? "Getting Location..."
-                        : "Use My Location"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleGetLocation}
+                        disabled={isLoadingLocation}
+                      >
+                        <Navigation className="h-4 w-4 mr-2" />
+                        {isLoadingLocation
+                          ? "Getting Location..."
+                          : "Use My Location"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setIsManualLocationOpen(!isManualLocationOpen)
+                        }
+                      >
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Enter Location
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Manual Location Input */}
+              {isManualLocationOpen && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="relative flex-1">
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
+                        <Input
+                          placeholder="Enter your city, address, or location..."
+                          value={manualLocation}
+                          onChange={(e) => setManualLocation(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              handleManualLocationSubmit();
+                            }
+                          }}
+                          className="pl-10"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleManualLocationSubmit}
+                          disabled={!manualLocation.trim()}
+                        >
+                          Set Location
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsManualLocationOpen(false);
+                            setManualLocation("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Advanced Filters */}
+              {showFilters && (
+                <Card className="border-blue-200 bg-blue-50/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Filter className="h-5 w-5" />
+                        Advanced Filters
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={clearFilters}>
+                        Reset All
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <Accordion type="multiple" className="w-full">
+                      {/* Price Range */}
+                      <AccordionItem value="price">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            Hourly Rate: ${priceRange[0]} - ${priceRange[1]}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <Slider
+                            min={0}
+                            max={200}
+                            step={10}
+                            value={priceRange}
+                            onValueChange={(value) => setPriceRange(value as [number, number])}
+                            className="mb-2"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>$0/hour</span>
+                            <span>$200/hour</span>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Vehicle Type */}
+                      <AccordionItem value="type">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <Car className="h-4 w-4" />
+                            Vehicle Type {typeFilter.length > 0 && `(${typeFilter.length})`}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <div className="space-y-3">
+                            {vehicleTypes.map((type) => (
+                              <div key={type} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`type-${type}`}
+                                  checked={typeFilter.includes(type)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setTypeFilter([...typeFilter, type]);
+                                    } else {
+                                      setTypeFilter(typeFilter.filter((t) => t !== type));
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`type-${type}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                  {type}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Seats */}
+                      <AccordionItem value="seats">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Seats {seatsFilter.length > 0 && `(${seatsFilter.length})`}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <div className="space-y-3">
+                            {seatOptions.map((seats) => (
+                              <div key={seats} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`seats-${seats}`}
+                                  checked={seatsFilter.includes(seats)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSeatsFilter([...seatsFilter, seats]);
+                                    } else {
+                                      setSeatsFilter(seatsFilter.filter((s) => s !== seats));
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`seats-${seats}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                  {seats} Seats
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Range */}
+                      <AccordionItem value="range">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <Zap className="h-4 w-4" />
+                            Battery Range: {rangeFilter[0]} - {rangeFilter[1]} km
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <Slider
+                            min={0}
+                            max={500}
+                            step={50}
+                            value={rangeFilter}
+                            onValueChange={(value) => setRangeFilter(value as [number, number])}
+                            className="mb-2"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>0 km</span>
+                            <span>500 km</span>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Vehicle Models Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -240,19 +807,54 @@ const VehicleModelFinder = () => {
 
                   return (
                     <FadeIn key={model.modelId} delay={300 + index * 100}>
-                      <Card className="card-premium h-full flex flex-col">
+                      <Card className={`card-premium h-full flex flex-col transition-all ${
+                        comparisonMode && selectedForComparison.includes(model.modelId)
+                          ? "ring-2 ring-primary shadow-xl"
+                          : ""
+                      }`}>
                         <div className="relative">
                           <img
                             src={model.image}
                             alt={model.name}
                             className="w-full h-48 object-cover rounded-t-lg"
                           />
-                          <Badge
-                            className={`absolute top-3 right-3 ${totalAvailable > 0 ? "bg-green-500" : "bg-red-500"
-                              }`}
-                          >
-                            {totalAvailable} available
-                          </Badge>
+                          
+                          {/* Comparison Checkbox */}
+                          {comparisonMode && (
+                            <div className="absolute top-3 left-3">
+                              <Checkbox
+                                checked={selectedForComparison.includes(model.modelId)}
+                                onCheckedChange={() => toggleComparison(model.modelId)}
+                                className="h-6 w-6 bg-white border-2"
+                              />
+                            </div>
+                          )}
+
+                          <div className="absolute top-3 right-3 flex gap-2">
+                            {totalAvailable > 0 ? (
+                              <Badge className="bg-green-500 hover:bg-green-600 text-white shadow-lg animate-pulse">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {totalAvailable} ready
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="bg-gray-100 text-gray-600 border border-gray-300"
+                              >
+                                <Clock className="h-3 w-3 mr-1" />
+                                Unavailable
+                              </Badge>
+                            )}
+                            {stationCount > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 border-blue-200"
+                              >
+                                <MapPin className="h-3 w-3 mr-1" />
+                                {stationCount} stations
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
                         <CardContent className="p-6 flex-1 flex flex-col">
@@ -274,17 +876,59 @@ const VehicleModelFinder = () => {
                                 {model.specs.seats} seats
                               </span>
                             </div>
-                            <p className="text-sm text-muted-foreground">
+
+                            {/* Vehicle Status Breakdown */}
+                            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                              <div className="text-xs font-medium text-gray-600 mb-2">
+                                Fleet Status
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {availability && (
+                                  <>
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-green-50 text-green-700 border-green-200"
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      {availability.totalAvailable} Available
+                                    </Badge>
+                                    {availability.totalRented > 0 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-orange-50 text-orange-700 border-orange-200"
+                                      >
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {availability.totalRented} Rented
+                                      </Badge>
+                                    )}
+                                    {availability.totalMaintenance > 0 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-red-50 text-red-700 border-red-200"
+                                      >
+                                        <AlertCircle className="h-3 w-3 mr-1" />
+                                        {availability.totalMaintenance}{" "}
+                                        Maintenance
+                                      </Badge>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <p className="text-sm text-muted-foreground mb-3">
                               {model.description}
                             </p>
-                          </div>
 
-                          <div className="mb-4">
-                            <div className="flex justify-between items-center text-sm">
-                              <span className="font-medium">Available at:</span>
-                              <span className="text-primary">
-                                {stationCount}{" "}
-                                {stationCount === 1 ? "station" : "stations"}
+                            {/* Station Availability Info */}
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>
+                                Available at {stationCount} station
+                                {stationCount !== 1 ? "s" : ""}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Zap className="h-3 w-3" />
+                                {model.specs.range} km range
                               </span>
                             </div>
                           </div>
@@ -298,11 +942,19 @@ const VehicleModelFinder = () => {
                             <Button
                               className="w-full"
                               onClick={() => handleModelSelect(model.modelId)}
-                              disabled={totalAvailable === 0}
+                              disabled={
+                                !availability ||
+                                availability.totalVehicles === 0
+                              }
+                              variant={
+                                totalAvailable > 0 ? "default" : "outline"
+                              }
                             >
-                              {totalAvailable > 0
-                                ? "Find Stations"
-                                : "Not Available"}
+                              {availability && availability.totalVehicles > 0
+                                ? totalAvailable > 0
+                                  ? "Find Stations"
+                                  : `View ${availability.totalVehicles} Stations (All Busy)`
+                                : "No Vehicles"}
                             </Button>
                           </div>
                         </CardContent>
@@ -317,6 +969,74 @@ const VehicleModelFinder = () => {
             <div className="space-y-6">
               {selectedModel ? (
                 <FadeIn delay={400}>
+                  {/* Selected Model Preview Card */}
+                  <Card className="border-primary">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Selected Model</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {(() => {
+                        const modelData = availabilityData.find(
+                          (d) => d.model.modelId === selectedModel
+                        );
+                        if (!modelData) return null;
+                        const model = modelData.model;
+
+                        return (
+                          <div className="space-y-4">
+                            <div className="relative">
+                              <img
+                                src={model.image}
+                                alt={model.name}
+                                className="w-full h-40 object-cover rounded-lg"
+                              />
+                              <div className="absolute top-2 right-2">
+                                <Badge className="bg-primary">
+                                  {modelData.totalAvailable} Available
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h3 className="font-semibold text-lg">{model.name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {model.brand} • {model.type}
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Zap className="h-4 w-4" />
+                                {model.specs.range} km
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Users className="h-4 w-4" />
+                                {model.specs.seats} seats
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <DollarSign className="h-4 w-4" />
+                                ${model.basePrice.perHour}/hr
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <MapPin className="h-4 w-4" />
+                                {stationsWithModel.length} stations
+                              </div>
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => setSelectedModel("")}
+                            >
+                              Clear Selection
+                            </Button>
+                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+
+                  {/* Stations List */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center">
@@ -326,35 +1046,119 @@ const VehicleModelFinder = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {stationsWithModel.length > 0 ? (
-                        stationsWithModel.map((station) => (
+                        stationsWithModel.map((station, index) => (
                           <div
                             key={station.id}
-                            className="p-4 border rounded-lg"
+                            className={`p-4 border rounded-lg transition-all duration-200 ${
+                              index === 0 && userLocation
+                                ? "border-primary bg-primary/5 shadow-sm"
+                                : "hover:shadow-sm"
+                            }`}
                           >
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-medium">{station.name}</h4>
-                              <div className="flex items-center gap-2">
-                                {/* ✅ THÊM MỚI: Hiển thị số lượng xe */}
-                                {(() => {
-                                  const modelData = availabilityData.find((d) => d.model.modelId === selectedModel);
-                                  const stationData = modelData?.stations.find((s) => s.stationId === station.id);
-                                  const vehicleCount = stationData?.count || 0;
-                                  return (
-                                    <Badge variant="outline" className="bg-green-50 text-green-700">
-                                      {vehicleCount} available
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold text-lg">
+                                    {station.name}
+                                  </h4>
+                                  {userLocation && (
+                                    <Badge
+                                      variant="secondary"
+                                      className={`text-xs font-bold ${
+                                        index === 0
+                                          ? "bg-primary text-primary-foreground"
+                                          : index === 1
+                                          ? "bg-orange-500 text-white"
+                                          : index === 2
+                                          ? "bg-amber-500 text-white"
+                                          : "bg-gray-500 text-white"
+                                      }`}
+                                    >
+                                      #{index + 1}
                                     </Badge>
-                                  );
-                                })()}
-                                {station.distance && (
-                                  <Badge variant="outline">
-                                    {station.distance.toFixed(1)} km
-                                  </Badge>
+                                  )}
+                                  {index === 0 && userLocation && (
+                                    <Badge className="bg-primary text-primary-foreground shadow-sm">
+                                      <Navigation className="h-3 w-3 mr-1" />
+                                      Nearest
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                {/* Distance Display - Only show when location is set */}
+                                {station.distance && userLocation && (
+                                  <div className="flex items-center gap-2">
+                                    <Badge
+                                      variant="secondary"
+                                      className={`font-semibold ${
+                                        station.distance < 5
+                                          ? "bg-green-100 text-green-800 border-green-200"
+                                          : station.distance < 15
+                                          ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                          : "bg-red-100 text-red-800 border-red-200"
+                                      }`}
+                                    >
+                                      <MapPin className="h-3 w-3 mr-1" />
+                                      {station.distance.toFixed(1)} km away
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {station.distance < 5
+                                        ? "🚗 Very close"
+                                        : station.distance < 15
+                                        ? "🚙 Nearby"
+                                        : "🚛 Far"}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                             </div>
                             <p className="text-sm text-muted-foreground mb-3">
                               {station.address}
                             </p>
+
+                            {/* Vehicle Status Breakdown at this Station */}
+                            {(() => {
+                              const modelData = availabilityData.find(
+                                (d) => d.model.modelId === selectedModel
+                              );
+                              const stationData = modelData?.stations.find(
+                                (s) => s.stationId === station.id
+                              );
+
+                              if (!stationData) return null;
+
+                              return (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {stationData.availableCount > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-green-50 text-green-700 border-green-200"
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      {stationData.availableCount} Available
+                                    </Badge>
+                                  )}
+                                  {stationData.rentedCount > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-orange-50 text-orange-700 border-orange-200"
+                                    >
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      {stationData.rentedCount} Rented
+                                    </Badge>
+                                  )}
+                                  {stationData.maintenanceCount > 0 && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-red-50 text-red-700 border-red-200"
+                                    >
+                                      <AlertCircle className="h-3 w-3 mr-1" />
+                                      {stationData.maintenanceCount} Maintenance
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })()}
                             <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
@@ -365,11 +1169,41 @@ const VehicleModelFinder = () => {
                                 {station.rating}
                               </span>
                             </div>
-                            <Button asChild size="sm" className="w-full">
-                              <Link to={`/stations/${station.id}`}>
-                                View Station Details
-                              </Link>
-                            </Button>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button asChild size="sm" variant="outline">
+                                <Link to={`/stations/${station.id}`}>
+                                  <Map className="h-4 w-4 mr-1" />
+                                  View Station
+                                </Link>
+                              </Button>
+                              <Button
+                                asChild
+                                size="sm"
+                                onClick={() => {
+                                  const modelData = availabilityData.find(
+                                    (d) => d.model.modelId === selectedModel
+                                  );
+                                  if (modelData) {
+                                    const stationData = modelData.stations.find(
+                                      (s) => s.stationId === station.id
+                                    );
+                                    if (stationData && stationData.availableCount > 0) {
+                                      toast({
+                                        title: "Redirecting to Booking",
+                                        description: `Finding available ${modelData.model.name} at ${station.name}`,
+                                      });
+                                    }
+                                  }
+                                }}
+                              >
+                                <Link
+                                  to={`/stations/${station.id}?model=${selectedModel}`}
+                                >
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  Quick Book
+                                </Link>
+                              </Button>
+                            </div>
                           </div>
                         ))
                       ) : (
@@ -404,11 +1238,17 @@ const VehicleModelFinder = () => {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Models:</span>
-                      <span className="font-medium">{availabilityData.length}</span>
+                      <span className="text-sm text-muted-foreground">
+                        Total Models:
+                      </span>
+                      <span className="font-medium">
+                        {availabilityData.length}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Available Vehicles:</span>
+                      <span className="text-sm text-muted-foreground">
+                        Available Vehicles:
+                      </span>
                       <span className="font-medium text-green-600">
                         {availabilityData.reduce(
                           (sum, data) => sum + data.totalAvailable,
@@ -417,7 +1257,9 @@ const VehicleModelFinder = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Stations:</span>
+                      <span className="text-sm text-muted-foreground">
+                        Total Stations:
+                      </span>
                       <span className="font-medium">{stations.length}</span>
                     </div>
                   </div>
@@ -441,6 +1283,163 @@ const VehicleModelFinder = () => {
             </div>
           </div>
         </div>
+
+        {/* Comparison Dialog */}
+        <Dialog open={showComparisonDialog} onOpenChange={setShowComparisonDialog}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <GitCompare className="h-6 w-6" />
+                Compare Vehicle Models
+              </DialogTitle>
+              <DialogDescription>
+                Side-by-side comparison of {selectedForComparison.length} selected models
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+              {selectedForComparison.map((modelId) => {
+                const modelData = availabilityData.find(
+                  (d) => d.model.modelId === modelId
+                );
+                if (!modelData) return null;
+                const model = modelData.model;
+
+                return (
+                  <Card key={modelId} className="relative">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 z-10"
+                      onClick={() => toggleComparison(modelId)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+
+                    <CardContent className="p-4 space-y-4">
+                      {/* Image */}
+                      <div className="relative">
+                        <img
+                          src={model.image}
+                          alt={model.name}
+                          className="w-full h-40 object-cover rounded-lg"
+                        />
+                        <Badge className="absolute top-2 left-2 bg-primary">
+                          {modelData.totalAvailable} Available
+                        </Badge>
+                      </div>
+
+                      {/* Name and Brand */}
+                      <div>
+                        <h3 className="font-semibold text-lg">{model.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {model.brand} • {model.type}
+                        </p>
+                      </div>
+
+                      <Separator />
+
+                      {/* Specifications */}
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <Zap className="h-4 w-4" />
+                            Range:
+                          </span>
+                          <span className="font-medium">{model.specs.range} km</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Seats:
+                          </span>
+                          <span className="font-medium">{model.specs.seats}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <Maximize2 className="h-4 w-4" />
+                            Type:
+                          </span>
+                          <span className="font-medium">{model.type}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            Stations:
+                          </span>
+                          <span className="font-medium">{modelData.stations.length}</span>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Hourly:</span>
+                            <span className="font-semibold text-lg">
+                              ${model.basePrice.perHour}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Daily:</span>
+                            <span className="font-semibold text-lg">
+                              ${model.basePrice.perDay}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Fleet Status */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Fleet Status
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-700 border-green-200 text-xs"
+                            >
+                              {modelData.totalAvailable} Available
+                            </Badge>
+                            {modelData.totalRented > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-orange-50 text-orange-700 border-orange-200 text-xs"
+                              >
+                                {modelData.totalRented} Rented
+                              </Badge>
+                            )}
+                            {modelData.totalMaintenance > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-red-50 text-red-700 border-red-200 text-xs"
+                              >
+                                {modelData.totalMaintenance} Maintenance
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        className="w-full mt-4"
+                        onClick={() => {
+                          handleModelSelect(modelId);
+                          setShowComparisonDialog(false);
+                        }}
+                      >
+                        View Stations
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </PageTransition>
   );

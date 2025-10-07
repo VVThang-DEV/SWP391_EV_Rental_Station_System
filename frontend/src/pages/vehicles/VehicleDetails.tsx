@@ -1,8 +1,11 @@
 import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getVehicleById } from "@/data/vehicles";
+import { stations } from "@/data/stations";
+import { calculateDistance } from "@/lib/vehicle-station-utils";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { useCurrency } from "@/lib/currency";
 import {
@@ -18,6 +21,10 @@ import {
   Wifi,
   Snowflake,
   Music,
+  Navigation,
+  CheckCircle,
+  AlertCircle,
+  Wrench,
 } from "lucide-react";
 
 const VehicleDetails = () => {
@@ -25,6 +32,44 @@ const VehicleDetails = () => {
   const { t } = useTranslation();
   const { formatPrice } = useCurrency();
   const vehicle = id ? getVehicleById(id) : null;
+  const [distanceToStation, setDistanceToStation] = useState<number | null>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [locationError, setLocationError] = useState<string>("");
+
+  // Calculate distance from user to vehicle station
+  useEffect(() => {
+    if (!vehicle) return;
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLoc = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setUserLocation(userLoc);
+          
+          // Find station for this vehicle
+          const station = stations.find(s => s.id === vehicle.stationId);
+          if (station) {
+            const distance = calculateDistance(
+              userLoc.lat,
+              userLoc.lng,
+              station.coordinates.lat,
+              station.coordinates.lng
+            );
+            setDistanceToStation(distance);
+          }
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          setLocationError("Unable to get your location");
+        }
+      );
+    } else {
+      setLocationError("Geolocation not supported");
+    }
+  }, [vehicle]);
 
   if (!vehicle) {
     return (
@@ -48,13 +93,39 @@ const VehicleDetails = () => {
     switch (vehicle.availability) {
       case "available":
         return (
-          <Badge className="badge-available">{t("common.available")}</Badge>
+          <div className="space-y-1">
+            <Badge className="badge-available flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              {t("common.available")}
+            </Badge>
+            <p className="text-xs text-white bg-black/50 px-2 py-1 rounded">
+              Ready to rent now!
+            </p>
+          </div>
         );
       case "rented":
-        return <Badge className="badge-rented">{t("common.rented")}</Badge>;
+        return (
+          <div className="space-y-1">
+            <Badge className="badge-rented flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              {t("common.rented")}
+            </Badge>
+            <p className="text-xs text-white bg-black/50 px-2 py-1 rounded">
+              Currently in use
+            </p>
+          </div>
+        );
       case "maintenance":
         return (
-          <Badge className="badge-maintenance">{t("common.maintenance")}</Badge>
+          <div className="space-y-1">
+            <Badge className="badge-maintenance flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              {t("common.maintenance")}
+            </Badge>
+            <p className="text-xs text-white bg-black/50 px-2 py-1 rounded">
+              Scheduled service
+            </p>
+          </div>
         );
       default:
         return null;
@@ -175,6 +246,22 @@ const VehicleDetails = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <Navigation className="h-8 w-8 mx-auto mb-2 text-primary" />
+                  <div className="text-2xl font-bold text-foreground">
+                    {distanceToStation !== null 
+                      ? `${distanceToStation.toFixed(1)} km` 
+                      : locationError 
+                        ? "N/A" 
+                        : "Loading..."}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Distance from you
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Pricing */}
@@ -209,6 +296,21 @@ const VehicleDetails = () => {
                           <Calendar className="h-5 w-5 mr-2" />
                           {t("common.bookNow")}
                         </Link>
+                      </Button>
+                      <Button 
+                        size="lg" 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => {
+                          const station = stations.find(s => s.id === vehicle.stationId);
+                          if (station) {
+                            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.coordinates.lat},${station.coordinates.lng}`;
+                            window.open(mapsUrl, '_blank');
+                          }
+                        }}
+                      >
+                        <Navigation className="h-5 w-5 mr-2" />
+                        Get Directions to Station
                       </Button>
                       <p className="text-xs text-muted-foreground text-center">
                         Instant booking • No deposit required • Cancel anytime
@@ -270,7 +372,25 @@ const VehicleDetails = () => {
             <h3 className="text-xl font-semibold mb-4">
               {t("common.rentalInformation")}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
+              <div>
+                <h4 className="font-medium mb-2 flex items-center">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Maintenance & Safety
+                </h4>
+                <ul className="space-y-1 text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    • Condition: 
+                    <Badge variant="outline" className="ml-1 text-xs capitalize">
+                      {vehicle.condition}
+                    </Badge>
+                  </li>
+                  <li>• Last Service: {new Date(vehicle.lastMaintenance).toLocaleDateString()}</li>
+                  <li>• Mileage: {vehicle.mileage.toLocaleString()} km</li>
+                  <li>• Inspection: {new Date(vehicle.inspectionDate).toLocaleDateString()}</li>
+                  <li>• Insurance Valid: {new Date(vehicle.insuranceExpiry).toLocaleDateString()}</li>
+                </ul>
+              </div>
               <div>
                 <h4 className="font-medium mb-2">{t("common.requirements")}</h4>
                 <ul className="space-y-1 text-muted-foreground">
