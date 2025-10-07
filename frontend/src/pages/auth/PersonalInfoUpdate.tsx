@@ -55,16 +55,11 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     email: user?.email || "",
     phone: "",
     address: "",
-<<<<<<< HEAD
     cccd: "",
     licenseNumber: "",
     gender: "",
     dateOfBirth: "",
     avatarUrl: "",
-=======
-    emergencyContact: "",
-    emergencyPhone: "",
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
   });
 
   const [uploadedDocuments, setUploadedDocuments] = useState<
@@ -77,15 +72,10 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
   const [errors, setErrors] = useState({
     phone: "",
     address: "",
-<<<<<<< HEAD
     cccd: "",
     licenseNumber: "",
     gender: "",
     dateOfBirth: "",
-=======
-    emergencyContact: "",
-    emergencyPhone: "",
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
   });
 
   const requiredDocuments = ["nationalId", "driverLicense"];
