@@ -25,34 +25,13 @@ const LoginForm = ({ onLogin }: Props) => {
   // Simple email format check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
-  // Password validation function
-  const validatePassword = (pwd: string) => {
-    if (!pwd) {
-      setPasswordError("");
-      return;
-    }
-    
-    if (pwd.length < 8) {
-      setPasswordError(`Còn thiếu ${8 - pwd.length} ký tự`);
-      return;
-    }
-    
-    if (pwd.length > 8) {
-      setPasswordError("Mật khẩu chỉ được có 8 ký tự");
-      return;
-    }
-    
-    if (pwd.length === 8) {
-      setPasswordError(""); // Clear error if valid
-      return;
-    }
-  };
+  
   
   // Handle password change
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPassword = e.target.value;
-    setPassword(newPassword);
-    validatePassword(newPassword);
+
+    setPassword(e.target.value);
+
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,15 +46,6 @@ const LoginForm = ({ onLogin }: Props) => {
       return;
     }
 
-    // Kiểm tra password phải chính xác 8 ký tự
-    if (!password || password.length !== 8) {
-      toast({
-        title: "Lỗi interval",
-        description: "Mật khẩu phải chính xác 8 ký tự.",
-        variant: "destructive",
-      });
-      return;
-    }
 
 
     setIsLoading(true);
@@ -152,7 +122,6 @@ const LoginForm = ({ onLogin }: Props) => {
           onChange={handlePasswordChange}
           className="pl-10 pr-10 text-black"
           placeholder=" "
-          title="Mật khẩu phải chính xác 8 ký tự"
           required
         />
         <label htmlFor="password" style={{ zIndex: 10 }}>{t("common.password")}</label>
