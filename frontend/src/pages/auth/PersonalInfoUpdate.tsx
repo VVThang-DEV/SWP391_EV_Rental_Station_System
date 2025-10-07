@@ -130,15 +130,10 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     const newErrors = {
       phone: "",
       address: "",
-<<<<<<< HEAD
       cccd: "",
       licenseNumber: "",
       gender: "",
       dateOfBirth: "",
-=======
-      emergencyContact: "",
-      emergencyPhone: "",
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
     };
 
     const phoneRegex = /^(?:0|\+84|84)[1-9]\d{8}$/;
@@ -153,7 +148,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
       newErrors.address = "Address is required";
     }
 
-<<<<<<< HEAD
     if (!personalData.cccd.trim()) {
       newErrors.cccd = "CCCD is required";
     } else if (!/^\d{12}$/.test(personalData.cccd)) {
@@ -182,19 +176,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     }
 
     // emergency contact/phone removed by request
-=======
-    if (!personalData.emergencyContact.trim()) {
-      newErrors.emergencyContact = "Emergency contact name is required";
-    }
-
-    if (!personalData.emergencyPhone.trim()) {
-      newErrors.emergencyPhone = "Emergency contact phone is required";
-    } else if (
-      !phoneRegex.test(personalData.emergencyPhone.replace(/[\s\-.()]/g, ""))
-    ) {
-      newErrors.emergencyPhone = "Invalid emergency phone number format";
-    }
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
 
     setErrors(newErrors);
     return !Object.values(newErrors).some((error) => error);
@@ -233,7 +214,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     setIsLoading(true);
 
     try {
-<<<<<<< HEAD
       // Basic pre-submit checks to avoid known server-side validation errors
       if (!personalData.email || !personalData.email.trim()) {
         toast({
@@ -284,12 +264,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
       }
 
       // Save to localStorage for frontend state
-=======
-      // Simulate API call to save personal information and documents
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Save to localStorage or send to backend
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
       const updatedUser = {
         ...user,
         personalInfo: personalData,
@@ -452,7 +426,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     <div className="space-y-2">
-<<<<<<< HEAD
                       <Label htmlFor="cccd">CCCD Number *</Label>
                       <Input
                         id="cccd"
@@ -467,29 +440,11 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                       {errors.cccd && (
                         <p className="text-sm text-destructive">
                           {errors.cccd}
-=======
-                      <Label htmlFor="emergencyContact">
-                        Emergency Contact Name *
-                      </Label>
-                      <Input
-                        id="emergencyContact"
-                        value={personalData.emergencyContact}
-                        onChange={(e) =>
-                          handleInputChange("emergencyContact", e.target.value)
-                        }
-                        className="text-black"
-                        placeholder="Contact person name"
-                      />
-                      {errors.emergencyContact && (
-                        <p className="text-sm text-destructive">
-                          {errors.emergencyContact}
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
                         </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-<<<<<<< HEAD
                       <Label htmlFor="licenseNumber">Driver License Number *</Label>
                       <Input
                         id="licenseNumber"
@@ -548,26 +503,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     {/* Emergency contact fields removed */}
-=======
-                      <Label htmlFor="emergencyPhone">
-                        Emergency Contact Phone *
-                      </Label>
-                      <Input
-                        id="emergencyPhone"
-                        value={personalData.emergencyPhone}
-                        onChange={(e) =>
-                          handleInputChange("emergencyPhone", e.target.value)
-                        }
-                        className="text-black"
-                        placeholder="0912345678"
-                      />
-                      {errors.emergencyPhone && (
-                        <p className="text-sm text-destructive">
-                          {errors.emergencyPhone}
-                        </p>
-                      )}
-                    </div>
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
                   </div>
 
                   <div className="flex justify-end pt-6">
@@ -647,7 +582,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                         <p className="font-medium">{personalData.address}</p>
                       </div>
                       <div>
-<<<<<<< HEAD
                         <p className="text-sm text-muted-foreground">CCCD</p>
                         <p className="font-medium">{personalData.cccd}</p>
                       </div>
@@ -664,23 +598,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                         <p className="font-medium">{personalData.dateOfBirth}</p>
                       </div>
                       {/* Emergency contact info removed */}
-=======
-                        <p className="text-sm text-muted-foreground">
-                          Emergency Contact
-                        </p>
-                        <p className="font-medium">
-                          {personalData.emergencyContact}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Emergency Phone
-                        </p>
-                        <p className="font-medium">
-                          {personalData.emergencyPhone}
-                        </p>
-                      </div>
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
                     </div>
                   </div>
 
