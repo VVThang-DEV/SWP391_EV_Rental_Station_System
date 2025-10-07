@@ -33,6 +33,14 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
   Search,
   MapPin,
   Car,
@@ -44,6 +52,12 @@ import {
   CheckCircle,
   AlertCircle,
   Filter,
+  X,
+  GitCompare,
+  Map,
+  Calendar,
+  DollarSign,
+  Maximize2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
@@ -112,6 +126,21 @@ const VehicleModelFinder = () => {
   const [manualLocation, setManualLocation] = useState("");
   const [isManualLocationOpen, setIsManualLocationOpen] = useState(false);
 
+  // New filter states
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 200]);
+  const [seatsFilter, setSeatsFilter] = useState<number[]>([]);
+  const [rangeFilter, setRangeFilter] = useState<[number, number]>([0, 500]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Comparison mode
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
+  const [showComparisonDialog, setShowComparisonDialog] = useState(false);
+
+  // View mode
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
   useEffect(() => {
     // Load ALL vehicles (available, rented, maintenance)
     const allVehicles = getVehicles("en");
@@ -124,31 +153,30 @@ const VehicleModelFinder = () => {
       );
 
       // Group by station
-      const stationMap = new Map<
-        string,
-        {
-          stationId: string;
-          stationName: string;
-          availableCount: number;
-          rentedCount: number;
-          maintenanceCount: number;
-        }
-      >();
+      interface StationData {
+        stationId: string;
+        stationName: string;
+        availableCount: number;
+        rentedCount: number;
+        maintenanceCount: number;
+      }
+
+      const stationMap: Record<string, StationData> = {};
 
       modelVehicles.forEach((vehicle) => {
         const station = stations.find((s) => s.id === vehicle.stationId);
         if (station) {
-          if (!stationMap.has(station.id)) {
-            stationMap.set(station.id, {
+          if (!stationMap[station.id]) {
+            stationMap[station.id] = {
               stationId: station.id,
               stationName: station.name,
               availableCount: 0,
               rentedCount: 0,
               maintenanceCount: 0,
-            });
+            };
           }
 
-          const stationData = stationMap.get(station.id)!;
+          const stationData = stationMap[station.id];
           if (vehicle.availability === "available") {
             stationData.availableCount++;
           } else if (vehicle.availability === "rented") {
@@ -159,7 +187,7 @@ const VehicleModelFinder = () => {
         }
       });
 
-      const stationAvailability = Array.from(stationMap.values())
+      const stationAvailability = Object.values(stationMap)
         .map((s) => {
           const station = stations.find((st) => st.id === s.stationId);
           const distance =
@@ -299,14 +327,42 @@ const VehicleModelFinder = () => {
     }
   };
 
+  // Enhanced filtering with all filters
   const filteredModels = availabilityData
     .map((data) => data.model)
-    .filter(
-      (model) =>
+    .filter((model) => {
+      // Search filter
+      const matchesSearch =
         model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         model.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        model.type.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+        model.type.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Price filter (check per-hour rate)
+      const matchesPrice =
+        model.basePrice.perHour >= priceRange[0] &&
+        model.basePrice.perHour <= priceRange[1];
+
+      // Seats filter
+      const matchesSeats =
+        seatsFilter.length === 0 || seatsFilter.includes(model.specs.seats);
+
+      // Range filter
+      const matchesRange =
+        model.specs.range >= rangeFilter[0] &&
+        model.specs.range <= rangeFilter[1];
+
+      // Type filter
+      const matchesType =
+        typeFilter.length === 0 || typeFilter.includes(model.type);
+
+      return (
+        matchesSearch &&
+        matchesPrice &&
+        matchesSeats &&
+        matchesRange &&
+        matchesType
+      );
+    });
 
   const searchSuggestions = useMemo(() => {
     if (!searchTerm.trim()) return [];
@@ -351,6 +407,42 @@ const VehicleModelFinder = () => {
     }
   };
 
+  // Comparison handlers
+  const toggleComparison = (modelId: string) => {
+    if (selectedForComparison.includes(modelId)) {
+      setSelectedForComparison(selectedForComparison.filter((id) => id !== modelId));
+    } else if (selectedForComparison.length < 3) {
+      setSelectedForComparison([...selectedForComparison, modelId]);
+    } else {
+      toast({
+        title: "Maximum Comparison Reached",
+        description: "You can compare up to 3 models at a time",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const clearFilters = () => {
+    setPriceRange([0, 200]);
+    setSeatsFilter([]);
+    setRangeFilter([0, 500]);
+    setTypeFilter([]);
+  };
+
+  const activeFiltersCount =
+    (priceRange[0] !== 0 || priceRange[1] !== 200 ? 1 : 0) +
+    seatsFilter.length +
+    (rangeFilter[0] !== 0 || rangeFilter[1] !== 500 ? 1 : 0) +
+    typeFilter.length;
+
+  // Get unique types and seat options
+  const vehicleTypes = Array.from(
+    new Set(availabilityData.map((d) => d.model.type))
+  );
+  const seatOptions = Array.from(
+    new Set(availabilityData.map((d) => d.model.specs.seats))
+  ).sort((a, b) => a - b);
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-background">
@@ -374,6 +466,63 @@ const VehicleModelFinder = () => {
         </FadeIn>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Toolbar */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant={comparisonMode ? "default" : "outline"}
+                onClick={() => {
+                  setComparisonMode(!comparisonMode);
+                  if (comparisonMode) setSelectedForComparison([]);
+                }}
+                className="gap-2"
+              >
+                <GitCompare className="h-4 w-4" />
+                {comparisonMode ? "Exit Compare" : "Compare Models"}
+                {comparisonMode && selectedForComparison.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {selectedForComparison.length}
+                  </Badge>
+                )}
+              </Button>
+
+              {comparisonMode && selectedForComparison.length >= 2 && (
+                <Button
+                  onClick={() => setShowComparisonDialog(true)}
+                  className="gap-2"
+                >
+                  View Comparison
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filters
+                {activeFiltersCount > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
+
+              {activeFiltersCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold">{filteredModels.length}</span> of{" "}
+              <span className="font-semibold">{availabilityData.length}</span> models
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Search and Models */}
             <div className="lg:col-span-2 space-y-6">
@@ -509,6 +658,144 @@ const VehicleModelFinder = () => {
                 </Card>
               )}
 
+              {/* Advanced Filters */}
+              {showFilters && (
+                <Card className="border-blue-200 bg-blue-50/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Filter className="h-5 w-5" />
+                        Advanced Filters
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={clearFilters}>
+                        Reset All
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <Accordion type="multiple" className="w-full">
+                      {/* Price Range */}
+                      <AccordionItem value="price">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            Hourly Rate: ${priceRange[0]} - ${priceRange[1]}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <Slider
+                            min={0}
+                            max={200}
+                            step={10}
+                            value={priceRange}
+                            onValueChange={(value) => setPriceRange(value as [number, number])}
+                            className="mb-2"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>$0/hour</span>
+                            <span>$200/hour</span>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Vehicle Type */}
+                      <AccordionItem value="type">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <Car className="h-4 w-4" />
+                            Vehicle Type {typeFilter.length > 0 && `(${typeFilter.length})`}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <div className="space-y-3">
+                            {vehicleTypes.map((type) => (
+                              <div key={type} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`type-${type}`}
+                                  checked={typeFilter.includes(type)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setTypeFilter([...typeFilter, type]);
+                                    } else {
+                                      setTypeFilter(typeFilter.filter((t) => t !== type));
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`type-${type}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                  {type}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Seats */}
+                      <AccordionItem value="seats">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Seats {seatsFilter.length > 0 && `(${seatsFilter.length})`}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <div className="space-y-3">
+                            {seatOptions.map((seats) => (
+                              <div key={seats} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`seats-${seats}`}
+                                  checked={seatsFilter.includes(seats)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSeatsFilter([...seatsFilter, seats]);
+                                    } else {
+                                      setSeatsFilter(seatsFilter.filter((s) => s !== seats));
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`seats-${seats}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                  {seats} Seats
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Range */}
+                      <AccordionItem value="range">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2">
+                            <Zap className="h-4 w-4" />
+                            Battery Range: {rangeFilter[0]} - {rangeFilter[1]} km
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                          <Slider
+                            min={0}
+                            max={500}
+                            step={50}
+                            value={rangeFilter}
+                            onValueChange={(value) => setRangeFilter(value as [number, number])}
+                            className="mb-2"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>0 km</span>
+                            <span>500 km</span>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Vehicle Models Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredModels.map((model, index) => {
@@ -520,13 +807,29 @@ const VehicleModelFinder = () => {
 
                   return (
                     <FadeIn key={model.modelId} delay={300 + index * 100}>
-                      <Card className="card-premium h-full flex flex-col">
+                      <Card className={`card-premium h-full flex flex-col transition-all ${
+                        comparisonMode && selectedForComparison.includes(model.modelId)
+                          ? "ring-2 ring-primary shadow-xl"
+                          : ""
+                      }`}>
                         <div className="relative">
                           <img
                             src={model.image}
                             alt={model.name}
                             className="w-full h-48 object-cover rounded-t-lg"
                           />
+                          
+                          {/* Comparison Checkbox */}
+                          {comparisonMode && (
+                            <div className="absolute top-3 left-3">
+                              <Checkbox
+                                checked={selectedForComparison.includes(model.modelId)}
+                                onCheckedChange={() => toggleComparison(model.modelId)}
+                                className="h-6 w-6 bg-white border-2"
+                              />
+                            </div>
+                          )}
+
                           <div className="absolute top-3 right-3 flex gap-2">
                             {totalAvailable > 0 ? (
                               <Badge className="bg-green-500 hover:bg-green-600 text-white shadow-lg animate-pulse">
@@ -666,6 +969,74 @@ const VehicleModelFinder = () => {
             <div className="space-y-6">
               {selectedModel ? (
                 <FadeIn delay={400}>
+                  {/* Selected Model Preview Card */}
+                  <Card className="border-primary">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Selected Model</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {(() => {
+                        const modelData = availabilityData.find(
+                          (d) => d.model.modelId === selectedModel
+                        );
+                        if (!modelData) return null;
+                        const model = modelData.model;
+
+                        return (
+                          <div className="space-y-4">
+                            <div className="relative">
+                              <img
+                                src={model.image}
+                                alt={model.name}
+                                className="w-full h-40 object-cover rounded-lg"
+                              />
+                              <div className="absolute top-2 right-2">
+                                <Badge className="bg-primary">
+                                  {modelData.totalAvailable} Available
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h3 className="font-semibold text-lg">{model.name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {model.brand} • {model.type}
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Zap className="h-4 w-4" />
+                                {model.specs.range} km
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Users className="h-4 w-4" />
+                                {model.specs.seats} seats
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <DollarSign className="h-4 w-4" />
+                                ${model.basePrice.perHour}/hr
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <MapPin className="h-4 w-4" />
+                                {stationsWithModel.length} stations
+                              </div>
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => setSelectedModel("")}
+                            >
+                              Clear Selection
+                            </Button>
+                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+
+                  {/* Stations List */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center">
@@ -798,11 +1169,41 @@ const VehicleModelFinder = () => {
                                 {station.rating}
                               </span>
                             </div>
-                            <Button asChild size="sm" className="w-full">
-                              <Link to={`/stations/${station.id}`}>
-                                View Station Details
-                              </Link>
-                            </Button>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button asChild size="sm" variant="outline">
+                                <Link to={`/stations/${station.id}`}>
+                                  <Map className="h-4 w-4 mr-1" />
+                                  View Station
+                                </Link>
+                              </Button>
+                              <Button
+                                asChild
+                                size="sm"
+                                onClick={() => {
+                                  const modelData = availabilityData.find(
+                                    (d) => d.model.modelId === selectedModel
+                                  );
+                                  if (modelData) {
+                                    const stationData = modelData.stations.find(
+                                      (s) => s.stationId === station.id
+                                    );
+                                    if (stationData && stationData.availableCount > 0) {
+                                      toast({
+                                        title: "Redirecting to Booking",
+                                        description: `Finding available ${modelData.model.name} at ${station.name}`,
+                                      });
+                                    }
+                                  }
+                                }}
+                              >
+                                <Link
+                                  to={`/stations/${station.id}?model=${selectedModel}`}
+                                >
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  Quick Book
+                                </Link>
+                              </Button>
+                            </div>
                           </div>
                         ))
                       ) : (
@@ -882,6 +1283,163 @@ const VehicleModelFinder = () => {
             </div>
           </div>
         </div>
+
+        {/* Comparison Dialog */}
+        <Dialog open={showComparisonDialog} onOpenChange={setShowComparisonDialog}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <GitCompare className="h-6 w-6" />
+                Compare Vehicle Models
+              </DialogTitle>
+              <DialogDescription>
+                Side-by-side comparison of {selectedForComparison.length} selected models
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+              {selectedForComparison.map((modelId) => {
+                const modelData = availabilityData.find(
+                  (d) => d.model.modelId === modelId
+                );
+                if (!modelData) return null;
+                const model = modelData.model;
+
+                return (
+                  <Card key={modelId} className="relative">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 z-10"
+                      onClick={() => toggleComparison(modelId)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+
+                    <CardContent className="p-4 space-y-4">
+                      {/* Image */}
+                      <div className="relative">
+                        <img
+                          src={model.image}
+                          alt={model.name}
+                          className="w-full h-40 object-cover rounded-lg"
+                        />
+                        <Badge className="absolute top-2 left-2 bg-primary">
+                          {modelData.totalAvailable} Available
+                        </Badge>
+                      </div>
+
+                      {/* Name and Brand */}
+                      <div>
+                        <h3 className="font-semibold text-lg">{model.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {model.brand} • {model.type}
+                        </p>
+                      </div>
+
+                      <Separator />
+
+                      {/* Specifications */}
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <Zap className="h-4 w-4" />
+                            Range:
+                          </span>
+                          <span className="font-medium">{model.specs.range} km</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Seats:
+                          </span>
+                          <span className="font-medium">{model.specs.seats}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <Maximize2 className="h-4 w-4" />
+                            Type:
+                          </span>
+                          <span className="font-medium">{model.type}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            Stations:
+                          </span>
+                          <span className="font-medium">{modelData.stations.length}</span>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Hourly:</span>
+                            <span className="font-semibold text-lg">
+                              ${model.basePrice.perHour}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Daily:</span>
+                            <span className="font-semibold text-lg">
+                              ${model.basePrice.perDay}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Fleet Status */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Fleet Status
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-700 border-green-200 text-xs"
+                            >
+                              {modelData.totalAvailable} Available
+                            </Badge>
+                            {modelData.totalRented > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-orange-50 text-orange-700 border-orange-200 text-xs"
+                              >
+                                {modelData.totalRented} Rented
+                              </Badge>
+                            )}
+                            {modelData.totalMaintenance > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="bg-red-50 text-red-700 border-red-200 text-xs"
+                              >
+                                {modelData.totalMaintenance} Maintenance
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        className="w-full mt-4"
+                        onClick={() => {
+                          handleModelSelect(modelId);
+                          setShowComparisonDialog(false);
+                        }}
+                      >
+                        View Stations
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </PageTransition>
   );
