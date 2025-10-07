@@ -13,12 +13,11 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF3",
     type: "Hatchback",
-    image:
-      "https://vinfastvietnam.com.vn/wp-content/uploads/2023/09/Xam-min.png",
+    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2023/09/Xam-min.png",
     batteryLevel: 88,
     location: "District 1 Station",
     stationId: "st1",
-    availability: "rented",
+    availability: "available",
     pricePerHour: 8,
     pricePerDay: 60,
     rating: 4.6,
@@ -26,20 +25,14 @@ const englishVehicles: Vehicle[] = [
     trips: 78,
     range: 210,
     seats: 5,
-    features: [
-      "Smart Connectivity",
-      "Air Conditioning",
-      "USB Charging",
-      "LED Lights",
-    ],
+    features: ["Smart Connectivity", "Air Conditioning", "USB Charging", "LED Lights"],
     condition: "excellent",
     lastMaintenance: "2024-01-15",
     mileage: 5200,
     fuelEfficiency: "110 kWh/100km",
     inspectionDate: "2024-01-20",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain.",
+    description: "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain."
   },
   {
     id: "VF3-ST3-001",
@@ -50,12 +43,11 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF3",
     type: "Hatchback",
-    image:
-      "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf3-do.png",
+    image: "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf3-do.png",
     batteryLevel: 92,
     location: "Airport Station",
     stationId: "st3",
-    availability: "rented",
+    availability: "available",
     pricePerHour: 8,
     pricePerDay: 60,
     rating: 4.5,
@@ -63,20 +55,14 @@ const englishVehicles: Vehicle[] = [
     trips: 56,
     range: 210,
     seats: 5,
-    features: [
-      "Smart Connectivity",
-      "Air Conditioning",
-      "USB Charging",
-      "LED Lights",
-    ],
+    features: ["Smart Connectivity", "Air Conditioning", "USB Charging", "LED Lights"],
     condition: "excellent",
     lastMaintenance: "2024-01-12",
     mileage: 3400,
     fuelEfficiency: "110 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain.",
+    description: "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain."
   },
   {
     id: "VF3-ST5-001",
@@ -87,8 +73,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF3",
     type: "Hatchback",
-    image:
-      "https://vinfast-tphochiminh.com/OTO3602300549/files/mau_xe/VF3/vang.webp",
+    image: "https://vinfast-tphochiminh.com/OTO3602300549/files/mau_xe/VF3/vang.webp",
     batteryLevel: 85,
     location: "District 5 Station",
     stationId: "st5",
@@ -100,20 +85,14 @@ const englishVehicles: Vehicle[] = [
     trips: 89,
     range: 210,
     seats: 5,
-    features: [
-      "Smart Connectivity",
-      "Air Conditioning",
-      "USB Charging",
-      "LED Lights",
-    ],
+    features: ["Smart Connectivity", "Air Conditioning", "USB Charging", "LED Lights"],
     condition: "good",
     lastMaintenance: "2024-01-10",
     mileage: 6800,
     fuelEfficiency: "110 kWh/100km",
     inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain.",
+    description: "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain."
   },
   {
     id: "VF3-ST7-001",
@@ -124,8 +103,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF3",
     type: "Hatchback",
-    image:
-      "https://vinfastvietnam.com.vn/wp-content/uploads/2023/09/Xanh-Noc-trang-min.png",
+    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2023/09/Xanh-Noc-trang-min.png",
     batteryLevel: 78,
     location: "Thu Duc Station",
     stationId: "st7",
@@ -137,20 +115,14 @@ const englishVehicles: Vehicle[] = [
     trips: 45,
     range: 210,
     seats: 5,
-    features: [
-      "Smart Connectivity",
-      "Air Conditioning",
-      "USB Charging",
-      "LED Lights",
-    ],
+    features: ["Smart Connectivity", "Air Conditioning", "USB Charging", "LED Lights"],
     condition: "good",
     lastMaintenance: "2024-01-08",
     mileage: 8900,
     fuelEfficiency: "110 kWh/100km",
     inspectionDate: "2024-01-14",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain.",
+    description: "VinFast VF3 - Compact city car perfect for urban mobility with modern features and efficient electric drivetrain."
   },
 
   // VF5 - 4 bánh (4 xe)
@@ -163,12 +135,11 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF5",
     type: "SUV",
-    image:
-      "https://vinfast-vn.vn/wp-content/uploads/2023/10/vinfast-vf5-grey.png",
+    image: "https://vinfast-vn.vn/wp-content/uploads/2023/10/vinfast-vf5-grey.png",
     batteryLevel: 90,
     location: "District 7 Station",
     stationId: "st2",
-    availability: "maintenance",
+    availability: "available",
     pricePerHour: 12,
     pricePerDay: 95,
     rating: 4.8,
@@ -176,20 +147,14 @@ const englishVehicles: Vehicle[] = [
     trips: 123,
     range: 285,
     seats: 5,
-    features: [
-      "Premium Sound",
-      "Panoramic Roof",
-      "Fast Charging",
-      "Smart Features",
-    ],
+    features: ["Premium Sound", "Panoramic Roof", "Fast Charging", "Smart Features"],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 4200,
     fuelEfficiency: "125 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips.",
+    description: "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips."
   },
   {
     id: "VF5-ST4-001",
@@ -200,12 +165,11 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF5",
     type: "SUV",
-    image:
-      "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf5-trang.png",
+    image: "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf5-trang.png",
     batteryLevel: 86,
     location: "District 3 Station",
     stationId: "st4",
-    availability: "rented",
+    availability: "available",
     pricePerHour: 12,
     pricePerDay: 95,
     rating: 4.7,
@@ -213,20 +177,14 @@ const englishVehicles: Vehicle[] = [
     trips: 98,
     range: 285,
     seats: 5,
-    features: [
-      "Premium Sound",
-      "Panoramic Roof",
-      "Fast Charging",
-      "Smart Features",
-    ],
+    features: ["Premium Sound", "Panoramic Roof", "Fast Charging", "Smart Features"],
     condition: "excellent",
     lastMaintenance: "2024-01-11",
     mileage: 6100,
     fuelEfficiency: "125 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips.",
+    description: "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips."
   },
   {
     id: "VF5-ST6-001",
@@ -237,8 +195,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF5",
     type: "SUV",
-    image:
-      "https://vinfast-vn.vn/wp-content/uploads/2023/10/vinfast-vf5-grey-white.png",
+    image: "https://vinfast-vn.vn/wp-content/uploads/2023/10/vinfast-vf5-grey-white.png",
     batteryLevel: 93,
     location: "Binh Thanh Station",
     stationId: "st6",
@@ -250,20 +207,14 @@ const englishVehicles: Vehicle[] = [
     trips: 87,
     range: 285,
     seats: 5,
-    features: [
-      "Premium Sound",
-      "Panoramic Roof",
-      "Fast Charging",
-      "Smart Features",
-    ],
+    features: ["Premium Sound", "Panoramic Roof", "Fast Charging", "Smart Features"],
     condition: "excellent",
     lastMaintenance: "2024-01-13",
     mileage: 5400,
     fuelEfficiency: "125 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips.",
+    description: "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips."
   },
   {
     id: "VF5-ST8-001",
@@ -274,8 +225,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF5",
     type: "SUV",
-    image:
-      "https://vinfastdienchau.com/wp-content/uploads/2014/08/vinfast-vf5-orange.png",
+    image: "https://vinfastdienchau.com/wp-content/uploads/2014/08/vinfast-vf5-orange.png",
     batteryLevel: 81,
     location: "Phu Nhuan Station",
     stationId: "st8",
@@ -287,20 +237,14 @@ const englishVehicles: Vehicle[] = [
     trips: 67,
     range: 285,
     seats: 5,
-    features: [
-      "Premium Sound",
-      "Panoramic Roof",
-      "Fast Charging",
-      "Smart Features",
-    ],
+    features: ["Premium Sound", "Panoramic Roof", "Fast Charging", "Smart Features"],
     condition: "good",
     lastMaintenance: "2024-01-09",
     mileage: 7800,
     fuelEfficiency: "125 kWh/100km",
     inspectionDate: "2024-01-15",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips.",
+    description: "VinFast VF5 - Compact SUV with modern design and advanced technology for comfortable family trips."
   },
 
   // VF6 - 4 bánh (4 xe)
@@ -313,12 +257,11 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF6",
     type: "SUV",
-    image:
-      "https://vinfast3sthanhhoa.com/wp-content/uploads/2023/09/vf6-mau-trang-1-1110x1032-600x600-1.jpg",
+    image: "https://vinfast3sthanhhoa.com/wp-content/uploads/2023/09/vf6-mau-trang-1-1110x1032-600x600-1.jpg",
     batteryLevel: 89,
     location: "District 1 Station",
     stationId: "st1",
-    availability: "maintenance",
+    availability: "available",
     pricePerHour: 15,
     pricePerDay: 120,
     rating: 4.8,
@@ -326,20 +269,14 @@ const englishVehicles: Vehicle[] = [
     trips: 156,
     range: 365,
     seats: 5,
-    features: [
-      "Leather Interior",
-      "Wireless Charging",
-      "360° Camera",
-      "Premium Audio",
-    ],
+    features: ["Leather Interior", "Wireless Charging", "360° Camera", "Premium Audio"],
     condition: "excellent",
     lastMaintenance: "2024-01-16",
     mileage: 3800,
     fuelEfficiency: "140 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology.",
+    description: "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology."
   },
   {
     id: "VF6-ST3-001",
@@ -354,7 +291,7 @@ const englishVehicles: Vehicle[] = [
     batteryLevel: 94,
     location: "Airport Station",
     stationId: "st3",
-    availability: "maintenance",
+    availability: "available",
     pricePerHour: 15,
     pricePerDay: 120,
     rating: 4.7,
@@ -362,20 +299,14 @@ const englishVehicles: Vehicle[] = [
     trips: 112,
     range: 365,
     seats: 5,
-    features: [
-      "Leather Interior",
-      "Wireless Charging",
-      "360° Camera",
-      "Premium Audio",
-    ],
+    features: ["Leather Interior", "Wireless Charging", "360° Camera", "Premium Audio"],
     condition: "excellent",
     lastMaintenance: "2024-01-13",
     mileage: 4900,
     fuelEfficiency: "140 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology.",
+    description: "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology."
   },
   {
     id: "VF6-ST5-001",
@@ -386,8 +317,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF6",
     type: "SUV",
-    image:
-      "https://vinfastthanhhoa.net/wp-content/uploads/2024/03/vinfast-vf6-2.jpg",
+    image: "https://vinfastthanhhoa.net/wp-content/uploads/2024/03/vinfast-vf6-2.jpg",
     batteryLevel: 87,
     location: "District 5 Station",
     stationId: "st5",
@@ -399,20 +329,14 @@ const englishVehicles: Vehicle[] = [
     trips: 134,
     range: 365,
     seats: 5,
-    features: [
-      "Leather Interior",
-      "Wireless Charging",
-      "360° Camera",
-      "Premium Audio",
-    ],
+    features: ["Leather Interior", "Wireless Charging", "360° Camera", "Premium Audio"],
     condition: "excellent",
     lastMaintenance: "2024-01-15",
     mileage: 5600,
     fuelEfficiency: "140 kWh/100km",
     inspectionDate: "2024-01-20",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology.",
+    description: "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology."
   },
   {
     id: "VF6-ST7-001",
@@ -423,8 +347,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF6",
     type: "SUV",
-    image:
-      "https://vinfast3sthanhhoa.com/wp-content/uploads/2023/09/vf6-mau-xam-1-1110x1032-600x600-1.jpg",
+    image: "https://vinfast3sthanhhoa.com/wp-content/uploads/2023/09/vf6-mau-xam-1-1110x1032-600x600-1.jpg",
     batteryLevel: 82,
     location: "Thu Duc Station",
     stationId: "st7",
@@ -436,20 +359,14 @@ const englishVehicles: Vehicle[] = [
     trips: 89,
     range: 365,
     seats: 5,
-    features: [
-      "Leather Interior",
-      "Wireless Charging",
-      "360° Camera",
-      "Premium Audio",
-    ],
+    features: ["Leather Interior", "Wireless Charging", "360° Camera", "Premium Audio"],
     condition: "good",
     lastMaintenance: "2024-01-10",
     mileage: 7200,
     fuelEfficiency: "140 kWh/100km",
     inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology.",
+    description: "VinFast VF6 - Mid-size SUV offering perfect balance of comfort, performance and technology."
   },
 
   // VF7 - 4 bánh (4 xe)
@@ -462,12 +379,11 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF7",
     type: "SUV",
-    image:
-      "https://vinfastdongthap.vn/wp-content/uploads/2023/09/mau-xe-vinfast-vf7-6.png",
+    image: "https://vinfastdongthap.vn/wp-content/uploads/2023/09/mau-xe-vinfast-vf7-6.png",
     batteryLevel: 91,
     location: "District 7 Station",
     stationId: "st2",
-    availability: "rented",
+    availability: "available",
     pricePerHour: 18,
     pricePerDay: 145,
     rating: 4.8,
@@ -475,20 +391,14 @@ const englishVehicles: Vehicle[] = [
     trips: 178,
     range: 390,
     seats: 7,
-    features: [
-      "Premium Seats",
-      "Autopilot",
-      "Panoramic Sunroof",
-      "Bang & Olufsen Audio",
-    ],
+    features: ["Premium Seats", "Autopilot", "Panoramic Sunroof", "Bang & Olufsen Audio"],
     condition: "excellent",
     lastMaintenance: "2024-01-17",
     mileage: 4100,
     fuelEfficiency: "155 kWh/100km",
     inspectionDate: "2024-01-22",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families.",
+    description: "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families."
   },
   {
     id: "VF7-ST4-001",
@@ -499,8 +409,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF7",
     type: "SUV",
-    image:
-      "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf7-do.png",
+    image: "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf7-do.png",
     batteryLevel: 88,
     location: "District 3 Station",
     stationId: "st4",
@@ -512,20 +421,14 @@ const englishVehicles: Vehicle[] = [
     trips: 134,
     range: 390,
     seats: 7,
-    features: [
-      "Premium Seats",
-      "Autopilot",
-      "Panoramic Sunroof",
-      "Bang & Olufsen Audio",
-    ],
+    features: ["Premium Seats", "Autopilot", "Panoramic Sunroof", "Bang & Olufsen Audio"],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 5300,
     fuelEfficiency: "155 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families.",
+    description: "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families."
   },
   {
     id: "VF7-ST6-001",
@@ -536,12 +439,11 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF7",
     type: "SUV",
-    image:
-      "https://vinfastvietnam.com.vn/wp-content/uploads/2022/11/Xam-Xi-Mang-min.png",
+    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2022/11/Xam-Xi-Mang-min.png",
     batteryLevel: 85,
     location: "Binh Thanh Station",
     stationId: "st6",
-    availability: "rented",
+    availability: "available",
     pricePerHour: 18,
     pricePerDay: 145,
     rating: 4.9,
@@ -549,20 +451,14 @@ const englishVehicles: Vehicle[] = [
     trips: 167,
     range: 390,
     seats: 7,
-    features: [
-      "Premium Seats",
-      "Autopilot",
-      "Panoramic Sunroof",
-      "Bang & Olufsen Audio",
-    ],
+    features: ["Premium Seats", "Autopilot", "Panoramic Sunroof", "Bang & Olufsen Audio"],
     condition: "excellent",
     lastMaintenance: "2024-01-16",
     mileage: 4700,
     fuelEfficiency: "155 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families.",
+    description: "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families."
   },
   {
     id: "VF7-ST8-001",
@@ -585,20 +481,14 @@ const englishVehicles: Vehicle[] = [
     trips: 98,
     range: 390,
     seats: 7,
-    features: [
-      "Premium Seats",
-      "Autopilot",
-      "Panoramic Sunroof",
-      "Bang & Olufsen Audio",
-    ],
+    features: ["Premium Seats", "Autopilot", "Panoramic Sunroof", "Bang & Olufsen Audio"],
     condition: "good",
     lastMaintenance: "2024-01-11",
     mileage: 6900,
     fuelEfficiency: "155 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families.",
+    description: "VinFast VF7 - Premium 7-seater SUV with advanced features and spacious interior for large families."
   },
 
   // VF8 - 4 bánh (4 xe)
@@ -611,8 +501,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF8",
     type: "SUV",
-    image:
-      "https://vinfastvietnam.net.vn/uploads/data/3097/files/files/VINFAST%20VFE35/5F1DF5B0-B8ED-45F8-993B-755D9D014FBC.jpeg",
+    image: "https://vinfastvietnam.net.vn/uploads/data/3097/files/files/VINFAST%20VFE35/5F1DF5B0-B8ED-45F8-993B-755D9D014FBC.jpeg",
     batteryLevel: 93,
     location: "District 1 Station",
     stationId: "st1",
@@ -624,20 +513,14 @@ const englishVehicles: Vehicle[] = [
     trips: 234,
     range: 425,
     seats: 5,
-    features: [
-      "Luxury Interior",
-      "Advanced Autopilot",
-      "Premium Sound System",
-      "Air Suspension",
-    ],
+    features: ["Luxury Interior", "Advanced Autopilot", "Premium Sound System", "Air Suspension"],
     condition: "excellent",
     lastMaintenance: "2024-01-18",
     mileage: 3200,
     fuelEfficiency: "165 kWh/100km",
     inspectionDate: "2024-01-23",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance.",
+    description: "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance."
   },
   {
     id: "VF8-ST3-001",
@@ -648,8 +531,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF8",
     type: "SUV",
-    image:
-      "https://vinfast-auto-vn.net/wp-content/uploads/2022/08/VinFast-VF-8-mau-Xanh-Luc.png",
+    image: "https://vinfast-auto-vn.net/wp-content/uploads/2022/08/VinFast-VF-8-mau-Xanh-Luc.png",
     batteryLevel: 96,
     location: "Airport Station",
     stationId: "st3",
@@ -661,20 +543,14 @@ const englishVehicles: Vehicle[] = [
     trips: 189,
     range: 425,
     seats: 5,
-    features: [
-      "Luxury Interior",
-      "Advanced Autopilot",
-      "Premium Sound System",
-      "Air Suspension",
-    ],
+    features: ["Luxury Interior", "Advanced Autopilot", "Premium Sound System", "Air Suspension"],
     condition: "excellent",
     lastMaintenance: "2024-01-15",
     mileage: 4100,
     fuelEfficiency: "165 kWh/100km",
     inspectionDate: "2024-01-20",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance.",
+    description: "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance."
   },
   {
     id: "VF8-ST5-001",
@@ -697,20 +573,14 @@ const englishVehicles: Vehicle[] = [
     trips: 167,
     range: 425,
     seats: 5,
-    features: [
-      "Luxury Interior",
-      "Advanced Autopilot",
-      "Premium Sound System",
-      "Air Suspension",
-    ],
+    features: ["Luxury Interior", "Advanced Autopilot", "Premium Sound System", "Air Suspension"],
     condition: "excellent",
     lastMaintenance: "2024-01-17",
     mileage: 4800,
     fuelEfficiency: "165 kWh/100km",
     inspectionDate: "2024-01-22",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance.",
+    description: "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance."
   },
   {
     id: "VF8-ST7-001",
@@ -721,8 +591,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF8",
     type: "SUV",
-    image:
-      "https://vinfastvietnam.com.vn/wp-content/uploads/2022/08/Bac-PLUS-min.png",
+    image: "https://vinfastvietnam.com.vn/wp-content/uploads/2022/08/Bac-PLUS-min.png",
     batteryLevel: 84,
     location: "Thu Duc Station",
     stationId: "st7",
@@ -734,20 +603,14 @@ const englishVehicles: Vehicle[] = [
     trips: 134,
     range: 425,
     seats: 5,
-    features: [
-      "Luxury Interior",
-      "Advanced Autopilot",
-      "Premium Sound System",
-      "Air Suspension",
-    ],
+    features: ["Luxury Interior", "Advanced Autopilot", "Premium Sound System", "Air Suspension"],
     condition: "excellent",
     lastMaintenance: "2024-01-13",
     mileage: 5700,
     fuelEfficiency: "165 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance.",
+    description: "VinFast VF8 - Flagship SUV with luxury features, advanced technology and exceptional performance."
   },
 
   // VF9 - 4 bánh (4 xe)
@@ -772,20 +635,14 @@ const englishVehicles: Vehicle[] = [
     trips: 145,
     range: 485,
     seats: 7,
-    features: [
-      "Ultra Luxury",
-      "Full Autopilot",
-      "Premium Entertainment",
-      "Massage Seats",
-    ],
+    features: ["Ultra Luxury", "Full Autopilot", "Premium Entertainment", "Massage Seats"],
     condition: "excellent",
     lastMaintenance: "2024-01-19",
     mileage: 2800,
     fuelEfficiency: "180 kWh/100km",
     inspectionDate: "2024-01-24",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences.",
+    description: "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences."
   },
   {
     id: "VF9-ST4-001",
@@ -796,8 +653,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF9",
     type: "SUV",
-    image:
-      "https://vinfastductronglamdong.vn/images/thumbs/2025/03/vinfast-vf-9.png",
+    image: "https://vinfastductronglamdong.vn/images/thumbs/2025/03/vinfast-vf-9.png",
     batteryLevel: 92,
     location: "District 3 Station",
     stationId: "st4",
@@ -809,20 +665,14 @@ const englishVehicles: Vehicle[] = [
     trips: 112,
     range: 485,
     seats: 7,
-    features: [
-      "Ultra Luxury",
-      "Full Autopilot",
-      "Premium Entertainment",
-      "Massage Seats",
-    ],
+    features: ["Ultra Luxury", "Full Autopilot", "Premium Entertainment", "Massage Seats"],
     condition: "excellent",
     lastMaintenance: "2024-01-16",
     mileage: 3500,
     fuelEfficiency: "180 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences.",
+    description: "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences."
   },
   {
     id: "VF9-ST6-001",
@@ -833,8 +683,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF9",
     type: "SUV",
-    image:
-      "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf9-xam.png",
+    image: "https://vinfast-cars.vn/wp-content/uploads/2024/10/vinfast-vf9-xam.png",
     batteryLevel: 95,
     location: "Binh Thanh Station",
     stationId: "st6",
@@ -846,20 +695,14 @@ const englishVehicles: Vehicle[] = [
     trips: 178,
     range: 485,
     seats: 7,
-    features: [
-      "Ultra Luxury",
-      "Full Autopilot",
-      "Premium Entertainment",
-      "Massage Seats",
-    ],
+    features: ["Ultra Luxury", "Full Autopilot", "Premium Entertainment", "Massage Seats"],
     condition: "excellent",
     lastMaintenance: "2024-01-18",
     mileage: 3100,
     fuelEfficiency: "180 kWh/100km",
     inspectionDate: "2024-01-23",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences.",
+    description: "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences."
   },
   {
     id: "VF9-ST8-001",
@@ -870,8 +713,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "VF9",
     type: "SUV",
-    image:
-      "https://vinfasthadong.com.vn/wp-content/uploads/2023/10/vinfast-vf9-blue.jpg",
+    image: "https://vinfasthadong.com.vn/wp-content/uploads/2023/10/vinfast-vf9-blue.jpg",
     batteryLevel: 87,
     location: "Phu Nhuan Station",
     stationId: "st8",
@@ -883,23 +725,17 @@ const englishVehicles: Vehicle[] = [
     trips: 89,
     range: 485,
     seats: 7,
-    features: [
-      "Ultra Luxury",
-      "Full Autopilot",
-      "Premium Entertainment",
-      "Massage Seats",
-    ],
+    features: ["Ultra Luxury", "Full Autopilot", "Premium Entertainment", "Massage Seats"],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 4200,
     fuelEfficiency: "180 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences.",
+    description: "VinFast VF9 - Ultimate luxury SUV with cutting-edge technology and unmatched comfort for premium experiences."
   },
   // Xe 2 bánh
-  // Evo200
+  // Evo200 
   {
     id: "EVO200-ST5-001",
     modelId: "EVO200",
@@ -909,8 +745,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwb91ce4b4/images/PDP-XMD/evo200/img-evo-black.png",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwb91ce4b4/images/PDP-XMD/evo200/img-evo-black.png",
     batteryLevel: 90,
     location: "District 5 Station",
     stationId: "st5",
@@ -929,8 +764,7 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "35 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility.",
+    description: "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility."
   },
   {
     id: "EVO200-ST6-001",
@@ -941,8 +775,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200",
     type: "Scooter",
-    image:
-      "https://xedienvietthanh.com/wp-content/uploads/2022/11/xe-may-dien-vinfast-evo-200-trang.jpg",
+    image: "https://xedienvietthanh.com/wp-content/uploads/2022/11/xe-may-dien-vinfast-evo-200-trang.jpg",
     batteryLevel: 86,
     location: "Binh Thanh Station",
     stationId: "st6",
@@ -961,8 +794,7 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "35 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility.",
+    description: "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility."
   },
   {
     id: "EVO200-ST7-001",
@@ -973,8 +805,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw548c6028/images/PDP-XMD/evo200/img-evo-blue.png",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw548c6028/images/PDP-XMD/evo200/img-evo-blue.png",
     batteryLevel: 91,
     location: "Thu Duc Station",
     stationId: "st7",
@@ -993,8 +824,7 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "35 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility.",
+    description: "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility."
   },
   {
     id: "EVO200-ST8-001",
@@ -1005,8 +835,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0b27b768/images/PDP-XMD/evo200/img-evo-red.png",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0b27b768/images/PDP-XMD/evo200/img-evo-red.png",
     batteryLevel: 84,
     location: "Phu Nhuan Station",
     stationId: "st8",
@@ -1025,11 +854,10 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "35 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility.",
+    description: "VinFast Evo200 - Modern electric scooter with smart connectivity and efficient performance for urban mobility."
   },
 
-  // Evo200 Lite
+  // Evo200 Lite 
   {
     id: "EVO200LITE-ST1-001",
     modelId: "EVO200LITE",
@@ -1039,8 +867,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200 Lite",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw5be43aa7/images/PDP-XMD/evo200-lite/img-evo-black.png",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw5be43aa7/images/PDP-XMD/evo200-lite/img-evo-black.png",
     batteryLevel: 89,
     location: "District 1 Station",
     stationId: "st1",
@@ -1059,8 +886,7 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "30 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting.",
+    description: "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting."
   },
   {
     id: "EVO200LITE-ST2-001",
@@ -1071,8 +897,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200 Lite",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw469d980d/images/PDP-XMD/evo200-lite/img-evo-yellow.png",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw469d980d/images/PDP-XMD/evo200-lite/img-evo-yellow.png",
     batteryLevel: 93,
     location: "District 7 Station",
     stationId: "st2",
@@ -1091,8 +916,7 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "30 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting.",
+    description: "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting."
   },
   {
     id: "EVO200LITE-ST3-001",
@@ -1103,8 +927,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200 Lite",
     type: "Scooter",
-    image:
-      "https://vinfastbinhthanh.com/wp-content/uploads/2024/01/vinfast_eveo200_lite_mau_trang.webp",
+    image: "https://vinfastbinhthanh.com/wp-content/uploads/2024/01/vinfast_eveo200_lite_mau_trang.webp",
     batteryLevel: 86,
     location: "Airport Station",
     stationId: "st3",
@@ -1123,8 +946,7 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "30 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting.",
+    description: "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting."
   },
   {
     id: "EVO200LITE-ST4-001",
@@ -1135,8 +957,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo200 Lite",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwba20f6df/images/PDP-XMD/evo200-lite/img-evo-red.png",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwba20f6df/images/PDP-XMD/evo200-lite/img-evo-red.png",
     batteryLevel: 91,
     location: "District 3 Station",
     stationId: "st4",
@@ -1155,10 +976,9 @@ const englishVehicles: Vehicle[] = [
     fuelEfficiency: "30 kWh/100km",
     inspectionDate: "2024-01-22",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting.",
+    description: "VinFast Evo200 Lite - Lightweight and efficient electric scooter perfect for daily commuting."
   },
-  // Evo Grand
+  // Evo Grand 
   {
     id: "EVOGRAND-ST5-001",
     modelId: "EVOGRAND",
@@ -1180,20 +1000,14 @@ const englishVehicles: Vehicle[] = [
     trips: 456,
     range: 110,
     seats: 2,
-    features: [
-      "Premium Design",
-      "Large Storage",
-      "Advanced Display",
-      "Keyless Start",
-    ],
+    features: ["Premium Design", "Large Storage", "Advanced Display", "Keyless Start"],
     condition: "excellent",
     lastMaintenance: "2024-01-18",
     mileage: 2700,
     fuelEfficiency: "38 kWh/100km",
     inspectionDate: "2024-01-23",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand - Premium electric scooter with grand design and superior performance.",
+    description: "VinFast Evo Grand - Premium electric scooter with grand design and superior performance."
   },
   {
     id: "EVOGRAND-ST6-001",
@@ -1204,8 +1018,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Grand",
     type: "Scooter",
-    image:
-      "https://vinfastecoxe.vn/wp-content/uploads/2025/07/anh-khach-1207.png",
+    image: "https://vinfastecoxe.vn/wp-content/uploads/2025/07/anh-khach-1207.png",
     batteryLevel: 86,
     location: "Binh Thanh Station",
     stationId: "st6",
@@ -1217,20 +1030,14 @@ const englishVehicles: Vehicle[] = [
     trips: 234,
     range: 110,
     seats: 2,
-    features: [
-      "Premium Design",
-      "Large Storage",
-      "Advanced Display",
-      "Keyless Start",
-    ],
+    features: ["Premium Design", "Large Storage", "Advanced Display", "Keyless Start"],
     condition: "good",
     lastMaintenance: "2024-01-11",
     mileage: 3900,
     fuelEfficiency: "38 kWh/100km",
     inspectionDate: "2024-01-17",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand - Premium electric scooter with grand design and superior performance.",
+    description: "VinFast Evo Grand - Premium electric scooter with grand design and superior performance."
   },
   {
     id: "EVOGRAND-ST7-001",
@@ -1241,8 +1048,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Grand",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw059cd4e7/landingpage/lp-xmd/evo-grand/color/3.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw059cd4e7/landingpage/lp-xmd/evo-grand/color/3.webp",
     batteryLevel: 91,
     location: "Thu Duc Station",
     stationId: "st7",
@@ -1254,20 +1060,14 @@ const englishVehicles: Vehicle[] = [
     trips: 389,
     range: 110,
     seats: 2,
-    features: [
-      "Premium Design",
-      "Large Storage",
-      "Advanced Display",
-      "Keyless Start",
-    ],
+    features: ["Premium Design", "Large Storage", "Advanced Display", "Keyless Start"],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 3100,
     fuelEfficiency: "38 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand - Premium electric scooter with grand design and superior performance.",
+    description: "VinFast Evo Grand - Premium electric scooter with grand design and superior performance."
   },
   {
     id: "EVOGRAND-ST8-001",
@@ -1278,8 +1078,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Grand",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw9a93ae28/landingpage/lp-xmd/evo-grand/color/2.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw9a93ae28/landingpage/lp-xmd/evo-grand/color/2.webp",
     batteryLevel: 87,
     location: "Phu Nhuan Station",
     stationId: "st8",
@@ -1291,23 +1090,17 @@ const englishVehicles: Vehicle[] = [
     trips: 298,
     range: 110,
     seats: 2,
-    features: [
-      "Premium Design",
-      "Large Storage",
-      "Advanced Display",
-      "Keyless Start",
-    ],
+    features: ["Premium Design", "Large Storage", "Advanced Display", "Keyless Start"],
     condition: "excellent",
     lastMaintenance: "2024-01-13",
     mileage: 3600,
     fuelEfficiency: "38 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand - Premium electric scooter with grand design and superior performance.",
+    description: "VinFast Evo Grand - Premium electric scooter with grand design and superior performance."
   },
 
-  // Evo Grand Lite
+  // Evo Grand Lite 
   {
     id: "EVOGRANDLITE-ST1-001",
     modelId: "EVOGRANDLITE",
@@ -1329,20 +1122,14 @@ const englishVehicles: Vehicle[] = [
     trips: 278,
     range: 95,
     seats: 2,
-    features: [
-      "Balanced Performance",
-      "Good Storage",
-      "Digital Display",
-      "Eco Mode",
-    ],
+    features: ["Balanced Performance", "Good Storage", "Digital Display", "Eco Mode"],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 3500,
     fuelEfficiency: "36 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design.",
+    description: "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design."
   },
   {
     id: "EVOGRANDLITE-ST2-001",
@@ -1353,8 +1140,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Grand Lite",
     type: "Scooter",
-    image:
-      "https://vfxanh.vn/wp-content/uploads/2025/07/evo-grand-lite-3-1.png",
+    image: "https://vfxanh.vn/wp-content/uploads/2025/07/evo-grand-lite-3-1.png",
     batteryLevel: 91,
     location: "District 7 Station",
     stationId: "st2",
@@ -1366,20 +1152,14 @@ const englishVehicles: Vehicle[] = [
     trips: 345,
     range: 95,
     seats: 2,
-    features: [
-      "Balanced Performance",
-      "Good Storage",
-      "Digital Display",
-      "Eco Mode",
-    ],
+    features: ["Balanced Performance", "Good Storage", "Digital Display", "Eco Mode"],
     condition: "excellent",
     lastMaintenance: "2024-01-16",
     mileage: 3100,
     fuelEfficiency: "36 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design.",
+    description: "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design."
   },
   {
     id: "EVOGRANDLITE-ST3-001",
@@ -1402,20 +1182,14 @@ const englishVehicles: Vehicle[] = [
     trips: 223,
     range: 95,
     seats: 2,
-    features: [
-      "Balanced Performance",
-      "Good Storage",
-      "Digital Display",
-      "Eco Mode",
-    ],
+    features: ["Balanced Performance", "Good Storage", "Digital Display", "Eco Mode"],
     condition: "good",
     lastMaintenance: "2024-01-10",
     mileage: 4200,
     fuelEfficiency: "36 kWh/100km",
     inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design.",
+    description: "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design."
   },
   {
     id: "EVOGRANDLITE-ST4-001",
@@ -1438,23 +1212,18 @@ const englishVehicles: Vehicle[] = [
     trips: 389,
     range: 95,
     seats: 2,
-    features: [
-      "Balanced Performance",
-      "Good Storage",
-      "Digital Display",
-      "Eco Mode",
-    ],
+    features: ["Balanced Performance", "Good Storage", "Digital Display", "Eco Mode"],
     condition: "excellent",
     lastMaintenance: "2024-01-17",
     mileage: 2900,
     fuelEfficiency: "36 kWh/100km",
     inspectionDate: "2024-01-22",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design.",
+    description: "VinFast Evo Grand Lite - Balanced electric scooter offering good performance with efficient design."
   },
 
-  // Evo Neo
+
+  // Evo Neo  
   {
     id: "EVONEO-ST5-001",
     modelId: "EVONEO",
@@ -1464,8 +1233,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Neo",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0e183635/images/PDP-XMD/evoliteneo/img-top-evoliteneo-red-sp.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0e183635/images/PDP-XMD/evoliteneo/img-top-evoliteneo-red-sp.webp",
     batteryLevel: 89,
     location: "District 5 Station",
     stationId: "st5",
@@ -1477,20 +1245,14 @@ const englishVehicles: Vehicle[] = [
     trips: 234,
     range: 78,
     seats: 2,
-    features: [
-      "Neo Design",
-      "Smart Features",
-      "Energy Efficient",
-      "LED Lighting",
-    ],
+    features: ["Neo Design", "Smart Features", "Energy Efficient", "LED Lighting"],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 3400,
     fuelEfficiency: "32 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance.",
+    description: "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance."
   },
   {
     id: "EVONEO-ST6-001",
@@ -1501,8 +1263,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Neo",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0537c8ee/images/PDP-XMD/evoneo/img-top-evoneo-white-sp.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0537c8ee/images/PDP-XMD/evoneo/img-top-evoneo-white-sp.webp",
     batteryLevel: 92,
     location: "Binh Thanh Station",
     stationId: "st6",
@@ -1514,20 +1275,14 @@ const englishVehicles: Vehicle[] = [
     trips: 289,
     range: 78,
     seats: 2,
-    features: [
-      "Neo Design",
-      "Smart Features",
-      "Energy Efficient",
-      "LED Lighting",
-    ],
+    features: ["Neo Design", "Smart Features", "Energy Efficient", "LED Lighting"],
     condition: "excellent",
     lastMaintenance: "2024-01-16",
     mileage: 3100,
     fuelEfficiency: "32 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance.",
+    description: "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance."
   },
   {
     id: "EVONEO-ST7-001",
@@ -1538,8 +1293,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Neo",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw46480ad9/images/PDP-XMD/evoneo/img-top-evoneo-green-sp.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw46480ad9/images/PDP-XMD/evoneo/img-top-evoneo-green-sp.webp",
     batteryLevel: 86,
     location: "Thu Duc Station",
     stationId: "st7",
@@ -1551,20 +1305,14 @@ const englishVehicles: Vehicle[] = [
     trips: 198,
     range: 78,
     seats: 2,
-    features: [
-      "Neo Design",
-      "Smart Features",
-      "Energy Efficient",
-      "LED Lighting",
-    ],
+    features: ["Neo Design", "Smart Features", "Energy Efficient", "LED Lighting"],
     condition: "good",
     lastMaintenance: "2024-01-10",
     mileage: 4300,
     fuelEfficiency: "32 kWh/100km",
     inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance.",
+    description: "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance."
   },
   {
     id: "EVONEO-ST8-001",
@@ -1575,8 +1323,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Evo Neo",
     type: "Scooter",
-    image:
-      "https://xedienthanhtung.com/wp-content/uploads/2025/06/xe-may-dien-vinfast-evo-lite-neo-den.webp",
+    image: "https://xedienthanhtung.com/wp-content/uploads/2025/06/xe-may-dien-vinfast-evo-lite-neo-den.webp",
     batteryLevel: 88,
     location: "Phu Nhuan Station",
     stationId: "st8",
@@ -1588,23 +1335,17 @@ const englishVehicles: Vehicle[] = [
     trips: 423,
     range: 78,
     seats: 2,
-    features: [
-      "Neo Design",
-      "Smart Features",
-      "Energy Efficient",
-      "LED Lighting",
-    ],
+    features: ["Neo Design", "Smart Features", "Energy Efficient", "LED Lighting"],
     condition: "excellent",
     lastMaintenance: "2024-01-18",
     mileage: 2600,
     fuelEfficiency: "32 kWh/100km",
     inspectionDate: "2024-01-23",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance.",
+    description: "VinFast Evo Neo - Modern neo-style electric scooter with smart features and efficient performance."
   },
 
-  // Feliz S
+  // Feliz S 
   {
     id: "FELIZS-ST1-001",
     modelId: "FELIZS",
@@ -1614,8 +1355,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz S",
     type: "Scooter",
-    image:
-      "https://xedientruonghien.com/thumbs/575x575x2/upload/product/baq-8655.png",
+    image: "https://xedientruonghien.com/thumbs/575x575x2/upload/product/baq-8655.png",
     batteryLevel: 88,
     location: "District 1 Station",
     stationId: "st1",
@@ -1627,20 +1367,14 @@ const englishVehicles: Vehicle[] = [
     trips: 245,
     range: 65,
     seats: 2,
-    features: [
-      "Compact Design",
-      "Easy Riding",
-      "LED Headlights",
-      "Phone Holder",
-    ],
+    features: ["Compact Design", "Easy Riding", "LED Headlights", "Phone Holder"],
     condition: "excellent",
     lastMaintenance: "2024-01-12",
     mileage: 3900,
     fuelEfficiency: "28 kWh/100km",
     inspectionDate: "2024-01-18",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz S - Compact and stylish electric scooter for convenient city transportation.",
+    description: "VinFast Feliz S - Compact and stylish electric scooter for convenient city transportation."
   },
   {
     id: "FELIZS-ST2-001",
@@ -1651,8 +1385,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz S",
     type: "Scooter",
-    image:
-      "https://xedientruonghien.com/thumbs/575x575x2/upload/product/vinfast-feliz-s-zo5p3knt-9737.png",
+    image: "https://xedientruonghien.com/thumbs/575x575x2/upload/product/vinfast-feliz-s-zo5p3knt-9737.png",
     batteryLevel: 92,
     location: "District 7 Station",
     stationId: "st2",
@@ -1664,20 +1397,14 @@ const englishVehicles: Vehicle[] = [
     trips: 289,
     range: 65,
     seats: 2,
-    features: [
-      "Compact Design",
-      "Easy Riding",
-      "LED Headlights",
-      "Phone Holder",
-    ],
+    features: ["Compact Design", "Easy Riding", "LED Headlights", "Phone Holder"],
     condition: "excellent",
     lastMaintenance: "2024-01-14",
     mileage: 3400,
     fuelEfficiency: "28 kWh/100km",
     inspectionDate: "2024-01-19",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz S - Compact and stylish electric scooter for convenient city transportation.",
+    description: "VinFast Feliz S - Compact and stylish electric scooter for convenient city transportation."
   },
   {
     id: "FELIZS-ST3-001",
@@ -1688,8 +1415,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz S",
     type: "Scooter",
-    image:
-      "https://vinfast.net.vn/datafiles/42776/upload/images/san%20pham/fiz/fiz-7_result.jpg",
+    image: "https://vinfast.net.vn/datafiles/42776/upload/images/san%20pham/fiz/fiz-7_result.jpg",
     batteryLevel: 85,
     location: "Airport Station",
     stationId: "st3",
@@ -1701,23 +1427,18 @@ const englishVehicles: Vehicle[] = [
     trips: 334,
     range: 65,
     seats: 2,
-    features: [
-      "Compact Design",
-      "Easy Riding",
-      "LED Headlights",
-      "Phone Holder",
-    ],
+    features: ["Compact Design", "Easy Riding", "LED Headlights", "Phone Holder"],
     condition: "good",
     lastMaintenance: "2024-01-10",
     mileage: 4200,
     fuelEfficiency: "28 kWh/100km",
     inspectionDate: "2024-01-16",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz S - Compact and stylish electric scooter for convenient city transportation.",
+    description: "VinFast Feliz S - Compact and stylish electric scooter for convenient city transportation."
   },
 
-  // Feliz Lite
+
+  // Feliz Lite 
   {
     id: "FELIZLITE-ST4-001",
     modelId: "FELIZLITE",
@@ -1727,8 +1448,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz Lite",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4afac7d9/images/PDP-XMD/felizs/img-top-felizs-white-sp.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw4afac7d9/images/PDP-XMD/felizs/img-top-felizs-white-sp.webp",
     batteryLevel: 92,
     location: "District 3 Station",
     stationId: "st4",
@@ -1740,20 +1460,14 @@ const englishVehicles: Vehicle[] = [
     trips: 298,
     range: 55,
     seats: 2,
-    features: [
-      "Budget Friendly",
-      "Simple Design",
-      "Basic Features",
-      "Reliable",
-    ],
+    features: ["Budget Friendly", "Simple Design", "Basic Features", "Reliable"],
     condition: "excellent",
     lastMaintenance: "2024-01-16",
     mileage: 3200,
     fuelEfficiency: "25 kWh/100km",
     inspectionDate: "2024-01-21",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders.",
+    description: "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders."
   },
   {
     id: "FELIZLITE-ST5-001",
@@ -1764,8 +1478,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz Lite",
     type: "Scooter",
-    image:
-      "https://vinfastecoxe.vn/wp-content/uploads/2025/09/Feliz-2-pin-anh-web-3.png",
+    image: "https://vinfastecoxe.vn/wp-content/uploads/2025/09/Feliz-2-pin-anh-web-3.png",
     batteryLevel: 86,
     location: "District 5 Station",
     stationId: "st5",
@@ -1777,20 +1490,14 @@ const englishVehicles: Vehicle[] = [
     trips: 189,
     range: 55,
     seats: 2,
-    features: [
-      "Budget Friendly",
-      "Simple Design",
-      "Basic Features",
-      "Reliable",
-    ],
+    features: ["Budget Friendly", "Simple Design", "Basic Features", "Reliable"],
     condition: "good",
     lastMaintenance: "2024-01-09",
     mileage: 4400,
     fuelEfficiency: "25 kWh/100km",
     inspectionDate: "2024-01-15",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders.",
+    description: "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders."
   },
   {
     id: "FELIZLITE-ST6-001",
@@ -1801,8 +1508,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz Lite",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw5f142101/images/PDP-XMD/felizlite/img-top-feliz-lite-black.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw5f142101/images/PDP-XMD/felizlite/img-top-feliz-lite-black.webp",
     batteryLevel: 91,
     location: "Binh Thanh Station",
     stationId: "st6",
@@ -1814,20 +1520,14 @@ const englishVehicles: Vehicle[] = [
     trips: 367,
     range: 55,
     seats: 2,
-    features: [
-      "Budget Friendly",
-      "Simple Design",
-      "Basic Features",
-      "Reliable",
-    ],
+    features: ["Budget Friendly", "Simple Design", "Basic Features", "Reliable"],
     condition: "excellent",
     lastMaintenance: "2024-01-17",
     mileage: 2900,
     fuelEfficiency: "25 kWh/100km",
     inspectionDate: "2024-01-22",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders.",
+    description: "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders."
   },
   {
     id: "FELIZLITE-ST7-001",
@@ -1838,8 +1538,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz Lite",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwf7bf9ced/images/PDP-XMD/felizlite/img-top-feliz-lite-light-green.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwf7bf9ced/images/PDP-XMD/felizlite/img-top-feliz-lite-light-green.webp",
     batteryLevel: 83,
     location: "Thu Duc Station",
     stationId: "st7",
@@ -1851,20 +1550,14 @@ const englishVehicles: Vehicle[] = [
     trips: 145,
     range: 55,
     seats: 2,
-    features: [
-      "Budget Friendly",
-      "Simple Design",
-      "Basic Features",
-      "Reliable",
-    ],
+    features: ["Budget Friendly", "Simple Design", "Basic Features", "Reliable"],
     condition: "fair",
     lastMaintenance: "2024-01-08",
     mileage: 4800,
     fuelEfficiency: "25 kWh/100km",
     inspectionDate: "2024-01-14",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders.",
+    description: "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders."
   },
   {
     id: "FELIZLITE-ST8-001",
@@ -1875,8 +1568,7 @@ const englishVehicles: Vehicle[] = [
     brand: "VinFast",
     model: "Feliz Lite",
     type: "Scooter",
-    image:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwcc3b80f3/images/PDP-XMD/felizlite/img-top-feliz-lite-sand.webp",
+    image: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dwcc3b80f3/images/PDP-XMD/felizlite/img-top-feliz-lite-sand.webp",
     batteryLevel: 89,
     location: "Phu Nhuan Station",
     stationId: "st8",
@@ -1888,20 +1580,14 @@ const englishVehicles: Vehicle[] = [
     trips: 278,
     range: 55,
     seats: 2,
-    features: [
-      "Budget Friendly",
-      "Simple Design",
-      "Basic Features",
-      "Reliable",
-    ],
+    features: ["Budget Friendly", "Simple Design", "Basic Features", "Reliable"],
     condition: "excellent",
     lastMaintenance: "2024-01-15",
     mileage: 3400,
     fuelEfficiency: "25 kWh/100km",
     inspectionDate: "2024-01-20",
     insuranceExpiry: "2024-12-31",
-    description:
-      "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders.",
+    description: "VinFast Feliz Lite - Affordable and reliable electric scooter for budget-conscious riders."
   },
 ];
 

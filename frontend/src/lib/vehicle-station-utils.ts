@@ -53,19 +53,14 @@ export const getVehicleModels = (): VehicleModel[] => {
     VF7: "https://img.autocarindia.com/Features/VF7%20Rivals%20Web.jpg?w=700&c=1",
     VF8: "https://vinfastquangtri.vn/wp-content/uploads/2023/02/8-mau-VF8-scaled.jpg",
     VF9: "https://vinfast-timescity.com.vn/wp-content/uploads/2022/12/cap-nhat-bang-mau-xe-vinfast-vf9-2023-1_optimized.jpeg",
-    EVO200:
-      "https://xedapchaydien.vn/upfiles/image/1.%20Xe%20%C4%91i%E1%BB%87n/xe-may-dien-infast-Evo200-21.jpg",
-    EVO200LITE:
-      "https://xedien2banh.com/image/catalog/%E1%BA%A2nh%20vi%E1%BA%BFt%20b%C3%A0i/Vinfast/xe-may-dien-vinfast-evo200-13.jpg",
-    EVOGRAND:
-      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0a6b8f9c/landingpage/lp-xmd/evo-grand/hero-mb.webp",
+    EVO200: "https://xedapchaydien.vn/upfiles/image/1.%20Xe%20%C4%91i%E1%BB%87n/xe-may-dien-infast-Evo200-21.jpg",
+    EVO200LITE: "https://xedien2banh.com/image/catalog/%E1%BA%A2nh%20vi%E1%BA%BFt%20b%C3%A0i/Vinfast/xe-may-dien-vinfast-evo200-13.jpg",
+    EVOGRAND: "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0a6b8f9c/landingpage/lp-xmd/evo-grand/hero-mb.webp",
     EVOGRANDLITE: "https://vfxanh.vn/wp-content/uploads/2025/07/5@2x.jpg",
-    EVONEO:
-      "https://scontent.fsgn2-9.fna.fbcdn.net/v/t39.30808-6/494556506_1216786090451626_386267744405387881_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeH21OJRf1TiSmiQ5wi3iQNv8dPBsjmrYajx08GyOathqGuZv-BKLDZB7jZxSpwXzjPwLOGV9dccp4GKT7UdmdMK&_nc_ohc=QHmmNyhEvuUQ7kNvwEuLdHB&_nc_oc=Adnh8zQEhskF-R5R1kYrcC71Jw-EmZksR_iOQUCXXPIQc24ep0wyn0npqXxB5nPpNSI&_nc_zt=23&_nc_ht=scontent.fsgn2-9.fna&_nc_gid=GBCAh0PQ-1JlkkQavOkP3w&oh=00_AfdfS005KRiLziGNbKsUshtbDFQ4125iLYHW8vzlstf-yQ&oe=68E53C28",
-    FELIZS:
-      "https://oto-vinfastsaigon.com/wp-content/uploads/2021/08/xe-may-dien-vinfast-klara-tai-muaxegiabeo_10-800x400-1.jpg",
-    FELIZLITE:
-      "https://oto-vinfastsaigon.com/wp-content/uploads/2021/08/xe-may-dien-vinfast-klara-tai-muaxegiabeo_10-800x400-1.jpg",
+    EVONEO: "https://scontent.fsgn2-9.fna.fbcdn.net/v/t39.30808-6/494556506_1216786090451626_386267744405387881_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeH21OJRf1TiSmiQ5wi3iQNv8dPBsjmrYajx08GyOathqGuZv-BKLDZB7jZxSpwXzjPwLOGV9dccp4GKT7UdmdMK&_nc_ohc=QHmmNyhEvuUQ7kNvwEuLdHB&_nc_oc=Adnh8zQEhskF-R5R1kYrcC71Jw-EmZksR_iOQUCXXPIQc24ep0wyn0npqXxB5nPpNSI&_nc_zt=23&_nc_ht=scontent.fsgn2-9.fna&_nc_gid=GBCAh0PQ-1JlkkQavOkP3w&oh=00_AfdfS005KRiLziGNbKsUshtbDFQ4125iLYHW8vzlstf-yQ&oe=68E53C28",
+    FELIZS: "https://oto-vinfastsaigon.com/wp-content/uploads/2021/08/xe-may-dien-vinfast-klara-tai-muaxegiabeo_10-800x400-1.jpg",
+    FELIZLITE: "https://oto-vinfastsaigon.com/wp-content/uploads/2021/08/xe-may-dien-vinfast-klara-tai-muaxegiabeo_10-800x400-1.jpg",
+
   };
   vehicles.forEach((vehicle) => {
     if (!modelMap.has(vehicle.modelId)) {
@@ -287,9 +282,9 @@ export const calculateDistance = (
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
