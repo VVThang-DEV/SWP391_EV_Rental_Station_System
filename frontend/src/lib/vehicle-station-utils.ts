@@ -270,7 +270,7 @@ export const getRecommendedStations = (
 /**
  * Calculate distance between two coordinates using Haversine formula
  */
-const calculateDistance = (
+export const calculateDistance = (
   lat1: number,
   lng1: number,
   lat2: number,
