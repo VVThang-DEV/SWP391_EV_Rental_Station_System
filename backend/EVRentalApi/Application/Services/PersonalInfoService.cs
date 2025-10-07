@@ -16,6 +16,16 @@ public class PersonalInfoService
     {
         try
         {
+            // Diagnostic logging to help debug failing updates
+            Console.WriteLine("[PersonalInfoService] UpdatePersonalInfoAsync called with:");
+            Console.WriteLine($"  Email: {request.Email}");
+            Console.WriteLine($"  Cccd: {request.Cccd}");
+            Console.WriteLine($"  LicenseNumber: {request.LicenseNumber}");
+            Console.WriteLine($"  Address: {request.Address}");
+            Console.WriteLine($"  Gender: {request.Gender}");
+            Console.WriteLine($"  DateOfBirth: {request.DateOfBirth}");
+            Console.WriteLine($"  AvatarUrl: {request.AvatarUrl}");
+
             // Validate input
             if (string.IsNullOrWhiteSpace(request.Email))
             {
@@ -54,9 +64,11 @@ public class PersonalInfoService
             // Check if user exists
             if (!await _userRepository.UserExistsByEmailAsync(request.Email))
             {
+                Console.WriteLine($"[PersonalInfoService] User not found for email: {request.Email}");
                 return new UpdatePersonalInfoResponse(false, "Người dùng không tồn tại");
             }
 
+            // Update personal information
             // Update personal information
             var success = await _userRepository.UpdatePersonalInfoAsync(
                 request.Email,
@@ -64,18 +76,32 @@ public class PersonalInfoService
                 request.LicenseNumber,
                 request.Address,
                 request.Gender,
-                dateOfBirth,
-                request.AvatarUrl
+                dateOfBirth
             );
+
+            Console.WriteLine($"[PersonalInfoService] UpdatePersonalInfoAsync repository result: {success}");
 
             if (success)
             {
+                // Nếu có AvatarUrl thì upsert vào bảng user_documents
+                if (!string.IsNullOrWhiteSpace(request.AvatarUrl))
+                {
+                    var userId = await _userRepository.GetUserIdByEmailAsync(request.Email);
+                    if (userId > 0)
+                    {
+                        var avatarUpdated = await _userRepository.UpsertAvatarAsync(userId, request.AvatarUrl);
+                        Console.WriteLine($"[PersonalInfoService] Avatar update result: {avatarUpdated}");
+                    }
+                }
+
                 return new UpdatePersonalInfoResponse(true, "Cập nhật thông tin cá nhân thành công");
             }
             else
             {
+                Console.WriteLine($"[PersonalInfoService] Update failed for email: {request.Email}");
                 return new UpdatePersonalInfoResponse(false, "Có lỗi xảy ra khi cập nhật thông tin");
             }
+
         }
         catch (Exception ex)
         {
@@ -99,4 +125,32 @@ public class PersonalInfoService
         var validGenders = new[] { "male", "female", "other", "nam", "nữ", "khác" };
         return validGenders.Contains(gender.ToLower());
     }
+    
+   public async Task<UpdatePersonalInfoResponse> UpdateDocumentAsync(UpdatePersonalInfoRequest request)
+{
+    try
+    {
+        var userId = await _userRepository.GetUserIdByEmailAsync(request.Email);
+
+        if (userId <= 0)
+            return new UpdatePersonalInfoResponse(false, "Không tìm thấy người dùng với email này.");
+
+        if (string.IsNullOrWhiteSpace(request.DocumentUrl))
+            return new UpdatePersonalInfoResponse(false, "Không có giấy tờ nào để cập nhật.");
+
+        var documentUpdated = await _userRepository.UpsertDocumentAsync(userId, request.DocumentUrl);
+        Console.WriteLine($"[PersonalInfoService] Document update result: {documentUpdated}");
+
+        return documentUpdated
+            ? new UpdatePersonalInfoResponse(true, "Cập nhật giấy tờ thành công.")
+            : new UpdatePersonalInfoResponse(false, "Không thể cập nhật giấy tờ.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[PersonalInfoService] UpdateDocumentAsync failed: {ex.Message}");
+        return new UpdatePersonalInfoResponse(false, $"Đã xảy ra lỗi khi cập nhật giấy tờ: {ex.Message}");
+    }
+}
+
+
 }

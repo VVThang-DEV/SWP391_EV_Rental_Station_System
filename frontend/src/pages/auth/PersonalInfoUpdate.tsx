@@ -60,8 +60,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     gender: "",
     dateOfBirth: "",
     avatarUrl: "",
-    emergencyContact: "",
-    emergencyPhone: "",
   });
 
   const [uploadedDocuments, setUploadedDocuments] = useState<
@@ -78,8 +76,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     licenseNumber: "",
     gender: "",
     dateOfBirth: "",
-    emergencyContact: "",
-    emergencyPhone: "",
   });
 
   const requiredDocuments = ["nationalId", "driverLicense"];
@@ -128,8 +124,6 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
       licenseNumber: "",
       gender: "",
       dateOfBirth: "",
-      emergencyContact: "",
-      emergencyPhone: "",
     };
 
     const phoneRegex = /^(?:0|\+84|84)[1-9]\d{8}$/;
@@ -171,17 +165,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
       }
     }
 
-    if (!personalData.emergencyContact.trim()) {
-      newErrors.emergencyContact = "Emergency contact name is required";
-    }
-
-    if (!personalData.emergencyPhone.trim()) {
-      newErrors.emergencyPhone = "Emergency contact phone is required";
-    } else if (
-      !phoneRegex.test(personalData.emergencyPhone.replace(/[\s\-.()]/g, ""))
-    ) {
-      newErrors.emergencyPhone = "Invalid emergency phone number format";
-    }
+    // emergency contact/phone removed by request
 
     setErrors(newErrors);
     return !Object.values(newErrors).some((error) => error);
@@ -220,26 +204,52 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     setIsLoading(true);
 
     try {
+      // Basic pre-submit checks to avoid known server-side validation errors
+      if (!personalData.email || !personalData.email.trim()) {
+        toast({
+          title: "Missing email",
+          description: "Email is required to update personal information.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      const payload = {
+        email: personalData.email,
+        cccd: personalData.cccd,
+        licenseNumber: personalData.licenseNumber,
+        address: personalData.address,
+        gender: personalData.gender,
+        dateOfBirth: personalData.dateOfBirth,
+        avatarUrl: personalData.avatarUrl,
+      };
+
+      console.debug("Submitting personal info ->", payload);
       // Call backend API to update personal information
       const response = await fetch('http://localhost:5000/auth/update-personal-info', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: personalData.email,
-          cccd: personalData.cccd,
-          licenseNumber: personalData.licenseNumber,
-          address: personalData.address,
-          gender: personalData.gender,
-          dateOfBirth: personalData.dateOfBirth,
-          avatarUrl: personalData.avatarUrl,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      let result: any = null;
+      try {
+        result = await response.json();
+      } catch (e) {
+        // If response isn't JSON, read text for debugging
+        const text = await response.text();
+        console.warn("Non-JSON response from update-personal-info:", text);
+      }
 
-      if (!response.ok || !result.success) {
+      if (!response.ok) {
+        console.error("Update personal info failed. status:", response.status, "body:", result);
+        const serverMessage = result?.message || `Server returned status ${response.status}`;
+        throw new Error(serverMessage);
+      }
+
+      if (result && result.success === false) {
         throw new Error(result.message || 'Failed to update personal information');
       }
 
@@ -483,45 +493,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="emergencyContact">
-                        Emergency Contact Name *
-                      </Label>
-                      <Input
-                        id="emergencyContact"
-                        value={personalData.emergencyContact}
-                        onChange={(e) =>
-                          handleInputChange("emergencyContact", e.target.value)
-                        }
-                        className="text-black"
-                        placeholder="Contact person name"
-                      />
-                      {errors.emergencyContact && (
-                        <p className="text-sm text-destructive">
-                          {errors.emergencyContact}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="emergencyPhone">
-                        Emergency Contact Phone *
-                      </Label>
-                      <Input
-                        id="emergencyPhone"
-                        value={personalData.emergencyPhone}
-                        onChange={(e) =>
-                          handleInputChange("emergencyPhone", e.target.value)
-                        }
-                        className="text-black"
-                        placeholder="0912345678"
-                      />
-                      {errors.emergencyPhone && (
-                        <p className="text-sm text-destructive">
-                          {errors.emergencyPhone}
-                        </p>
-                      )}
-                    </div>
+                    {/* Emergency contact fields removed */}
                   </div>
 
                   <div className="flex justify-end pt-6">
@@ -616,22 +588,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                         <p className="text-sm text-muted-foreground">Date of Birth</p>
                         <p className="font-medium">{personalData.dateOfBirth}</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Emergency Contact
-                        </p>
-                        <p className="font-medium">
-                          {personalData.emergencyContact}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Emergency Phone
-                        </p>
-                        <p className="font-medium">
-                          {personalData.emergencyPhone}
-                        </p>
-                      </div>
+                      {/* Emergency contact info removed */}
                     </div>
                   </div>
 

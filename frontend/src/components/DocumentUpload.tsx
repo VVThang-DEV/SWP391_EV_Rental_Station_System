@@ -177,16 +177,38 @@ const DocumentUpload = ({
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
         const currentProgress = prev[documentType] || 0;
-        if (currentProgress >= 100) {
+        const nextProgress = Math.min(currentProgress + 10, 100);
+
+        // Build the new state to return
+        const newState = { ...prev, [documentType]: nextProgress };
+
+        if (nextProgress >= 100) {
+          // clear the interval here
           clearInterval(progressInterval);
-          onDocumentUpload(documentType, file);
-          toast({
-            title: "Document uploaded",
-            description: `${docType.title} has been uploaded successfully`,
-          });
-          return prev;
+
+          // Defer calling parent handlers/toasts to next tick so we don't trigger
+          // a parent state update while React is rendering/updating this component.
+          // Calling parent setState inside a state updater can cause the
+          // "Cannot update a component while rendering a different component"
+          // warning. Using setTimeout(..., 0) defers the call outside the
+          // render/update phase.
+          setTimeout(() => {
+            try {
+              onDocumentUpload(documentType, file);
+            } catch (err) {
+              // swallow to avoid uncaught exceptions from user-provided handler
+              // and still show a toast for visibility.
+              console.error("onDocumentUpload handler error:", err);
+            }
+
+            toast({
+              title: "Document uploaded",
+              description: `${docType.title} has been uploaded successfully`,
+            });
+          }, 0);
         }
-        return { ...prev, [documentType]: currentProgress + 10 };
+
+        return newState;
       });
     }, 200);
   };
