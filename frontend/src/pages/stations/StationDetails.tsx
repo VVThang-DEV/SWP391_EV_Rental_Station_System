@@ -1,5 +1,10 @@
-import { useState, useEffect } from "react";
-import { useParams, Link, useLocation } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import {
+  useParams,
+  Link,
+  useLocation,
+  useSearchParams,
+} from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,19 +36,32 @@ const StationDetails = () => {
   const { t, language } = useTranslation();
   const { toast } = useToast();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [selectedStation, setSelectedStation] = useState<string>("");
 
   const station = stations.find((s) => s.id === id);
   const vehicles = getVehicles(language);
+
+  // Get model filter from query params
+  const modelFilter = searchParams.get("model");
 
   // Check if user came from stations list with personal info completed
   const fromStations = location.state?.fromStations || false;
   const userReady = location.state?.userReady || false;
 
   // Get ALL vehicles at this station (available, rented, maintenance)
-  const allStationVehicles = vehicles.filter(
-    (vehicle) => vehicle.stationId === station?.id
-  );
+  const allStationVehicles = useMemo(() => {
+    let filtered = vehicles.filter(
+      (vehicle) => vehicle.stationId === station?.id
+    );
+
+    // Filter by model if modelFilter is provided
+    if (modelFilter) {
+      filtered = filtered.filter((vehicle) => vehicle.modelId === modelFilter);
+    }
+
+    return filtered;
+  }, [vehicles, station?.id, modelFilter]);
 
   // Group vehicles by availability status
   const availableVehicles = allStationVehicles.filter(
@@ -309,7 +327,14 @@ const StationDetails = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-                  <span>Vehicles at this Station</span>
+                  <span>
+                    Vehicles at this Station
+                    {modelFilter && (
+                      <Badge className="ml-2" variant="secondary">
+                        Filtered by Model
+                      </Badge>
+                    )}
+                  </span>
                   <div className="flex items-center gap-2 flex-wrap">
                     {availableVehicles.length > 0 && (
                       <Badge

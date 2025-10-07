@@ -43,11 +43,9 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Search,
-  MapPin,
   Car,
   Clock,
   Star,
-  Navigation,
   Zap,
   Users,
   CheckCircle,
@@ -55,24 +53,16 @@ import {
   Filter,
   X,
   GitCompare,
-  Map,
   Calendar,
   DollarSign,
   Maximize2,
+  MapPin,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { stations } from "@/data/stations";
 import { getVehicles } from "@/data/vehicles";
-import {
-  getVehicleModels,
-  findStationsWithModel,
-  getVehicleAvailabilitySummary,
-  getStationsWithVehicleInfo, // Thêm dòng này
-  calculateDistance,
-  StationLocation,
-  VehicleModel,
-} from "@/lib/vehicle-station-utils";
+import { getVehicleModels, VehicleModel } from "@/lib/vehicle-station-utils";
 import {
   PageTransition,
   FadeIn,
@@ -116,13 +106,6 @@ const VehicleModelFinder = () => {
   const [availabilityData, setAvailabilityData] = useState<AvailabilityData[]>(
     []
   );
-  const [userLocation, setUserLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [manualLocation, setManualLocation] = useState("");
-  const [isManualLocationOpen, setIsManualLocationOpen] = useState(false);
 
   // New filter states
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 200]);
@@ -187,35 +170,17 @@ const VehicleModelFinder = () => {
         }
       });
 
-      const stationAvailability = Object.values(stationMap)
-        .map((s) => {
-          const station = stations.find((st) => st.id === s.stationId);
-          const distance =
-            userLocation && station
-              ? calculateDistance(
-                  userLocation.lat,
-                  userLocation.lng,
-                  station.coordinates.lat,
-                  station.coordinates.lng
-                )
-              : 0;
-
-          return {
-            stationId: s.stationId,
-            stationName: s.stationName,
-            count: s.availableCount + s.rentedCount + s.maintenanceCount,
-            availableCount: s.availableCount,
-            rentedCount: s.rentedCount,
-            maintenanceCount: s.maintenanceCount,
-            distance,
-          };
-        })
-        .sort((a, b) => {
-          if (userLocation) {
-            return a.distance - b.distance;
-          }
-          return 0; // Keep original order if no location
-        });
+      const stationAvailability = Object.values(stationMap).map((s) => {
+        return {
+          stationId: s.stationId,
+          stationName: s.stationName,
+          count: s.availableCount + s.rentedCount + s.maintenanceCount,
+          availableCount: s.availableCount,
+          rentedCount: s.rentedCount,
+          maintenanceCount: s.maintenanceCount,
+          distance: 0,
+        };
+      });
 
       const totalAvailable = stationAvailability.reduce(
         (sum, s) => sum + s.availableCount,
@@ -241,91 +206,7 @@ const VehicleModelFinder = () => {
     });
 
     setAvailabilityData(data);
-  }, [userLocation]);
-
-  const handleGetLocation = () => {
-    setIsLoadingLocation(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-          setIsLoadingLocation(false);
-          toast({
-            title: "Location Found",
-            description: "Now showing distances to stations",
-          });
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          setIsLoadingLocation(false);
-          toast({
-            title: "Location Error",
-            description:
-              "Unable to get your location. Distances won't be shown.",
-            variant: "destructive",
-          });
-        }
-      );
-    } else {
-      setIsLoadingLocation(false);
-      toast({
-        title: "Location Not Supported",
-        description: "Geolocation is not supported by this browser.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleManualLocationSubmit = async () => {
-    if (!manualLocation.trim()) {
-      toast({
-        title: "Location Required",
-        description: "Please enter a location to search.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Use a geocoding service to convert address to coordinates
-      const response = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-          manualLocation
-        )}&key=demo&limit=1`
-      );
-      const data = await response.json();
-
-      if (data.results && data.results.length > 0) {
-        const location = {
-          lat: data.results[0].geometry.lat,
-          lng: data.results[0].geometry.lng,
-        };
-        setUserLocation(location);
-        setIsManualLocationOpen(false);
-        setManualLocation("");
-        toast({
-          title: "Location Set",
-          description: "Location updated successfully.",
-        });
-      } else {
-        toast({
-          title: "Location Not Found",
-          description: "Please enter a valid address or city.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error geocoding location:", error);
-      toast({
-        title: "Geocoding Error",
-        description: "Unable to find coordinates for this location.",
-        variant: "destructive",
-      });
-    }
-  };
+  }, []);
 
   // Enhanced filtering with all filters
   const filteredModels = availabilityData
@@ -572,71 +453,9 @@ const VehicleModelFinder = () => {
                       )}
                     </Popover>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleGetLocation}
-                      disabled={isLoadingLocation}
-                    >
-                      <Navigation className="h-4 w-4 mr-2" />
-                      {isLoadingLocation
-                        ? "Getting Location..."
-                        : "Use My Location"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        setIsManualLocationOpen(!isManualLocationOpen)
-                      }
-                    >
-                      <MapPin className="h-4 w-4 mr-2" />
-                      Enter Location
-                    </Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Manual Location Input */}
-            {isManualLocationOpen && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
-                      <Input
-                        placeholder="Enter your city, address, or location..."
-                        value={manualLocation}
-                        onChange={(e) => setManualLocation(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === "Enter") {
-                            handleManualLocationSubmit();
-                          }
-                        }}
-                        className="pl-10"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleManualLocationSubmit}
-                        disabled={!manualLocation.trim()}
-                      >
-                        Set Location
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setIsManualLocationOpen(false);
-                          setManualLocation("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Advanced Filters */}
             {showFilters && (

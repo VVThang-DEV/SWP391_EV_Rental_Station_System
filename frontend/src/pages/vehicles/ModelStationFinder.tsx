@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -60,7 +59,6 @@ const ModelStationFinder = () => {
     lng: number;
   } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [manualLocation, setManualLocation] = useState("");
   const [stationsData, setStationsData] = useState<StationData[]>([]);
 
   // Get model data
@@ -68,7 +66,7 @@ const ModelStationFinder = () => {
   const model = models.find((m) => m.modelId === modelId);
 
   useEffect(() => {
-    if (!modelId || !model) return;
+    if (!modelId) return;
 
     // Load all vehicles for this model
     const allVehicles = getVehicles("en");
@@ -130,7 +128,7 @@ const ModelStationFinder = () => {
     });
 
     setStationsData(stationsArray);
-  }, [modelId, model, userLocation]);
+  }, [modelId, userLocation]);
 
   const handleGetLocation = () => {
     setIsLoadingLocation(true);
@@ -162,53 +160,6 @@ const ModelStationFinder = () => {
       toast({
         title: "Location Not Supported",
         description: "Geolocation is not supported by this browser.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleManualLocationSubmit = async () => {
-    if (!manualLocation.trim()) {
-      toast({
-        title: "Location Required",
-        description: "Please enter a location to search.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-          manualLocation
-        )}&key=demo&limit=1`
-      );
-      const data = await response.json();
-
-      if (data.results && data.results.length > 0) {
-        const location = {
-          lat: data.results[0].geometry.lat,
-          lng: data.results[0].geometry.lng,
-        };
-        setUserLocation(location);
-        setManualLocation("");
-        toast({
-          title: "Location Set",
-          description:
-            "Stations are now sorted by distance from your location.",
-        });
-      } else {
-        toast({
-          title: "Location Not Found",
-          description: "Please enter a valid address or city.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error geocoding location:", error);
-      toast({
-        title: "Geocoding Error",
-        description: "Unable to find coordinates for this location.",
         variant: "destructive",
       });
     }
@@ -344,60 +295,36 @@ const ModelStationFinder = () => {
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Location Input Section */}
+            {/* Location Button Section */}
             <div className="lg:col-span-3">
               <Card className="border-primary">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Navigation className="h-5 w-5" />
-                    Find Nearest Stations
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-muted-foreground">
-                    Enter your location to see stations sorted by distance, or
-                    use your current location for best results.
-                  </p>
-
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
-                      <Input
-                        placeholder="Enter your city, address, or location..."
-                        value={manualLocation}
-                        onChange={(e) => setManualLocation(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === "Enter") {
-                            handleManualLocationSubmit();
-                          }
-                        }}
-                        className="pl-10"
-                      />
+                <CardContent className="pt-6">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Navigation className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="font-medium">Find Nearest Stations</p>
+                        <p className="text-sm text-muted-foreground">
+                          Use your location to sort stations by distance
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleManualLocationSubmit}
-                        disabled={!manualLocation.trim()}
-                      >
-                        Search Location
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleGetLocation}
-                        disabled={isLoadingLocation}
-                      >
-                        <Navigation className="h-4 w-4 mr-2" />
-                        {isLoadingLocation
-                          ? "Getting Location..."
-                          : "Use My Location"}
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={handleGetLocation}
+                      disabled={isLoadingLocation}
+                      size="lg"
+                    >
+                      <Navigation className="h-4 w-4 mr-2" />
+                      {isLoadingLocation
+                        ? "Getting Location..."
+                        : "Use My Location"}
+                    </Button>
                   </div>
 
                   {userLocation && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+                    <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
                       <CheckCircle className="h-5 w-5 text-green-600" />
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium text-green-900">
                           Location Set
                         </p>
@@ -409,7 +336,6 @@ const ModelStationFinder = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => setUserLocation(null)}
-                        className="ml-auto"
                       >
                         Clear
                       </Button>
@@ -573,19 +499,21 @@ const ModelStationFinder = () => {
                                 View Station
                               </Link>
                             </Button>
-                            <Button
-                              asChild
-                              disabled={station.availableCount === 0}
-                            >
-                              <Link
-                                to={`/stations/${station.stationId}?model=${modelId}`}
-                              >
+                            {station.availableCount > 0 ? (
+                              <Button asChild>
+                                <Link
+                                  to={`/stations/${station.stationId}?model=${modelId}`}
+                                >
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  Book Now
+                                </Link>
+                              </Button>
+                            ) : (
+                              <Button disabled>
                                 <Calendar className="h-4 w-4 mr-2" />
-                                {station.availableCount > 0
-                                  ? "Book Now"
-                                  : "No Vehicles Available"}
-                              </Link>
-                            </Button>
+                                No Vehicles Available
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </CardContent>
@@ -598,7 +526,7 @@ const ModelStationFinder = () => {
             {/* Sidebar - Model Summary */}
             <div className="space-y-6">
               {/* Model Summary Card */}
-              <Card className="sticky top-6">
+              <Card className="sticky top-24">
                 <CardHeader>
                   <CardTitle>Model Summary</CardTitle>
                 </CardHeader>
@@ -697,21 +625,6 @@ const ModelStationFinder = () => {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Pro Tips Card */}
-              <Card className="border-blue-200 bg-blue-50">
-                <CardHeader>
-                  <CardTitle className="text-lg text-blue-900">
-                    Pro Tips
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-blue-800 space-y-2">
-                  <p>📍 Use your location to find the nearest station</p>
-                  <p>🚗 Green badges = very close stations</p>
-                  <p>⚡ Book early for guaranteed availability</p>
-                  <p>⭐ Check station ratings before booking</p>
                 </CardContent>
               </Card>
             </div>
