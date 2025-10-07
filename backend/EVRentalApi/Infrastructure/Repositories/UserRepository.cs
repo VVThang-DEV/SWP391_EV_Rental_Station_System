@@ -15,9 +15,12 @@ public interface IUserRepository
     Task<(bool success, int userId)> RegisterCustomerAsync(string fullName, string email, string phone, DateTime dateOfBirth, string passwordHash);
     Task<bool> UserExistsByEmailAsync(string email);
     Task<bool> UpdatePasswordAsync(string email, string newPasswordHash);
+<<<<<<< HEAD
     Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth);
     Task<int> GetUserIdByEmailAsync(string email);
 
+=======
+>>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
 }
 
 public sealed class UserRepository : IUserRepository
@@ -230,6 +233,7 @@ WHERE email = @Email AND is_active = 1";
             return false;
         }
     }
+<<<<<<< HEAD
 
     // Update personal information
     public async Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth)
@@ -320,6 +324,8 @@ END
 
     }
 
+=======
+>>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
 }
 
 

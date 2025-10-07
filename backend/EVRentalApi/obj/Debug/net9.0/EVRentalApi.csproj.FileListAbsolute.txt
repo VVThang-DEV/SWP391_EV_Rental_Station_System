@@ -63,6 +63,7 @@ E:\SWP ky moi\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9
 E:\SWP ky moi\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.pdb
 E:\SWP ky moi\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.genruntimeconfig.cache
 E:\SWP ky moi\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\ref\EVRentalApi.dll
+<<<<<<< HEAD
 D:\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\appsettings.json
 D:\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.staticwebassets.endpoints.json
 D:\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.exe
@@ -323,3 +324,5 @@ E:\SWP\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\refi
 E:\SWP\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.pdb
 E:\SWP\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.genruntimeconfig.cache
 E:\SWP\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\ref\EVRentalApi.dll
+=======
+>>>>>>> 28f63344742cb11a83fd059956a972d8be961d26

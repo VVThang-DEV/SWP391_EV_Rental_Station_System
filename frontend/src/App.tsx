@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import Navbar from "./components/Navbar";
-import ModelStationsPage from "@/pages/vehicles/ModelStationsPage";
 import {
   Index,
   Vehicles,
@@ -168,7 +167,6 @@ const App = () => {
                   path="/vehicle-model-finder"
                   element={<VehicleModelFinder />}
                 />
-                <Route path="/models/:modelId/stations" element={<ModelStationsPage />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />

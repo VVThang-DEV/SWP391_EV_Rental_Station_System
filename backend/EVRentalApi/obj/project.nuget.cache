@@ -1,8 +1,14 @@
 {
   "version": 2,
+<<<<<<< HEAD
   "dgSpecHash": "BKA4/v1zqqM=",
   "success": true,
   "projectFilePath": "E:\\SWP\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
+=======
+  "dgSpecHash": "UReMPGwKius=",
+  "success": true,
+  "projectFilePath": "E:\\SWP ky moi\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
+>>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
   "expectedPackageFiles": [
     "C:\\Users\\ASUS\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\ASUS\\.nuget\\packages\\azure.identity\\1.11.3\\azure.identity.1.11.3.nupkg.sha512",

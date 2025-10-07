@@ -39,7 +39,6 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<OTPService>();
 builder.Services.AddScoped<ForgotPasswordService>();
-builder.Services.AddScoped<PersonalInfoService>();
 builder.Services.AddHostedService<OtpCleanupService>();
 
 var app = builder.Build();
@@ -174,17 +173,6 @@ app.MapPost("/auth/forgot-password", async (ForgotPasswordRequest req, ForgotPas
 app.MapPost("/auth/reset-password", async (ResetPasswordRequest req, ForgotPasswordService forgotPasswordService) =>
 {
     var result = await forgotPasswordService.ResetPasswordAsync(req);
-    if (result.Success)
-    {
-        return Results.Ok(new { success = true, message = result.Message });
-    }
-    return Results.BadRequest(new { success = false, message = result.Message });
-});
-
-// Update personal information endpoint
-app.MapPost("/auth/update-personal-info", async (UpdatePersonalInfoRequest req, PersonalInfoService personalInfoService) =>
-{
-    var result = await personalInfoService.UpdatePersonalInfoAsync(req);
     if (result.Success)
     {
         return Results.Ok(new { success = true, message = result.Message });
