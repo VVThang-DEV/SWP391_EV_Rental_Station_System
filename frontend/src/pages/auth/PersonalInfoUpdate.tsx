@@ -55,6 +55,11 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     email: user?.email || "",
     phone: "",
     address: "",
+    cccd: "",
+    licenseNumber: "",
+    gender: "",
+    dateOfBirth: "",
+    avatarUrl: "",
     emergencyContact: "",
     emergencyPhone: "",
   });
@@ -69,6 +74,10 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
   const [errors, setErrors] = useState({
     phone: "",
     address: "",
+    cccd: "",
+    licenseNumber: "",
+    gender: "",
+    dateOfBirth: "",
     emergencyContact: "",
     emergencyPhone: "",
   });
@@ -115,6 +124,10 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     const newErrors = {
       phone: "",
       address: "",
+      cccd: "",
+      licenseNumber: "",
+      gender: "",
+      dateOfBirth: "",
       emergencyContact: "",
       emergencyPhone: "",
     };
@@ -129,6 +142,33 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
 
     if (!personalData.address.trim()) {
       newErrors.address = "Address is required";
+    }
+
+    if (!personalData.cccd.trim()) {
+      newErrors.cccd = "CCCD is required";
+    } else if (!/^\d{12}$/.test(personalData.cccd)) {
+      newErrors.cccd = "CCCD must be 12 digits";
+    }
+
+    if (!personalData.licenseNumber.trim()) {
+      newErrors.licenseNumber = "License number is required";
+    } else if (personalData.licenseNumber.length < 8 || personalData.licenseNumber.length > 15) {
+      newErrors.licenseNumber = "License number must be 8-15 characters";
+    }
+
+    if (!personalData.gender.trim()) {
+      newErrors.gender = "Gender is required";
+    }
+
+    if (!personalData.dateOfBirth.trim()) {
+      newErrors.dateOfBirth = "Date of birth is required";
+    } else {
+      const birthDate = new Date(personalData.dateOfBirth);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      if (age < 18) {
+        newErrors.dateOfBirth = "You must be at least 18 years old";
+      }
     }
 
     if (!personalData.emergencyContact.trim()) {
@@ -180,10 +220,30 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     setIsLoading(true);
 
     try {
-      // Simulate API call to save personal information and documents
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Call backend API to update personal information
+      const response = await fetch('http://localhost:5000/auth/update-personal-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: personalData.email,
+          cccd: personalData.cccd,
+          licenseNumber: personalData.licenseNumber,
+          address: personalData.address,
+          gender: personalData.gender,
+          dateOfBirth: personalData.dateOfBirth,
+          avatarUrl: personalData.avatarUrl,
+        }),
+      });
 
-      // Save to localStorage or send to backend
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to update personal information');
+      }
+
+      // Save to localStorage for frontend state
       const updatedUser = {
         ...user,
         personalInfo: personalData,
@@ -207,9 +267,10 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
         },
       });
     } catch (error) {
+      console.error('Error updating personal info:', error);
       toast({
         title: "Error",
-        description: "Failed to update your information. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update your information. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -346,6 +407,83 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     <div className="space-y-2">
+                      <Label htmlFor="cccd">CCCD Number *</Label>
+                      <Input
+                        id="cccd"
+                        value={personalData.cccd}
+                        onChange={(e) =>
+                          handleInputChange("cccd", e.target.value)
+                        }
+                        className="text-black"
+                        placeholder="123456789012"
+                        maxLength={12}
+                      />
+                      {errors.cccd && (
+                        <p className="text-sm text-destructive">
+                          {errors.cccd}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="licenseNumber">Driver License Number *</Label>
+                      <Input
+                        id="licenseNumber"
+                        value={personalData.licenseNumber}
+                        onChange={(e) =>
+                          handleInputChange("licenseNumber", e.target.value)
+                        }
+                        className="text-black"
+                        placeholder="License number"
+                      />
+                      {errors.licenseNumber && (
+                        <p className="text-sm text-destructive">
+                          {errors.licenseNumber}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender *</Label>
+                      <select
+                        id="gender"
+                        value={personalData.gender}
+                        onChange={(e) =>
+                          handleInputChange("gender", e.target.value)
+                        }
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-black"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {errors.gender && (
+                        <p className="text-sm text-destructive">
+                          {errors.gender}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                      <Input
+                        id="dateOfBirth"
+                        type="date"
+                        value={personalData.dateOfBirth}
+                        onChange={(e) =>
+                          handleInputChange("dateOfBirth", e.target.value)
+                        }
+                        className="text-black"
+                      />
+                      {errors.dateOfBirth && (
+                        <p className="text-sm text-destructive">
+                          {errors.dateOfBirth}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
                       <Label htmlFor="emergencyContact">
                         Emergency Contact Name *
                       </Label>
@@ -461,6 +599,22 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                       <div>
                         <p className="text-sm text-muted-foreground">Address</p>
                         <p className="font-medium">{personalData.address}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">CCCD</p>
+                        <p className="font-medium">{personalData.cccd}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">License Number</p>
+                        <p className="font-medium">{personalData.licenseNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Gender</p>
+                        <p className="font-medium">{personalData.gender}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Date of Birth</p>
+                        <p className="font-medium">{personalData.dateOfBirth}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
