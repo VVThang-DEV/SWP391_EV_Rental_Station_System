@@ -13,6 +13,7 @@ export { default as Settings } from "./dashboard/Settings";
 export { default as Vehicles } from "./vehicles/Vehicles";
 export { default as VehicleDetails } from "./vehicles/VehicleDetails";
 export { default as VehicleModelFinder } from "./vehicles/VehicleModelFinder";
+export { default as ModelStationFinder } from "./vehicles/ModelStationFinder";
 export { default as BookingPage } from "./vehicles/BookingPage";
 
 export { default as Stations } from "./stations/Stations";
