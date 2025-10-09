@@ -15,12 +15,10 @@ public interface IUserRepository
     Task<(bool success, int userId)> RegisterCustomerAsync(string fullName, string email, string phone, DateTime dateOfBirth, string passwordHash);
     Task<bool> UserExistsByEmailAsync(string email);
     Task<bool> UpdatePasswordAsync(string email, string newPasswordHash);
-<<<<<<< HEAD
-    Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth);
+    Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth, string? phone);
     Task<int> GetUserIdByEmailAsync(string email);
-
-=======
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
+    Task<bool> UpsertDocumentAsync(int userId, string documentUrl, string documentType);
+    Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType);
 }
 
 public sealed class UserRepository : IUserRepository
@@ -233,10 +231,9 @@ WHERE email = @Email AND is_active = 1";
             return false;
         }
     }
-<<<<<<< HEAD
 
     // Update personal information
-    public async Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth)
+    public async Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth, string? phone)
     {
         const string sql = @"
 UPDATE users 
@@ -245,6 +242,7 @@ SET cccd = @Cccd,
     address = @Address,
     gender = @Gender,
     date_of_birth = @DateOfBirth,
+    phone = @Phone,
     updated_at = @UpdatedAt
 WHERE email = @Email AND is_active = 1";
 
@@ -261,6 +259,7 @@ WHERE email = @Email AND is_active = 1";
         cmd.Parameters.AddWithValue("@Address", address ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@Gender", gender ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@DateOfBirth", dateOfBirth ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@Phone", phone ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.UtcNow);
 
         try
@@ -303,11 +302,10 @@ END
             return true;
         }
         catch (Exception ex)
-{
-    Console.WriteLine($"[UpsertAvatarAsync] Error: {ex.Message}");
-    return false;
-}
-
+        {
+            Console.WriteLine($"[UpsertAvatarAsync] Error: {ex.Message}");
+            return false;
+        }
     }
 
     public async Task<int> GetUserIdByEmailAsync(string email)
@@ -321,11 +319,48 @@ END
 
         var result = await cmd.ExecuteScalarAsync();
         return result == null ? 0 : Convert.ToInt32(result);
-
     }
 
-=======
->>>>>>> 28f63344742cb11a83fd059956a972d8be961d26
+    public async Task<bool> UpsertDocumentAsync(int userId, string documentUrl, string documentType)
+    {
+        const string sql = @"
+IF EXISTS (SELECT 1 FROM user_documents WHERE user_id = @UserId AND document_type = @DocumentType)
+BEGIN
+    UPDATE user_documents
+    SET file_url = @DocumentUrl,
+        uploaded_at = GETDATE()
+    WHERE user_id = @UserId AND document_type = @DocumentType;
+END
+ELSE
+BEGIN
+    INSERT INTO user_documents (user_id, document_type, file_url, status, uploaded_at)
+    VALUES (@UserId, @DocumentType, @DocumentUrl, 'pending', GETDATE());
+END
+";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@UserId", userId);
+        cmd.Parameters.AddWithValue("@DocumentUrl", documentUrl);
+        cmd.Parameters.AddWithValue("@DocumentType", documentType);
+
+        try
+        {
+            await cmd.ExecuteNonQueryAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpsertDocumentAsync] Error: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType)
+    {
+        return await UpsertDocumentAsync(userId, documentUrl, documentType);
+    }
 }
 
 

@@ -55,8 +55,10 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     email: user?.email || "",
     phone: "",
     address: "",
-    emergencyContact: "",
-    emergencyPhone: "",
+    cccd: "",
+    licenseNumber: "",
+    gender: "",
+    dateOfBirth: "",
   });
 
   const [uploadedDocuments, setUploadedDocuments] = useState<
@@ -69,8 +71,10 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
   const [errors, setErrors] = useState({
     phone: "",
     address: "",
-    emergencyContact: "",
-    emergencyPhone: "",
+    cccd: "",
+    licenseNumber: "",
+    gender: "",
+    dateOfBirth: "",
   });
 
   const requiredDocuments = ["nationalId", "driverLicense"];
@@ -115,11 +119,14 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     const newErrors = {
       phone: "",
       address: "",
-      emergencyContact: "",
-      emergencyPhone: "",
+      cccd: "",
+      licenseNumber: "",
+      gender: "",
+      dateOfBirth: "",
     };
 
     const phoneRegex = /^(?:0|\+84|84)[1-9]\d{8}$/;
+    const cccdRegex = /^\d{12}$/;
 
     if (!personalData.phone.trim()) {
       newErrors.phone = "Phone number is required";
@@ -131,16 +138,22 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
       newErrors.address = "Address is required";
     }
 
-    if (!personalData.emergencyContact.trim()) {
-      newErrors.emergencyContact = "Emergency contact name is required";
+    if (!personalData.cccd.trim()) {
+      newErrors.cccd = "CCCD is required";
+    } else if (!cccdRegex.test(personalData.cccd)) {
+      newErrors.cccd = "CCCD must be 12 digits";
     }
 
-    if (!personalData.emergencyPhone.trim()) {
-      newErrors.emergencyPhone = "Emergency contact phone is required";
-    } else if (
-      !phoneRegex.test(personalData.emergencyPhone.replace(/[\s\-.()]/g, ""))
-    ) {
-      newErrors.emergencyPhone = "Invalid emergency phone number format";
+    if (!personalData.licenseNumber.trim()) {
+      newErrors.licenseNumber = "License number is required";
+    }
+
+    if (!personalData.gender.trim()) {
+      newErrors.gender = "Gender is required";
+    }
+
+    if (!personalData.dateOfBirth.trim()) {
+      newErrors.dateOfBirth = "Date of birth is required";
     }
 
     setErrors(newErrors);
@@ -180,36 +193,107 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     setIsLoading(true);
 
     try {
-      // Simulate API call to save personal information and documents
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Save to localStorage or send to backend
-      const updatedUser = {
-        ...user,
-        personalInfo: personalData,
-        documentsVerified: true,
-        documents: Object.keys(uploadedDocuments),
+      // Prepare data for API call
+      const updateData = {
+        email: personalData.email,
+        cccd: personalData.cccd,
+        LicenseNumber: personalData.licenseNumber,
+        address: personalData.address,
+        gender: personalData.gender,
+        dateOfBirth: personalData.dateOfBirth,
+        phone: personalData.phone,
       };
 
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      // Debug logging
+      console.log("Sending data to API:", updateData);
 
-      toast({
-        title: "Profile Updated Successfully!",
-        description: "Your personal information and documents have been saved.",
-      });
-
-      // Navigate to stations page
-      navigate("/stations", {
-        state: {
-          fromPersonalInfo: true,
-          message:
-            "Great! Now you can browse available vehicles at our stations.",
+      // Call API to update personal information
+      const response = await fetch("http://localhost:5000/auth/update-personal-info", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify(updateData),
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to update personal information");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Upload documents if any
+        const documentEntries = Object.entries(uploadedDocuments);
+        if (documentEntries.length > 0) {
+          console.log("Documents to upload:", documentEntries);
+          
+          // Upload each document
+          for (const [documentType, file] of documentEntries) {
+            try {
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('email', personalData.email);
+              formData.append('documentType', documentType);
+
+              const uploadResponse = await fetch("http://localhost:5000/api/documents/upload-document", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!uploadResponse.ok) {
+                throw new Error(`Failed to upload ${documentType}`);
+              }
+
+              const uploadResult = await uploadResponse.json();
+              console.log(`Uploaded ${documentType}:`, uploadResult);
+            } catch (error) {
+              console.error(`Error uploading ${documentType}:`, error);
+              toast({
+                title: "Upload Error",
+                description: `Failed to upload ${documentType}. Please try again.`,
+                variant: "destructive",
+              });
+            }
+          }
+          
+          toast({
+            title: "Documents Uploaded",
+            description: "Your documents have been uploaded successfully.",
+          });
+        }
+
+        // Update localStorage with new data
+        const updatedUser = {
+          ...user,
+          personalInfo: personalData,
+          documentsVerified: true,
+          documents: Object.keys(uploadedDocuments),
+        };
+
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+
+        toast({
+          title: "Profile Updated Successfully!",
+          description: result.message || "Your personal information has been saved.",
+        });
+
+        // Navigate to stations page
+        navigate("/stations", {
+          state: {
+            fromPersonalInfo: true,
+            message:
+              "Great! Now you can browse available vehicles at our stations.",
+          },
+        });
+      } else {
+        throw new Error(result.message || "Failed to update personal information");
+      }
     } catch (error) {
+      console.error("Error updating personal info:", error);
       toast({
         title: "Error",
-        description: "Failed to update your information. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update your information. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -346,41 +430,86 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="emergencyContact">
-                        Emergency Contact Name *
+                      <Label htmlFor="cccd">
+                        CCCD *
                       </Label>
                       <Input
-                        id="emergencyContact"
-                        value={personalData.emergencyContact}
+                        id="cccd"
+                        value={personalData.cccd}
                         onChange={(e) =>
-                          handleInputChange("emergencyContact", e.target.value)
+                          handleInputChange("cccd", e.target.value)
                         }
                         className="text-black"
-                        placeholder="Contact person name"
+                        placeholder="123456789012"
+                        maxLength={12}
                       />
-                      {errors.emergencyContact && (
+                      {errors.cccd && (
                         <p className="text-sm text-destructive">
-                          {errors.emergencyContact}
+                          {errors.cccd}
                         </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="emergencyPhone">
-                        Emergency Contact Phone *
+                      <Label htmlFor="licenseNumber">
+                        License Number *
                       </Label>
                       <Input
-                        id="emergencyPhone"
-                        value={personalData.emergencyPhone}
+                        id="licenseNumber"
+                        value={personalData.licenseNumber}
                         onChange={(e) =>
-                          handleInputChange("emergencyPhone", e.target.value)
+                          handleInputChange("licenseNumber", e.target.value)
                         }
                         className="text-black"
-                        placeholder="0912345678"
+                        placeholder="A123456789"
                       />
-                      {errors.emergencyPhone && (
+                      {errors.licenseNumber && (
                         <p className="text-sm text-destructive">
-                          {errors.emergencyPhone}
+                          {errors.licenseNumber}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">
+                        Gender *
+                      </Label>
+                      <select
+                        id="gender"
+                        value={personalData.gender}
+                        onChange={(e) =>
+                          handleInputChange("gender", e.target.value)
+                        }
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-black"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {errors.gender && (
+                        <p className="text-sm text-destructive">
+                          {errors.gender}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="dateOfBirth">
+                        Date of Birth *
+                      </Label>
+                      <Input
+                        id="dateOfBirth"
+                        type="date"
+                        value={personalData.dateOfBirth}
+                        onChange={(e) =>
+                          handleInputChange("dateOfBirth", e.target.value)
+                        }
+                        className="text-black"
+                      />
+                      {errors.dateOfBirth && (
+                        <p className="text-sm text-destructive">
+                          {errors.dateOfBirth}
                         </p>
                       )}
                     </div>
@@ -464,18 +593,34 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          Emergency Contact
+                          CCCD
                         </p>
                         <p className="font-medium">
-                          {personalData.emergencyContact}
+                          {personalData.cccd}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          Emergency Phone
+                          License Number
                         </p>
                         <p className="font-medium">
-                          {personalData.emergencyPhone}
+                          {personalData.licenseNumber}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Gender
+                        </p>
+                        <p className="font-medium capitalize">
+                          {personalData.gender}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Date of Birth
+                        </p>
+                        <p className="font-medium">
+                          {personalData.dateOfBirth}
                         </p>
                       </div>
                     </div>

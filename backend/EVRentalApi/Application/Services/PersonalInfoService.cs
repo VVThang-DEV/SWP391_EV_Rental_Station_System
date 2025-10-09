@@ -24,6 +24,7 @@ public class PersonalInfoService
             Console.WriteLine($"  Address: {request.Address}");
             Console.WriteLine($"  Gender: {request.Gender}");
             Console.WriteLine($"  DateOfBirth: {request.DateOfBirth}");
+            Console.WriteLine($"  Phone: {request.Phone}");
             Console.WriteLine($"  AvatarUrl: {request.AvatarUrl}");
 
             // Validate input
@@ -35,18 +36,21 @@ public class PersonalInfoService
             // Validate CCCD format (12 digits)
             if (!string.IsNullOrWhiteSpace(request.Cccd) && !IsValidCccd(request.Cccd))
             {
+                Console.WriteLine($"[PersonalInfoService] CCCD validation failed: '{request.Cccd}' (length: {request.Cccd?.Length})");
                 return new UpdatePersonalInfoResponse(false, "Số CCCD phải có 12 chữ số");
             }
 
             // Validate license number format
             if (!string.IsNullOrWhiteSpace(request.LicenseNumber) && !IsValidLicenseNumber(request.LicenseNumber))
             {
+                Console.WriteLine($"[PersonalInfoService] License number validation failed: '{request.LicenseNumber}' (length: {request.LicenseNumber?.Length})");
                 return new UpdatePersonalInfoResponse(false, "Số bằng lái xe không hợp lệ");
             }
 
             // Validate gender
             if (!string.IsNullOrWhiteSpace(request.Gender) && !IsValidGender(request.Gender))
             {
+                Console.WriteLine($"[PersonalInfoService] Gender validation failed: '{request.Gender}'");
                 return new UpdatePersonalInfoResponse(false, "Giới tính không hợp lệ");
             }
 
@@ -56,6 +60,7 @@ public class PersonalInfoService
             {
                 if (!DateTime.TryParse(request.DateOfBirth, out var parsedDate))
                 {
+                    Console.WriteLine($"[PersonalInfoService] Date parsing failed: '{request.DateOfBirth}'");
                     return new UpdatePersonalInfoResponse(false, "Ngày sinh không hợp lệ");
                 }
                 dateOfBirth = parsedDate;
@@ -69,14 +74,14 @@ public class PersonalInfoService
             }
 
             // Update personal information
-            // Update personal information
             var success = await _userRepository.UpdatePersonalInfoAsync(
                 request.Email,
                 request.Cccd,
                 request.LicenseNumber,
                 request.Address,
                 request.Gender,
-                dateOfBirth
+                dateOfBirth,
+                request.Phone
             );
 
             Console.WriteLine($"[PersonalInfoService] UpdatePersonalInfoAsync repository result: {success}");
@@ -117,7 +122,9 @@ public class PersonalInfoService
     private static bool IsValidLicenseNumber(string licenseNumber)
     {
         // Basic validation for Vietnamese license number format
-        return licenseNumber.Length >= 8 && licenseNumber.Length <= 15;
+        // Accept alphanumeric characters, length 6-15
+        return licenseNumber.Length >= 6 && licenseNumber.Length <= 15 && 
+               licenseNumber.All(c => char.IsLetterOrDigit(c));
     }
 
     private static bool IsValidGender(string gender)
@@ -138,7 +145,10 @@ public class PersonalInfoService
         if (string.IsNullOrWhiteSpace(request.DocumentUrl))
             return new UpdatePersonalInfoResponse(false, "Không có giấy tờ nào để cập nhật.");
 
-        var documentUpdated = await _userRepository.UpsertDocumentAsync(userId, request.DocumentUrl);
+        // Use document type from request, default to 'document' if not provided
+        var documentType = request.DocumentType ?? "document";
+        
+        var documentUpdated = await _userRepository.UpsertDocumentAsync(userId, request.DocumentUrl, documentType);
         Console.WriteLine($"[PersonalInfoService] Document update result: {documentUpdated}");
 
         return documentUpdated

@@ -11,6 +11,7 @@ import {
   Vehicles,
   VehicleDetails,
   VehicleModelFinder,
+  ModelStationFinder,
   Login,
   Register,
   PersonalInfoUpdate,
@@ -168,6 +169,10 @@ const App = () => {
                 <Route
                   path="/vehicle-model-finder"
                   element={<VehicleModelFinder />}
+                />
+                <Route
+                  path="/model/:modelId/stations"
+                  element={<ModelStationFinder />}
                 />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
