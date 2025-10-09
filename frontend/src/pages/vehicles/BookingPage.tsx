@@ -112,11 +112,14 @@ const BookingPage = () => {
         const today = new Date();
         const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000); // Tính ngày hôm sau
         const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+        const currentTime = getTimeStr(); // Giờ hiện tại
         return {
           ...prev,
           rentalDuration: value,
           startDate: getTodayStr(), //  Chỉ cần set ngày bắt đầu
           endDate: tomorrowStr,  //  End Date sẽ được chọn bởi user
+          startTime: currentTime, // ✅ Set giờ hiện tại
+          endTime: currentTime,   // ✅ Set giờ hiện tại
         };
       }
     });
@@ -133,7 +136,7 @@ const BookingPage = () => {
     startDate: getTodayStr(),
     endDate: "",
     startTime: getTimeStr(),
-    endTime: "17:00",
+    endTime: getTimeStr(), 
     rentalDuration: "daily",
     customerInfo: {
       fullName: currentUserData.fullName, // ✅ Auto-filled từ profile
@@ -173,12 +176,14 @@ const BookingPage = () => {
       const hours = Math.ceil(diffMs / (1000 * 60 * 60));
       return hours * vehicle.pricePerHour;
     } else {
-      // DAILY: chỉ tính theo ngày, không cần thời gian
-      const start = new Date(`${bookingData.startDate}T00:00:00`);
-      const end = new Date(`${bookingData.endDate}T00:00:00`);
+      // DAILY: tính theo ngày, từ startTime ngày đầu đến endTime ngày cuối
+      const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+      const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
       const diffMs = end.getTime() - start.getTime();
       const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24)); // Tính số ngày
-      return days * vehicle.pricePerDay;
+      // Đảm bảo ít nhất 1 ngày
+      const minDays = Math.max(days, 1);
+      return minDays * vehicle.pricePerDay;
     }
   };
 
@@ -220,12 +225,12 @@ const BookingPage = () => {
           }
         }
 
-     // XỬ LÝ LOGIC CHO DAILY RENTAL
-     if (prev.rentalDuration === "daily" && field === "startDate") {
-       const startDate = new Date(value as string);
-       const tomorrow = new Date(startDate.getTime() + 24 * 60 * 60 * 1000); // Tính ngày hôm sau
-       newData.endDate = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
-     }
+        // XỬ LÝ LOGIC CHO DAILY RENTAL
+        if (prev.rentalDuration === "daily" && field === "startDate") {
+          const startDate = new Date(value as string);
+          const tomorrow = new Date(startDate.getTime() + 24 * 60 * 60 * 1000); // Tính ngày hôm sau
+          newData.endDate = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+        }
 
         return newData;
       });
@@ -238,7 +243,8 @@ const BookingPage = () => {
       if (
         !bookingData.startDate ||
         !bookingData.endDate ||
-        (bookingData.rentalDuration === "hourly" && (!bookingData.startTime || !bookingData.endTime))
+        !bookingData.startTime ||
+        !bookingData.endTime
       ) {
         toast({
           title: "Missing Information",
@@ -266,6 +272,23 @@ const BookingPage = () => {
           toast({
             title: "Invalid Time Range",
             description: "Minimum rental duration is 1 hour.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // THÊM VALIDATION CHO DAILY RENTAL
+      if (bookingData.rentalDuration === "daily") {
+        const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+        const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+        const diffMs = end.getTime() - start.getTime();
+        const days = diffMs / (1000 * 60 * 60 * 24);
+
+        if (days < 1) {
+          toast({
+            title: "Invalid Date Range",
+            description: "Minimum rental duration is 1 day.",
             variant: "destructive",
           });
           return;
@@ -363,39 +386,51 @@ const BookingPage = () => {
                 )}
               </div>
             </div>
-            {/* THÊM: Start Time và End Time chỉ hiển thị khi Hourly Rental */}
-            {bookingData.rentalDuration === "hourly" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="startTime">Start Time *</Label>
-                  <Input
-                    id="startTime"
-                    type="time"
-                    value={bookingData.startTime}
-                    onChange={(e) =>
-                      handleInputChange("startTime", e.target.value)
-                    }
-                    className="text-black"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="endTime">End Time *</Label>
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={bookingData.endTime}
-                    onChange={(e) => handleInputChange("endTime", e.target.value)}
-                    className="text-black"
-                    min={calculateMinimumEndTime(bookingData.startTime)}
-                    required
-                  />
+            {/* THÊM: Start Time và End Time hiển thị cho cả Hourly và Daily */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startTime">Start Time *</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={bookingData.startTime}
+                  onChange={(e) =>
+                    handleInputChange("startTime", e.target.value)
+                  }
+                  className="text-black"
+                  required
+                  disabled={bookingData.rentalDuration === "daily"} // ✅ Disable cho Daily
+                />
+                {bookingData.rentalDuration === "daily" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                   
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="endTime">End Time *</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={bookingData.endTime}
+                  onChange={(e) => handleInputChange("endTime", e.target.value)}
+                  className="text-black"
+                  required
+                  disabled={bookingData.rentalDuration === "daily"} // ✅ Disable cho Daily
+                  min={bookingData.rentalDuration === "hourly" ? calculateMinimumEndTime(bookingData.startTime) : undefined}
+                />
+                {bookingData.rentalDuration === "hourly" && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Minimum rental duration: 1 hour
                   </p>
-                </div>
+                )}
+                {bookingData.rentalDuration === "daily" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    End time same as start time for daily rental
+                  </p>
+                )}
               </div>
-            )}
+            </div>
 
 
           </CardContent>
@@ -497,7 +532,7 @@ const BookingPage = () => {
           </div>
         </CardContent>
       </Card>
-      
+
     </div>
 
   );
@@ -823,7 +858,8 @@ const BookingPage = () => {
                             step === 1 &&
                             (!bookingData.startDate ||
                               !bookingData.endDate ||
-                              (bookingData.rentalDuration === "hourly" && (!bookingData.startTime || !bookingData.endTime)) ||
+                              !bookingData.startTime ||
+                              !bookingData.endTime ||
                               !bookingData.customerInfo.fullName ||
                               !bookingData.customerInfo.email ||
                               !bookingData.customerInfo.phone ||
