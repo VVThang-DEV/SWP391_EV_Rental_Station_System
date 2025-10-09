@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import {
   PageTransition,
   FadeIn,
@@ -74,6 +75,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
+import StaffPickupManager from "@/components/StaffPickupManager";
 
 interface StaffDashboardProps {
   user: {
@@ -133,6 +135,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       </div>
     );
   }
+
+  // Use provided user
+  const currentUser = user;
 
   // Mock data for Station District 1
   const stationData = {
@@ -886,7 +891,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </h1>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
-                  {t("common.welcomeUser")}, {user.name}
+                  {t("common.welcomeUser")}, {currentUser.name}
                 </p>
               </div>
             </div>
@@ -974,11 +979,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
                 </TabsTrigger>
+                <TabsTrigger value="pickups">Pickup Management</TabsTrigger>
                 <TabsTrigger value="payments">Payment Processing</TabsTrigger>
               </TabsList>
 
@@ -988,6 +994,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               <TabsContent value="customers" className="mt-6">
                 {renderCustomerManagement()}
+              </TabsContent>
+
+              <TabsContent value="pickups" className="mt-6">
+                <StaffPickupManager />
               </TabsContent>
 
               <TabsContent value="payments" className="mt-6">
