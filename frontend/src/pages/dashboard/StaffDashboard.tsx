@@ -435,12 +435,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
   // Vehicle Inspection Handlers
   const handleStartPreRentalInspection = (vehicleId: string) => {
+    console.log("Pre-Rental Inspection clicked for vehicle:", vehicleId);
     const vehicle = vehicles.find((v) => v.id === vehicleId);
     if (vehicle) {
+      console.log("Vehicle found:", vehicle);
       setInspectingVehicleId(vehicleId);
       setInspectionData({
-        batteryLevel: (vehicle as any).battery?.toString() || "100",
-        mileage: (vehicle as any).mileage?.toString() || "0",
+        batteryLevel: vehicle.batteryLevel?.toString() || "100",
+        mileage: vehicle.mileage?.toString() || "0",
         condition: "excellent",
         exteriorCondition: "good",
         interiorCondition: "good",
@@ -449,6 +451,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         damages: [],
       });
       setIsPreRentalInspectionOpen(true);
+      console.log("Dialog should open now, state set to true");
+    } else {
+      console.log("Vehicle not found!");
     }
   };
 
@@ -487,8 +492,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   const handleStartPostRentalInspection = (vehicleId: string) => {
+    console.log("Post-Rental Inspection clicked for vehicle:", vehicleId);
     const vehicle = vehicles.find((v) => v.id === vehicleId);
     if (vehicle) {
+      console.log("Vehicle found:", vehicle);
       setInspectingVehicleId(vehicleId);
       setInspectionData({
         batteryLevel: "",
@@ -501,6 +508,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         damages: [],
       });
       setIsPostRentalInspectionOpen(true);
+      console.log("Post-rental dialog should open now, state set to true");
+    } else {
+      console.log("Vehicle not found!");
     }
   };
 
@@ -669,7 +679,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {vehicleList.map((vehicle) => (
+            {vehicles
+              .filter((v) => v.stationId === currentUser.stationId)
+              .filter((vehicle) => 
+                searchQuery 
+                  ? vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    vehicle.uniqueVehicleId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
+                  : true
+              )
+              .map((vehicle) => (
               <div
                 key={vehicle.id}
                 className="flex items-center justify-between p-4 border rounded-lg"
@@ -681,7 +700,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   <div>
                     <h4 className="font-semibold">{vehicle.name}</h4>
                     <p className="text-sm text-muted-foreground">
-                      ID: {vehicle.id}
+                      ID: {vehicle.uniqueVehicleId || vehicle.id}
                     </p>
                     {vehicle.status === "available" && (
                       <p className="text-sm text-muted-foreground">
@@ -697,10 +716,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  {vehicle.battery && (
+                  {vehicle.batteryLevel && (
                     <div className="flex items-center space-x-1">
                       <Battery className="h-4 w-4 text-success" />
-                      <span className="text-sm">{vehicle.battery}%</span>
+                      <span className="text-sm">{vehicle.batteryLevel}%</span>
                     </div>
                   )}
 
@@ -789,14 +808,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         open={isAddVehicleDialogOpen}
         onOpenChange={setIsAddVehicleDialogOpen}
       >
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Car className="h-6 w-6" />
               Assign Vehicle to Your Station
             </DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground mt-2">
               Select a registered vehicle from the system to assign to{" "}
-              <strong>
+              <strong className="text-primary">
                 {stations.find((s) => s.id === currentUser.stationId)?.name}
               </strong>
             </p>
@@ -825,7 +845,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 Available Registered Vehicles
               </h3>
 
-              <div className="grid grid-cols-1 gap-3 max-h-[450px] overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-2 py-1">
                 {vehicles
                   .filter((v) => !v.stationId || v.stationId === "") // Only show unassigned vehicles
                   .filter((v) =>
@@ -844,10 +864,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   .map((vehicle) => (
                     <Card
                       key={vehicle.id}
-                      className={`cursor-pointer transition-all hover:shadow-md ${
+                      className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${
                         newVehicleData.mileage === vehicle.id
-                          ? "ring-2 ring-primary bg-primary/5"
-                          : ""
+                          ? "ring-2 ring-primary bg-primary/5 shadow-md"
+                          : "hover:border-primary/50"
                       }`}
                       onClick={() => {
                         setNewVehicleData({
@@ -859,7 +879,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       <CardContent className="p-4">
                         <div className="flex gap-4">
                           {/* Vehicle Image */}
-                          <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                          <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
                             <img
                               src={vehicle.image}
                               alt={vehicle.name}
@@ -868,44 +888,64 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                           </div>
 
                           {/* Vehicle Details */}
-                          <div className="flex-1 space-y-2">
+                          <div className="flex-1 space-y-3">
                             <div className="flex items-start justify-between">
                               <div>
-                                <h4 className="font-bold text-base">
+                                <h4 className="font-bold text-lg text-foreground">
                                   {vehicle.name}
                                 </h4>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground mt-1">
                                   {vehicle.type} • {vehicle.year}
                                 </p>
+                                {vehicle.licensePlate && (
+                                  <p className="text-sm font-semibold text-primary mt-1">
+                                    License: {vehicle.licensePlate}
+                                  </p>
+                                )}
                               </div>
                               {newVehicleData.mileage === vehicle.id && (
-                                <Badge className="bg-primary">Selected</Badge>
+                                <Badge className="bg-primary text-white text-base px-3 py-1.5 shadow-md">
+                                  ✓ Selected
+                                </Badge>
                               )}
                             </div>
 
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
-                              <div className="flex items-center gap-1">
-                                <FileText className="h-3 w-3 text-muted-foreground" />
-                                <span className="font-mono">
-                                  {vehicle.uniqueVehicleId || vehicle.id}
-                                </span>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs text-muted-foreground">VIN</span>
+                                  <span className="font-mono text-xs truncate">
+                                    {vehicle.uniqueVehicleId || vehicle.id}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Battery className="h-3 w-3 text-green-600" />
-                                <span>{vehicle.batteryLevel}% Battery</span>
+                              <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-md">
+                                <Battery className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground">Battery</span>
+                                  <span className="font-semibold text-green-600">{vehicle.batteryLevel}%</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Zap className="h-3 w-3 text-primary" />
-                                <span>{vehicle.range} km range</span>
+                              <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
+                                <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground">Range</span>
+                                  <span className="font-semibold">{vehicle.range} km</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3 text-primary" />
-                                <span>{vehicle.seats} seats</span>
+                              <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/20 rounded-md">
+                                <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground">Seats</span>
+                                  <span className="font-semibold">{vehicle.seats}</span>
+                                </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4 text-xs">
+                            <div className="flex items-center gap-3 flex-wrap">
                               <Badge
+                                className="text-sm px-3 py-1"
                                 variant={
                                   vehicle.condition === "excellent"
                                     ? "default"
@@ -914,14 +954,17 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     : "outline"
                                 }
                               >
-                                {vehicle.condition}
+                                {vehicle.condition === "excellent" ? "✅" : vehicle.condition === "good" ? "👍" : "⚠️"} {vehicle.condition}
                               </Badge>
-                              <span className="text-muted-foreground">
-                                ₫{vehicle.pricePerHour.toLocaleString()}/hr
-                              </span>
-                              <span className="text-muted-foreground">
-                                ₫{vehicle.pricePerDay.toLocaleString()}/day
-                              </span>
+                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                <span className="font-medium">
+                                  ₫{vehicle.pricePerHour.toLocaleString()}/hr
+                                </span>
+                                <span className="text-muted-foreground">•</span>
+                                <span className="font-medium">
+                                  ₫{vehicle.pricePerDay.toLocaleString()}/day
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
