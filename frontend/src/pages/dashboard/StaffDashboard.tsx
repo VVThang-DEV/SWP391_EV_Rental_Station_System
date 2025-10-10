@@ -75,6 +75,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
+import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
 
 interface StaffDashboardProps {
@@ -117,6 +118,34 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [vehicleMileage, setVehicleMileage] = useState("");
   const [vehicleCondition, setVehicleCondition] = useState("");
   const [batteryLevel, setBatteryLevel] = useState("");
+
+  // Add Vehicle Dialog state
+  const [isAddVehicleDialogOpen, setIsAddVehicleDialogOpen] = useState(false);
+  const [selectedModelToAdd, setSelectedModelToAdd] = useState("");
+  const [newVehicleData, setNewVehicleData] = useState({
+    batteryLevel: "100",
+    condition: "excellent",
+    mileage: "0",
+  });
+
+  // Vehicle Inspection Workflow state
+  const [isPreRentalInspectionOpen, setIsPreRentalInspectionOpen] =
+    useState(false);
+  const [isPostRentalInspectionOpen, setIsPostRentalInspectionOpen] =
+    useState(false);
+  const [inspectingVehicleId, setInspectingVehicleId] = useState<string | null>(
+    null
+  );
+  const [inspectionData, setInspectionData] = useState({
+    batteryLevel: "",
+    mileage: "",
+    condition: "excellent",
+    exteriorCondition: "good",
+    interiorCondition: "good",
+    tiresCondition: "good",
+    notes: "",
+    damages: [] as string[],
+  });
 
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -351,6 +380,180 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     });
   };
 
+  const handleAddVehicle = () => {
+    if (!selectedModelToAdd) {
+      toast({
+        title: "Error",
+        description: "Please select a vehicle model",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get the selected model details
+    const availableModels = getVehicleModels();
+    const selectedModel = availableModels.find(
+      (m) => m.modelId === selectedModelToAdd
+    );
+
+    if (!selectedModel) return;
+
+    // Generate unique vehicle ID
+    const station = stations.find((s) => s.id === currentUser.stationId);
+    const existingVehiclesOfModel = vehicles.filter(
+      (v) =>
+        v.modelId === selectedModelToAdd &&
+        v.stationId === currentUser.stationId
+    );
+    const nextNumber = existingVehiclesOfModel.length + 1;
+    const stationCode = station?.name.split(" ")[1] || "ST";
+    const vehicleId = `${selectedModelToAdd}-${stationCode}-${String(
+      nextNumber
+    ).padStart(3, "0")}`;
+
+    // Generate unique VIN-style ID
+    const timestamp = Date.now().toString().slice(-6);
+    const uniqueVehicleId = `VN1${selectedModelToAdd}${timestamp}${nextNumber}`;
+
+    toast({
+      title: "Vehicle Added Successfully!",
+      description: `${selectedModel.name} (ID: ${vehicleId}) has been added to your station`,
+      duration: 3000,
+    });
+
+    // Reset form
+    setIsAddVehicleDialogOpen(false);
+    setSelectedModelToAdd("");
+    setNewVehicleData({
+      batteryLevel: "100",
+      condition: "excellent",
+      mileage: "0",
+    });
+  };
+
+  // Vehicle Inspection Handlers
+  const handleStartPreRentalInspection = (vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (vehicle) {
+      setInspectingVehicleId(vehicleId);
+      setInspectionData({
+        batteryLevel: (vehicle as any).battery?.toString() || "100",
+        mileage: (vehicle as any).mileage?.toString() || "0",
+        condition: "excellent",
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        notes: "",
+        damages: [],
+      });
+      setIsPreRentalInspectionOpen(true);
+    }
+  };
+
+  const handleCompletePreRentalInspection = () => {
+    if (!inspectingVehicleId) return;
+
+    // Validation
+    if (!inspectionData.batteryLevel || !inspectionData.mileage) {
+      toast({
+        title: "Incomplete Inspection",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Pre-Rental Inspection Complete",
+      description: `Vehicle ${inspectingVehicleId} is ready for rental`,
+      duration: 3000,
+    });
+
+    // Reset and close
+    setIsPreRentalInspectionOpen(false);
+    setInspectingVehicleId(null);
+    setInspectionData({
+      batteryLevel: "",
+      mileage: "",
+      condition: "excellent",
+      exteriorCondition: "good",
+      interiorCondition: "good",
+      tiresCondition: "good",
+      notes: "",
+      damages: [],
+    });
+  };
+
+  const handleStartPostRentalInspection = (vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (vehicle) {
+      setInspectingVehicleId(vehicleId);
+      setInspectionData({
+        batteryLevel: "",
+        mileage: "",
+        condition: "excellent",
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        notes: "",
+        damages: [],
+      });
+      setIsPostRentalInspectionOpen(true);
+    }
+  };
+
+  const handleCompletePostRentalInspection = () => {
+    if (!inspectingVehicleId) return;
+
+    // Validation
+    if (!inspectionData.batteryLevel || !inspectionData.mileage) {
+      toast({
+        title: "Incomplete Inspection",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if vehicle needs maintenance
+    const needsMaintenance =
+      inspectionData.damages.length > 0 ||
+      inspectionData.exteriorCondition === "poor" ||
+      inspectionData.interiorCondition === "poor" ||
+      inspectionData.tiresCondition === "poor";
+
+    toast({
+      title: "Post-Rental Inspection Complete",
+      description: needsMaintenance
+        ? `Vehicle ${inspectingVehicleId} marked for maintenance`
+        : `Vehicle ${inspectingVehicleId} is now available`,
+      duration: 3000,
+    });
+
+    // Reset and close
+    setIsPostRentalInspectionOpen(false);
+    setInspectingVehicleId(null);
+    setInspectionData({
+      batteryLevel: "",
+      mileage: "",
+      condition: "excellent",
+      exteriorCondition: "good",
+      interiorCondition: "good",
+      tiresCondition: "good",
+      notes: "",
+      damages: [],
+    });
+  };
+
+  const handleToggleDamage = (damage: string) => {
+    setInspectionData((prev) => ({
+      ...prev,
+      damages: prev.damages.includes(damage)
+        ? prev.damages.filter((d) => d !== damage)
+        : [...prev.damages, damage],
+    }));
+  };
+
   const renderVehicleManagement = () => (
     <div className="space-y-6">
       {/* Quick Stats */}
@@ -451,6 +654,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 <Filter className="h-4 w-4 mr-2" />
                 {t("common.filter")}
               </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsAddVehicleDialogOpen(true)}
+                className="bg-primary"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Vehicle
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -527,12 +738,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         </Button>
                         <Button
                           size="sm"
+                          className="bg-primary"
                           onClick={() =>
-                            handleVehicleCheckout(vehicle.id, "walk-in")
+                            handleStartPreRentalInspection(vehicle.id)
                           }
                         >
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Check Out
+                          Pre-Rental Check
                         </Button>
                       </>
                     )}
@@ -540,10 +752,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     {vehicle.status === "rented" && (
                       <Button
                         size="sm"
-                        onClick={() => handleVehicleCheckin(vehicle.id)}
+                        className="bg-primary"
+                        onClick={() =>
+                          handleStartPostRentalInspection(vehicle.id)
+                        }
                       >
                         <RefreshCw className="h-3 w-3 mr-1" />
-                        {t("common.checkIn")}
+                        Return Inspection
                       </Button>
                     )}
 
@@ -566,6 +781,513 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Vehicle Dialog */}
+      <Dialog
+        open={isAddVehicleDialogOpen}
+        onOpenChange={setIsAddVehicleDialogOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Vehicle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="vehicleModel">Select Vehicle Model</Label>
+              <select
+                id="vehicleModel"
+                value={selectedModelToAdd}
+                onChange={(e) => setSelectedModelToAdd(e.target.value)}
+                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+              >
+                <option value="">-- Select a Model --</option>
+                {getVehicleModels().map((model) => (
+                  <option key={model.modelId} value={model.modelId}>
+                    {model.name} - {model.type} (₫
+                    {(model as any).pricePerHour?.toLocaleString() || "N/A"}
+                    /hour)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="batteryLevel">Battery Level (%)</Label>
+              <Input
+                id="batteryLevel"
+                type="number"
+                min="0"
+                max="100"
+                value={newVehicleData.batteryLevel}
+                onChange={(e) =>
+                  setNewVehicleData({
+                    ...newVehicleData,
+                    batteryLevel: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="condition">Condition</Label>
+              <select
+                id="condition"
+                value={newVehicleData.condition}
+                onChange={(e) =>
+                  setNewVehicleData({
+                    ...newVehicleData,
+                    condition: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+              >
+                <option value="excellent">Excellent</option>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="mileage">Mileage (km)</Label>
+              <Input
+                id="mileage"
+                type="number"
+                min="0"
+                value={newVehicleData.mileage}
+                onChange={(e) =>
+                  setNewVehicleData({
+                    ...newVehicleData,
+                    mileage: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAddVehicleDialogOpen(false);
+                  setSelectedModelToAdd("");
+                  setNewVehicleData({
+                    batteryLevel: "100",
+                    condition: "excellent",
+                    mileage: "0",
+                  });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddVehicle}
+                disabled={!selectedModelToAdd}
+                className="bg-primary"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Vehicle
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pre-Rental Inspection Dialog */}
+      <Dialog
+        open={isPreRentalInspectionOpen}
+        onOpenChange={setIsPreRentalInspectionOpen}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pre-Rental Vehicle Inspection</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Vehicle ID: {inspectingVehicleId}
+            </p>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Vehicle Metrics */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="preBatteryLevel">Battery Level (%)*</Label>
+                <Input
+                  id="preBatteryLevel"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={inspectionData.batteryLevel}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      batteryLevel: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="preMileage">Current Mileage (km)*</Label>
+                <Input
+                  id="preMileage"
+                  type="number"
+                  min="0"
+                  value={inspectionData.mileage}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      mileage: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Condition Checks */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm">
+                Vehicle Condition Assessment
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="preExterior">Exterior Condition</Label>
+                  <select
+                    id="preExterior"
+                    value={inspectionData.exteriorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        exteriorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="preInterior">Interior Condition</Label>
+                  <select
+                    id="preInterior"
+                    value={inspectionData.interiorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        interiorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="preTires">Tires Condition</Label>
+                  <select
+                    id="preTires"
+                    value={inspectionData.tiresCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        tiresCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Damage Checklist */}
+            <div className="space-y-3">
+              <Label>Pre-existing Damages (if any)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  "Scratches",
+                  "Dents",
+                  "Broken lights",
+                  "Cracked windshield",
+                  "Worn tires",
+                  "Interior stains",
+                  "Missing parts",
+                  "Other damages",
+                ].map((damage) => (
+                  <label
+                    key={damage}
+                    className="flex items-center space-x-2 text-sm cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={inspectionData.damages.includes(damage)}
+                      onChange={() => handleToggleDamage(damage)}
+                      className="rounded"
+                    />
+                    <span>{damage}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <Label htmlFor="preNotes">Additional Notes</Label>
+              <Textarea
+                id="preNotes"
+                value={inspectionData.notes}
+                onChange={(e) =>
+                  setInspectionData({
+                    ...inspectionData,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder="Any additional observations or concerns..."
+                rows={3}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsPreRentalInspectionOpen(false);
+                  setInspectingVehicleId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCompletePreRentalInspection}
+                className="bg-primary"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Complete & Ready for Rental
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post-Rental Inspection Dialog */}
+      <Dialog
+        open={isPostRentalInspectionOpen}
+        onOpenChange={setIsPostRentalInspectionOpen}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Post-Rental Vehicle Inspection</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Vehicle ID: {inspectingVehicleId}
+            </p>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Vehicle Metrics */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="postBatteryLevel">Battery Level (%)*</Label>
+                <Input
+                  id="postBatteryLevel"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={inspectionData.batteryLevel}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      batteryLevel: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="postMileage">Return Mileage (km)*</Label>
+                <Input
+                  id="postMileage"
+                  type="number"
+                  min="0"
+                  value={inspectionData.mileage}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      mileage: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Condition Checks */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm">
+                Vehicle Condition Assessment
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="postExterior">Exterior Condition</Label>
+                  <select
+                    id="postExterior"
+                    value={inspectionData.exteriorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        exteriorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="postInterior">Interior Condition</Label>
+                  <select
+                    id="postInterior"
+                    value={inspectionData.interiorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        interiorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="postTires">Tires Condition</Label>
+                  <select
+                    id="postTires"
+                    value={inspectionData.tiresCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        tiresCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Damage Checklist */}
+            <div className="space-y-3">
+              <Label className="text-destructive">
+                New Damages Found (if any)
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  "Scratches",
+                  "Dents",
+                  "Broken lights",
+                  "Cracked windshield",
+                  "Worn tires",
+                  "Interior stains",
+                  "Missing parts",
+                  "Other damages",
+                ].map((damage) => (
+                  <label
+                    key={damage}
+                    className="flex items-center space-x-2 text-sm cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={inspectionData.damages.includes(damage)}
+                      onChange={() => handleToggleDamage(damage)}
+                      className="rounded"
+                    />
+                    <span>{damage}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Alert for damages */}
+            {inspectionData.damages.length > 0 && (
+              <div className="bg-destructive-light p-4 rounded-md border border-destructive">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-sm text-destructive">
+                      Damages Detected
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Vehicle will be marked for maintenance after inspection.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <Label htmlFor="postNotes">Inspection Notes*</Label>
+              <Textarea
+                id="postNotes"
+                value={inspectionData.notes}
+                onChange={(e) =>
+                  setInspectionData({
+                    ...inspectionData,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder="Document any issues, customer feedback, or observations..."
+                rows={3}
+                required
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsPostRentalInspectionOpen(false);
+                  setInspectingVehicleId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCompletePostRentalInspection}
+                className="bg-primary"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Complete Inspection & Return Vehicle
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Maintenance Scheduling Dialog */}
       <Dialog
