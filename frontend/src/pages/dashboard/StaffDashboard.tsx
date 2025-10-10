@@ -784,151 +784,163 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardContent>
       </Card>
 
-      {/* Add Vehicle to Station Dialog - Improved UX */}
+      {/* Assign Registered Vehicle to Station Dialog */}
       <Dialog
         open={isAddVehicleDialogOpen}
         onOpenChange={setIsAddVehicleDialogOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">Add Vehicle to Your Station</DialogTitle>
+            <DialogTitle className="text-xl">
+              Assign Vehicle to Your Station
+            </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Select a vehicle model to add a new instance to{" "}
-              {stations.find((s) => s.id === currentUser.stationId)?.name}
+              Select a registered vehicle from the system to assign to{" "}
+              <strong>
+                {stations.find((s) => s.id === currentUser.stationId)?.name}
+              </strong>
             </p>
           </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Model Selection with Preview */}
-            <div className="space-y-3">
-              <Label htmlFor="vehicleModel" className="text-base font-semibold">
-                Select Vehicle Model *
-              </Label>
-              <select
-                id="vehicleModel"
-                value={selectedModelToAdd}
-                onChange={(e) => setSelectedModelToAdd(e.target.value)}
-                className="w-full px-4 py-3 border border-input rounded-lg bg-background text-base focus:ring-2 focus:ring-primary"
-              >
-                <option value="">-- Choose a Model --</option>
-                {getVehicleModels().map((model) => (
-                  <option key={model.modelId} value={model.modelId}>
-                    {model.name} • {model.type} • {model.specs.seats} seats • ₫
-                    {model.pricePerHour.toLocaleString()}/hr
-                  </option>
-                ))}
-              </select>
-            </div>
 
-            {/* Model Preview Card - Shows when model is selected */}
-            {selectedModelToAdd && (() => {
-              const selectedModel = getVehicleModels().find(
-                (m) => m.modelId === selectedModelToAdd
-              );
-              return selectedModel ? (
-                <Card className="bg-muted/30">
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-background">
-                        <img
-                          src={selectedModel.image}
-                          alt={selectedModel.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <h3 className="font-semibold text-lg">{selectedModel.name}</h3>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="flex items-center gap-1">
-                            <Zap className="h-4 w-4 text-primary" />
-                            <span>{selectedModel.specs.range} km range</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="h-4 w-4 text-primary" />
-                            <span>{selectedModel.specs.seats} seats</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-4 w-4 text-primary" />
-                            <span>₫{selectedModel.pricePerHour.toLocaleString()}/hour</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4 text-primary" />
-                            <span>₫{selectedModel.pricePerDay.toLocaleString()}/day</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : null;
-            })()}
+          <div className="space-y-6">
+            {/* Search & Filter */}
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by VIN, License Plate, or Model..."
+                  className="pl-10"
+                  value={selectedModelToAdd}
+                  onChange={(e) => setSelectedModelToAdd(e.target.value)}
+                />
+              </div>
+            </div>
 
             <Separator />
 
-            {/* Vehicle Details */}
-            <div className="space-y-4">
+            {/* Available Vehicles List */}
+            <div className="space-y-3">
               <h3 className="font-semibold flex items-center gap-2">
                 <Car className="h-5 w-5" />
-                Initial Vehicle Status
+                Available Registered Vehicles
               </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="batteryLevel">
-                    Battery Level (%) *
-                  </Label>
-                  <Input
-                    id="batteryLevel"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={newVehicleData.batteryLevel}
-                    onChange={(e) =>
-                      setNewVehicleData({
-                        ...newVehicleData,
-                        batteryLevel: e.target.value,
-                      })
-                    }
-                    className="text-base"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="condition">Vehicle Condition *</Label>
-                  <select
-                    id="condition"
-                    value={newVehicleData.condition}
-                    onChange={(e) =>
-                      setNewVehicleData({
-                        ...newVehicleData,
-                        condition: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  >
-                    <option value="excellent">✅ Excellent</option>
-                    <option value="good">👍 Good</option>
-                    <option value="fair">⚠️ Fair</option>
-                  </select>
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="mileage">Current Mileage (km) *</Label>
-                <Input
-                  id="mileage"
-                  type="number"
-                  min="0"
-                  value={newVehicleData.mileage}
-                  onChange={(e) =>
-                    setNewVehicleData({
-                      ...newVehicleData,
-                      mileage: e.target.value,
-                    })
-                  }
-                  placeholder="0"
-                  className="text-base"
-                />
+              <div className="grid grid-cols-1 gap-3 max-h-[450px] overflow-y-auto pr-2">
+                {vehicles
+                  .filter((v) => !v.stationId || v.stationId === "") // Only show unassigned vehicles
+                  .filter((v) =>
+                    selectedModelToAdd
+                      ? v.name
+                          .toLowerCase()
+                          .includes(selectedModelToAdd.toLowerCase()) ||
+                        v.uniqueVehicleId
+                          ?.toLowerCase()
+                          .includes(selectedModelToAdd.toLowerCase()) ||
+                        v.id
+                          .toLowerCase()
+                          .includes(selectedModelToAdd.toLowerCase())
+                      : true
+                  )
+                  .map((vehicle) => (
+                    <Card
+                      key={vehicle.id}
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        newVehicleData.mileage === vehicle.id
+                          ? "ring-2 ring-primary bg-primary/5"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        setNewVehicleData({
+                          ...newVehicleData,
+                          mileage: vehicle.id, // Using mileage field to store selected vehicle ID temporarily
+                        });
+                      }}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          {/* Vehicle Image */}
+                          <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                            <img
+                              src={vehicle.image}
+                              alt={vehicle.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          {/* Vehicle Details */}
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="font-bold text-base">
+                                  {vehicle.name}
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {vehicle.type} • {vehicle.year}
+                                </p>
+                              </div>
+                              {newVehicleData.mileage === vehicle.id && (
+                                <Badge className="bg-primary">Selected</Badge>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+                              <div className="flex items-center gap-1">
+                                <FileText className="h-3 w-3 text-muted-foreground" />
+                                <span className="font-mono">
+                                  {vehicle.uniqueVehicleId || vehicle.id}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Battery className="h-3 w-3 text-green-600" />
+                                <span>{vehicle.batteryLevel}% Battery</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Zap className="h-3 w-3 text-primary" />
+                                <span>{vehicle.range} km range</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3 text-primary" />
+                                <span>{vehicle.seats} seats</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 text-xs">
+                              <Badge
+                                variant={
+                                  vehicle.condition === "excellent"
+                                    ? "default"
+                                    : vehicle.condition === "good"
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                              >
+                                {vehicle.condition}
+                              </Badge>
+                              <span className="text-muted-foreground">
+                                ₫{vehicle.pricePerHour.toLocaleString()}/hr
+                              </span>
+                              <span className="text-muted-foreground">
+                                ₫{vehicle.pricePerDay.toLocaleString()}/day
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                {vehicles.filter((v) => !v.stationId || v.stationId === "")
+                  .length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="font-medium">
+                      No unassigned vehicles available
+                    </p>
+                    <p className="text-sm">
+                      All vehicles have been assigned to stations
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -937,11 +949,26 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               <div className="flex gap-3">
                 <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-900 dark:text-blue-100 space-y-1">
-                  <p className="font-medium">About Adding Vehicles:</p>
+                  <p className="font-medium">About Assigning Vehicles:</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>A unique vehicle ID will be generated automatically</li>
-                    <li>Vehicle will be assigned to your station: <strong>{stations.find((s) => s.id === currentUser.stationId)?.name}</strong></li>
-                    <li>Make sure to verify battery level and condition before adding</li>
+                    <li>Only vehicles registered by admin are shown here</li>
+                    <li>
+                      You can only assign vehicles that are not currently
+                      assigned to other stations
+                    </li>
+                    <li>
+                      Selected vehicle will be assigned to:{" "}
+                      <strong>
+                        {
+                          stations.find((s) => s.id === currentUser.stationId)
+                            ?.name
+                        }
+                      </strong>
+                    </li>
+                    <li>
+                      Vehicle status and condition are set during registration
+                      by admin
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -965,11 +992,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             </Button>
             <Button
               onClick={handleAddVehicle}
-              disabled={!selectedModelToAdd}
+              disabled={
+                !newVehicleData.mileage || newVehicleData.mileage === "0"
+              }
               className="bg-primary"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Vehicle to Station
+              Assign Vehicle to Station
             </Button>
           </DialogFooter>
         </DialogContent>
