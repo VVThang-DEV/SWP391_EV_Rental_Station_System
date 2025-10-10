@@ -808,7 +808,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         open={isAddVehicleDialogOpen}
         onOpenChange={setIsAddVehicleDialogOpen}
       >
-        <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
               <Car className="h-6 w-6" />
@@ -845,7 +845,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 Available Registered Vehicles
               </h3>
 
-              <div className="grid grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-2 py-1">
+              <div className="grid grid-cols-1 gap-4 pr-2 pl-2 py-1">
                 {vehicles
                   .filter((v) => !v.stationId || v.stationId === "") // Only show unassigned vehicles
                   .filter((v) =>
@@ -876,8 +876,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         });
                       }}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
+                      <CardContent className="p-3 pl-4">
+                        <div className="flex gap-3">
                           {/* Vehicle Image */}
                           <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
                             <img
@@ -910,7 +910,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                               )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                                 <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                 <div className="flex flex-col min-w-0">
