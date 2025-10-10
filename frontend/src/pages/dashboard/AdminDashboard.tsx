@@ -75,11 +75,19 @@ import {
   Bike,
   Bus,
   Truck,
+  Upload,
+  FileText,
+  Shield,
+  Gauge,
+  Fuel,
 } from "lucide-react";
 import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
+import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AdminDashboardProps {
   user: {
@@ -105,6 +113,27 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
     (typeof systemData.staff)[0] | null
   >(null);
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
+  
+  // Vehicle Management States
+  const [isRegisterVehicleDialogOpen, setIsRegisterVehicleDialogOpen] = useState(false);
+  const [selectedModelForRegistration, setSelectedModelForRegistration] = useState("");
+  const [vehicleRegistrationData, setVehicleRegistrationData] = useState({
+    licensePlate: "",
+    vinNumber: "",
+    color: "",
+    year: new Date().getFullYear().toString(),
+    batteryCapacity: "",
+    batteryLevel: "100",
+    mileage: "0",
+    condition: "excellent",
+    purchaseDate: "",
+    warrantyExpiry: "",
+    insuranceExpiry: "",
+    lastMaintenanceDate: "",
+    nextMaintenanceDate: "",
+    notes: "",
+  });
+  
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -163,6 +192,62 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
     toast({
       title: "Add Staff",
       description: "Add new staff member feature - In development",
+    });
+  };
+
+  // Vehicle Management Handlers
+  const handleRegisterVehicle = () => {
+    if (!selectedModelForRegistration || !vehicleRegistrationData.licensePlate || !vehicleRegistrationData.vinNumber) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields (Model, License Plate, VIN)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const selectedModel = getVehicleModels().find(
+      (m) => m.modelId === selectedModelForRegistration
+    );
+
+    toast({
+      title: "Vehicle Registered Successfully",
+      description: `${selectedModel?.name} with license plate ${vehicleRegistrationData.licensePlate} has been registered to the system.`,
+    });
+
+    // Reset form
+    setIsRegisterVehicleDialogOpen(false);
+    setSelectedModelForRegistration("");
+    setVehicleRegistrationData({
+      licensePlate: "",
+      vinNumber: "",
+      color: "",
+      year: new Date().getFullYear().toString(),
+      batteryCapacity: "",
+      batteryLevel: "100",
+      mileage: "0",
+      condition: "excellent",
+      purchaseDate: "",
+      warrantyExpiry: "",
+      insuranceExpiry: "",
+      lastMaintenanceDate: "",
+      nextMaintenanceDate: "",
+      notes: "",
+    });
+  };
+
+  const handleDeleteVehicle = (vehicleId: string) => {
+    toast({
+      title: "Vehicle Deleted",
+      description: `Vehicle ${vehicleId} has been removed from the system.`,
+      variant: "destructive",
+    });
+  };
+
+  const handleEditVehicle = (vehicleId: string) => {
+    toast({
+      title: "Edit Vehicle",
+      description: `Editing vehicle ${vehicleId} - Feature in development`,
     });
   };
 
@@ -872,6 +957,251 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
     </div>
   );
 
+  const renderVehicleManagement = () => (
+    <div className="space-y-6">
+      {/* Header with Actions */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Vehicle Fleet Management</h2>
+          <p className="text-muted-foreground">
+            Register and manage all vehicles in the system
+          </p>
+        </div>
+        <Button
+          onClick={() => setIsRegisterVehicleDialogOpen(true)}
+          className="bg-primary"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Register New Vehicle
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Vehicles
+            </CardTitle>
+            <Car className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{vehicles.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Across all stations
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Available Now
+            </CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {vehicles.filter((v) => v.status === "available").length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Ready for rental
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Currently Rented
+            </CardTitle>
+            <Clock className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {vehicles.filter((v) => v.status === "rented").length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Out with customers
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Under Maintenance
+            </CardTitle>
+            <Wrench className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {vehicles.filter((v) => v.status === "maintenance").length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Being serviced
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Vehicle Models Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vehicle Models in Fleet</CardTitle>
+          <CardDescription>
+            Overview of different vehicle models registered
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {getVehicleModels().map((model) => {
+              const modelVehicles = vehicles.filter(
+                (v) => v.modelId === model.modelId
+              );
+              return (
+                <Card key={model.modelId} className="overflow-hidden">
+                  <div className="aspect-video relative bg-muted">
+                    <img
+                      src={model.image}
+                      alt={model.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-2">{model.name}</h3>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <div className="flex items-center justify-between">
+                        <span>Total Units:</span>
+                        <span className="font-medium text-foreground">
+                          {modelVehicles.length}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Available:</span>
+                        <span className="font-medium text-green-600">
+                          {
+                            modelVehicles.filter((v) => v.status === "available")
+                              .length
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Rented:</span>
+                        <span className="font-medium text-blue-600">
+                          {modelVehicles.filter((v) => v.status === "rented").length}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* All Vehicles Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>All Registered Vehicles</CardTitle>
+              <CardDescription>
+                Complete list of vehicles in the system
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Search vehicles..."
+                className="w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Button variant="outline" size="icon">
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Vehicle ID</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Station</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Battery</TableHead>
+                <TableHead>Price/Hour</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {vehicles
+                .filter(
+                  (vehicle) =>
+                    vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    vehicle.uniqueVehicleId.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .slice(0, 10)
+                .map((vehicle) => {
+                  const station = stations.find((s) => s.id === vehicle.stationId);
+                  return (
+                    <TableRow key={vehicle.id}>
+                      <TableCell className="font-medium">
+                        {vehicle.uniqueVehicleId}
+                      </TableCell>
+                      <TableCell>{vehicle.name}</TableCell>
+                      <TableCell>{station?.name || "Unassigned"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            vehicle.status === "available"
+                              ? "default"
+                              : vehicle.status === "rented"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {vehicle.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Battery className="h-4 w-4" />
+                          <span>100%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>₫{vehicle.pricePerHour.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditVehicle(vehicle.id)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteVehicle(vehicle.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-background">
@@ -899,8 +1229,9 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <SlideIn direction="bottom" delay={200}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
                 <TabsTrigger value="stations">{t("nav.stations")}</TabsTrigger>
                 <TabsTrigger value="customers">Customers</TabsTrigger>
                 <TabsTrigger value="staff">Staff</TabsTrigger>
@@ -909,6 +1240,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
               <TabsContent value="overview" className="mt-6">
                 <FadeIn delay={300}>{renderOverview()}</FadeIn>
+              </TabsContent>
+
+              <TabsContent value="vehicles" className="mt-6">
+                <FadeIn delay={300}>{renderVehicleManagement()}</FadeIn>
               </TabsContent>
 
               <TabsContent value="stations" className="mt-6">
@@ -1031,6 +1366,464 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                 onClick={() => setIsStaffDialogOpen(false)}
               >
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Register Vehicle Dialog - Comprehensive Form */}
+        <Dialog
+          open={isRegisterVehicleDialogOpen}
+          onOpenChange={setIsRegisterVehicleDialogOpen}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <Car className="h-6 w-6" />
+                Register New Vehicle
+              </DialogTitle>
+              <DialogDescription>
+                Complete vehicle registration form. Fill in all required details to add a new vehicle to the system.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              {/* Section 1: Model Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  <Car className="h-5 w-5" />
+                  <h3>Vehicle Model</h3>
+                </div>
+                <Separator />
+                
+                <div>
+                  <Label htmlFor="modelSelect" className="text-base">
+                    Select Model *
+                  </Label>
+                  <select
+                    id="modelSelect"
+                    value={selectedModelForRegistration}
+                    onChange={(e) => setSelectedModelForRegistration(e.target.value)}
+                    className="w-full px-4 py-3 border border-input rounded-lg bg-background mt-2 text-base"
+                  >
+                    <option value="">-- Choose a Vehicle Model --</option>
+                    {getVehicleModels().map((model) => (
+                      <option key={model.modelId} value={model.modelId}>
+                        {model.name} • {model.type} • {model.specs.seats} seats • ₫
+                        {model.pricePerHour.toLocaleString()}/hr
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Model Preview */}
+                {selectedModelForRegistration && (() => {
+                  const model = getVehicleModels().find(
+                    (m) => m.modelId === selectedModelForRegistration
+                  );
+                  return model ? (
+                    <Card className="bg-muted/30">
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          <div className="w-40 h-40 rounded-lg overflow-hidden flex-shrink-0 bg-background">
+                            <img
+                              src={model.image}
+                              alt={model.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <h4 className="font-bold text-lg">{model.name}</h4>
+                            <div className="grid grid-cols-3 gap-3 text-sm">
+                              <div className="flex items-center gap-1">
+                                <Zap className="h-4 w-4 text-primary" />
+                                <span>{model.specs.range} km</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Users className="h-4 w-4 text-primary" />
+                                <span>{model.specs.seats} seats</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Gauge className="h-4 w-4 text-primary" />
+                                <span>{model.specs.topSpeed} km/h</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Battery className="h-4 w-4 text-primary" />
+                                <span>{model.specs.chargingTime}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="h-4 w-4 text-primary" />
+                                <span>₫{model.pricePerHour.toLocaleString()}/hr</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Section 2: Vehicle Identification */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  <FileText className="h-5 w-5" />
+                  <h3>Vehicle Identification</h3>
+                </div>
+                <Separator />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="licensePlate" className="text-base">
+                      License Plate Number *
+                    </Label>
+                    <Input
+                      id="licensePlate"
+                      value={vehicleRegistrationData.licensePlate}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          licensePlate: e.target.value.toUpperCase(),
+                        })
+                      }
+                      placeholder="e.g., 51A-12345"
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="vinNumber" className="text-base">
+                      VIN (Vehicle Identification Number) *
+                    </Label>
+                    <Input
+                      id="vinNumber"
+                      value={vehicleRegistrationData.vinNumber}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          vinNumber: e.target.value.toUpperCase(),
+                        })
+                      }
+                      placeholder="17-character VIN"
+                      maxLength={17}
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="color" className="text-base">
+                      Vehicle Color
+                    </Label>
+                    <Input
+                      id="color"
+                      value={vehicleRegistrationData.color}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          color: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., White, Black, Blue"
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="year" className="text-base">
+                      Manufacturing Year
+                    </Label>
+                    <Input
+                      id="year"
+                      type="number"
+                      value={vehicleRegistrationData.year}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          year: e.target.value,
+                        })
+                      }
+                      min="2020"
+                      max={new Date().getFullYear() + 1}
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Battery & Condition */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  <Battery className="h-5 w-5" />
+                  <h3>Battery & Current Status</h3>
+                </div>
+                <Separator />
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="batteryCapacity" className="text-base">
+                      Battery Capacity (kWh)
+                    </Label>
+                    <Input
+                      id="batteryCapacity"
+                      type="number"
+                      value={vehicleRegistrationData.batteryCapacity}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          batteryCapacity: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., 42"
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="batteryLevel" className="text-base">
+                      Current Battery Level (%)
+                    </Label>
+                    <Input
+                      id="batteryLevel"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={vehicleRegistrationData.batteryLevel}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          batteryLevel: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="mileage" className="text-base">
+                      Current Mileage (km)
+                    </Label>
+                    <Input
+                      id="mileage"
+                      type="number"
+                      min="0"
+                      value={vehicleRegistrationData.mileage}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          mileage: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="condition" className="text-base">
+                    Vehicle Condition
+                  </Label>
+                  <select
+                    id="condition"
+                    value={vehicleRegistrationData.condition}
+                    onChange={(e) =>
+                      setVehicleRegistrationData({
+                        ...vehicleRegistrationData,
+                        condition: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 border border-input rounded-lg bg-background mt-2 text-base"
+                  >
+                    <option value="excellent">✅ Excellent - Brand New</option>
+                    <option value="good">👍 Good - Well Maintained</option>
+                    <option value="fair">⚠️ Fair - Minor Issues</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Section 4: Important Dates */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  <Calendar className="h-5 w-5" />
+                  <h3>Important Dates & Documentation</h3>
+                </div>
+                <Separator />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="purchaseDate" className="text-base">
+                      Purchase Date
+                    </Label>
+                    <Input
+                      id="purchaseDate"
+                      type="date"
+                      value={vehicleRegistrationData.purchaseDate}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          purchaseDate: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="warrantyExpiry" className="text-base">
+                      Warranty Expiry Date
+                    </Label>
+                    <Input
+                      id="warrantyExpiry"
+                      type="date"
+                      value={vehicleRegistrationData.warrantyExpiry}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          warrantyExpiry: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="insuranceExpiry" className="text-base">
+                      Insurance Expiry Date
+                    </Label>
+                    <Input
+                      id="insuranceExpiry"
+                      type="date"
+                      value={vehicleRegistrationData.insuranceExpiry}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          insuranceExpiry: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="lastMaintenanceDate" className="text-base">
+                      Last Maintenance Date
+                    </Label>
+                    <Input
+                      id="lastMaintenanceDate"
+                      type="date"
+                      value={vehicleRegistrationData.lastMaintenanceDate}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          lastMaintenanceDate: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="nextMaintenanceDate" className="text-base">
+                    Next Scheduled Maintenance
+                  </Label>
+                  <Input
+                    id="nextMaintenanceDate"
+                    type="date"
+                    value={vehicleRegistrationData.nextMaintenanceDate}
+                    onChange={(e) =>
+                      setVehicleRegistrationData({
+                        ...vehicleRegistrationData,
+                        nextMaintenanceDate: e.target.value,
+                      })
+                    }
+                    className="mt-2 text-base"
+                  />
+                </div>
+              </div>
+
+              {/* Section 5: Additional Notes */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  <FileText className="h-5 w-5" />
+                  <h3>Additional Information</h3>
+                </div>
+                <Separator />
+                
+                <div>
+                  <Label htmlFor="notes" className="text-base">
+                    Notes / Special Instructions
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    value={vehicleRegistrationData.notes}
+                    onChange={(e) =>
+                      setVehicleRegistrationData({
+                        ...vehicleRegistrationData,
+                        notes: e.target.value,
+                      })
+                    }
+                    placeholder="Any additional information about this vehicle..."
+                    rows={4}
+                    className="mt-2 text-base"
+                  />
+                </div>
+              </div>
+
+              {/* Info Alert */}
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-900 dark:text-blue-100 space-y-2">
+                    <p className="font-semibold">Important Registration Notes:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>A unique vehicle ID will be generated automatically upon registration</li>
+                      <li>License plate and VIN must be unique in the system</li>
+                      <li>Vehicle will be initially set to "available" status</li>
+                      <li>Staff can later assign this vehicle to their stations</li>
+                      <li>All date fields help track maintenance and compliance</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsRegisterVehicleDialogOpen(false);
+                  setSelectedModelForRegistration("");
+                  setVehicleRegistrationData({
+                    licensePlate: "",
+                    vinNumber: "",
+                    color: "",
+                    year: new Date().getFullYear().toString(),
+                    batteryCapacity: "",
+                    batteryLevel: "100",
+                    mileage: "0",
+                    condition: "excellent",
+                    purchaseDate: "",
+                    warrantyExpiry: "",
+                    insuranceExpiry: "",
+                    lastMaintenanceDate: "",
+                    nextMaintenanceDate: "",
+                    notes: "",
+                  });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRegisterVehicle}
+                disabled={
+                  !selectedModelForRegistration ||
+                  !vehicleRegistrationData.licensePlate ||
+                  !vehicleRegistrationData.vinNumber
+                }
+                className="bg-primary"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Register Vehicle
               </Button>
             </DialogFooter>
           </DialogContent>

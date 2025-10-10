@@ -101,7 +101,7 @@ const VehicleModelFinder = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [ searchTerm, setSearchTerm] = useState("");
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [availabilityData, setAvailabilityData] = useState<AvailabilityData[]>(
     []
@@ -220,8 +220,8 @@ const VehicleModelFinder = () => {
 
       // Price filter (check per-hour rate)
       const matchesPrice =
-        model.basePrice.perHour >= priceRange[0] &&
-        model.basePrice.perHour <= priceRange[1];
+        model.pricePerHour >= priceRange[0] &&
+        model.pricePerHour <= priceRange[1];
 
       // Seats filter
       const matchesSeats =
@@ -425,11 +425,9 @@ const VehicleModelFinder = () => {
                                 {searchSuggestions.map((model) => (
                                   <CommandItem
                                     key={model.modelId}
-                                    value={`${model.brand} ${model.name}`}
+                                    value={model.name}
                                     onSelect={() => {
-                                      setSearchTerm(
-                                        `${model.brand} ${model.name}`
-                                      );
+                                      setSearchTerm(model.name);
                                       setIsSuggestionsOpen(false);
                                     }}
                                   >
@@ -757,8 +755,8 @@ const VehicleModelFinder = () => {
 
                         <div className="mt-auto space-y-3">
                           <div className="flex justify-between text-sm">
-                            <span>From ${model.basePrice.perHour}/hour</span>
-                            <span>From ${model.basePrice.perDay}/day</span>
+                            <span>From ${model.pricePerHour}/hour</span>
+                            <span>From ${model.pricePerDay}/day</span>
                           </div>
 
                           <Button
@@ -946,7 +944,7 @@ const VehicleModelFinder = () => {
                               Hourly:
                             </span>
                             <span className="font-semibold text-lg">
-                              ${model.basePrice.perHour}
+                              ${model.pricePerHour}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
@@ -954,7 +952,7 @@ const VehicleModelFinder = () => {
                               Daily:
                             </span>
                             <span className="font-semibold text-lg">
-                              ${model.basePrice.perDay}
+                              ${model.pricePerDay}
                             </span>
                           </div>
                         </div>

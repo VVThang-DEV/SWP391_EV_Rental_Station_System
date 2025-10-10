@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -70,6 +71,7 @@ import {
   RefreshCw,
   Save,
   X,
+  DollarSign,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
@@ -782,112 +784,194 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardContent>
       </Card>
 
-      {/* Add Vehicle Dialog */}
+      {/* Add Vehicle to Station Dialog - Improved UX */}
       <Dialog
         open={isAddVehicleDialogOpen}
         onOpenChange={setIsAddVehicleDialogOpen}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Vehicle</DialogTitle>
+            <DialogTitle className="text-xl">Add Vehicle to Your Station</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Select a vehicle model to add a new instance to{" "}
+              {stations.find((s) => s.id === currentUser.stationId)?.name}
+            </p>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="vehicleModel">Select Vehicle Model</Label>
+          
+          <div className="space-y-6">
+            {/* Model Selection with Preview */}
+            <div className="space-y-3">
+              <Label htmlFor="vehicleModel" className="text-base font-semibold">
+                Select Vehicle Model *
+              </Label>
               <select
                 id="vehicleModel"
                 value={selectedModelToAdd}
                 onChange={(e) => setSelectedModelToAdd(e.target.value)}
-                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                className="w-full px-4 py-3 border border-input rounded-lg bg-background text-base focus:ring-2 focus:ring-primary"
               >
-                <option value="">-- Select a Model --</option>
+                <option value="">-- Choose a Model --</option>
                 {getVehicleModels().map((model) => (
                   <option key={model.modelId} value={model.modelId}>
-                    {model.name} - {model.type} (₫
-                    {(model as any).pricePerHour?.toLocaleString() || "N/A"}
-                    /hour)
+                    {model.name} • {model.type} • {model.specs.seats} seats • ₫
+                    {model.pricePerHour.toLocaleString()}/hr
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <Label htmlFor="batteryLevel">Battery Level (%)</Label>
-              <Input
-                id="batteryLevel"
-                type="number"
-                min="0"
-                max="100"
-                value={newVehicleData.batteryLevel}
-                onChange={(e) =>
-                  setNewVehicleData({
-                    ...newVehicleData,
-                    batteryLevel: e.target.value,
-                  })
-                }
-              />
+            {/* Model Preview Card - Shows when model is selected */}
+            {selectedModelToAdd && (() => {
+              const selectedModel = getVehicleModels().find(
+                (m) => m.modelId === selectedModelToAdd
+              );
+              return selectedModel ? (
+                <Card className="bg-muted/30">
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-background">
+                        <img
+                          src={selectedModel.image}
+                          alt={selectedModel.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <h3 className="font-semibold text-lg">{selectedModel.name}</h3>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="flex items-center gap-1">
+                            <Zap className="h-4 w-4 text-primary" />
+                            <span>{selectedModel.specs.range} km range</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Users className="h-4 w-4 text-primary" />
+                            <span>{selectedModel.specs.seats} seats</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-4 w-4 text-primary" />
+                            <span>₫{selectedModel.pricePerHour.toLocaleString()}/hour</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            <span>₫{selectedModel.pricePerDay.toLocaleString()}/day</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null;
+            })()}
+
+            <Separator />
+
+            {/* Vehicle Details */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Car className="h-5 w-5" />
+                Initial Vehicle Status
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="batteryLevel">
+                    Battery Level (%) *
+                  </Label>
+                  <Input
+                    id="batteryLevel"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newVehicleData.batteryLevel}
+                    onChange={(e) =>
+                      setNewVehicleData({
+                        ...newVehicleData,
+                        batteryLevel: e.target.value,
+                      })
+                    }
+                    className="text-base"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="condition">Vehicle Condition *</Label>
+                  <select
+                    id="condition"
+                    value={newVehicleData.condition}
+                    onChange={(e) =>
+                      setNewVehicleData({
+                        ...newVehicleData,
+                        condition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">✅ Excellent</option>
+                    <option value="good">👍 Good</option>
+                    <option value="fair">⚠️ Fair</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="mileage">Current Mileage (km) *</Label>
+                <Input
+                  id="mileage"
+                  type="number"
+                  min="0"
+                  value={newVehicleData.mileage}
+                  onChange={(e) =>
+                    setNewVehicleData({
+                      ...newVehicleData,
+                      mileage: e.target.value,
+                    })
+                  }
+                  placeholder="0"
+                  className="text-base"
+                />
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="condition">Condition</Label>
-              <select
-                id="condition"
-                value={newVehicleData.condition}
-                onChange={(e) =>
-                  setNewVehicleData({
-                    ...newVehicleData,
-                    condition: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-input rounded-md bg-background"
-              >
-                <option value="excellent">Excellent</option>
-                <option value="good">Good</option>
-                <option value="fair">Fair</option>
-              </select>
-            </div>
-
-            <div>
-              <Label htmlFor="mileage">Mileage (km)</Label>
-              <Input
-                id="mileage"
-                type="number"
-                min="0"
-                value={newVehicleData.mileage}
-                onChange={(e) =>
-                  setNewVehicleData({
-                    ...newVehicleData,
-                    mileage: e.target.value,
-                  })
-                }
-              />
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsAddVehicleDialogOpen(false);
-                  setSelectedModelToAdd("");
-                  setNewVehicleData({
-                    batteryLevel: "100",
-                    condition: "excellent",
-                    mileage: "0",
-                  });
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAddVehicle}
-                disabled={!selectedModelToAdd}
-                className="bg-primary"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Vehicle
-              </Button>
+            {/* Info Box */}
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-900 dark:text-blue-100 space-y-1">
+                  <p className="font-medium">About Adding Vehicles:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>A unique vehicle ID will be generated automatically</li>
+                    <li>Vehicle will be assigned to your station: <strong>{stations.find((s) => s.id === currentUser.stationId)?.name}</strong></li>
+                    <li>Make sure to verify battery level and condition before adding</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
+
+          <DialogFooter className="gap-2 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddVehicleDialogOpen(false);
+                setSelectedModelToAdd("");
+                setNewVehicleData({
+                  batteryLevel: "100",
+                  condition: "excellent",
+                  mileage: "0",
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddVehicle}
+              disabled={!selectedModelToAdd}
+              className="bg-primary"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Vehicle to Station
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
