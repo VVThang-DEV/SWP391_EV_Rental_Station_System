@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect } from "react";
+import { bookingStorage, BookingData } from "@/lib/booking-storage";
 import {
   Dialog,
   DialogContent,
@@ -25,62 +27,21 @@ import {
   RotateCcw,
   Edit,
 } from "lucide-react";
-
-interface Booking {
-  id: string;
-  vehicleId: string;
-  vehicle: string;
-  startDate: string;
-  endDate: string;
-  pickupLocation: string;
-  status: string;
-  totalCost: number;
-  duration: string;
-}
-
-const mockBookings = [
-  {
-    id: "BK001",
-    vehicleId: "2",
-    vehicle: "Tesla Model 3 2022",
-    startDate: "2024-01-15",
-    endDate: "2024-01-17",
-    pickupLocation: "District 1 Central Station",
-    status: "active",
-    totalCost: 360,
-    duration: "48 hours",
-  },
-  {
-    id: "BK002",
-    vehicleId: "1",
-    vehicle: "VinFast VF8 2023",
-    startDate: "2024-01-10",
-    endDate: "2024-01-12",
-    pickupLocation: "Airport Station",
-    status: "completed",
-    totalCost: 240,
-    duration: "24 hours",
-  },
-  {
-    id: "BK003",
-    vehicleId: "3",
-    vehicle: "Hyundai Kona Electric 2023",
-    startDate: "2024-01-20",
-    endDate: "2024-01-22",
-    pickupLocation: "District 7 Hub",
-    status: "upcoming",
-    totalCost: 200,
-    duration: "36 hours",
-  },
-];
-
+ 
 const Bookings = () => {
   const [activeTab, setActiveTab] = useState("all");
+  const [bookings, setBookings] = useState<BookingData[]>([]);
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+ const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
   const [modifiedStartDate, setModifiedStartDate] = useState("");
   const [modifiedEndDate, setModifiedEndDate] = useState("");
   const [modifiedLocation, setModifiedLocation] = useState("");
+
+  useEffect(() => {
+    // Lấy dữ liệu bookings thực từ storage
+    const allBookings = bookingStorage.getAllBookings();
+    setBookings(allBookings);
+  }, []);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -97,8 +58,8 @@ const Bookings = () => {
 
   const filteredBookings =
     activeTab === "all"
-      ? mockBookings
-      : mockBookings.filter((booking) => booking.status === activeTab);
+      ? bookings
+      : bookings.filter((booking) => booking.status === activeTab);
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,6 +111,11 @@ const Bookings = () => {
                           <div className="text-sm font-medium">Start Date</div>
                           <div className="text-sm text-muted-foreground">
                             {booking.startDate}
+                            {booking.startTime && (
+                              <span className="block text-xs">
+                               {booking.startTime}
+                             </span>
+                           )}
                           </div>
                         </div>
                       </div>
@@ -159,6 +125,11 @@ const Bookings = () => {
                           <div className="text-sm font-medium">End Date</div>
                           <div className="text-sm text-muted-foreground">
                             {booking.endDate}
+                            {booking.endTime && (
+                            <span className="block text-xs">
+                               {booking.endTime}
+                             </span>
+                           )}
                           </div>
                         </div>
                       </div>
@@ -302,12 +273,20 @@ const Bookings = () => {
                                   </Button>
                                   <Button
                                     onClick={() => {
-                                      // TODO: Implement save functionality
-                                      console.log("Saving changes:", {
-                                        startDate: modifiedStartDate,
-                                        endDate: modifiedEndDate,
-                                        location: modifiedLocation,
-                                      });
+                                     // Cập nhật booking trong storage
+                                    if (selectedBooking) {
+                                       const updated = bookingStorage.updateBooking(selectedBooking.id, {
+                                         startDate: modifiedStartDate,
+                                         endDate: modifiedEndDate,
+                                         pickupLocation: modifiedLocation,
+                                       });
+
+                                       if (updated) {
+                                         // Refresh bookings list
+                                         setBookings(bookingStorage.getAllBookings());
+                                         console.log("Booking updated:", updated);
+                                       }
+                                     }
                                       setModifyDialogOpen(false);
                                     }}
                                   >
@@ -316,7 +295,16 @@ const Bookings = () => {
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>
-                            <Button variant="destructive" size="sm">
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => {
+                                if (window.confirm("Are you sure you want to cancel this booking?")) {
+                                  bookingStorage.deleteBooking(booking.id);
+                                  setBookings(bookingStorage.getAllBookings());
+                                }
+                              }}
+                            >
                               Cancel Booking
                             </Button>
                           </>
@@ -327,7 +315,7 @@ const Bookings = () => {
                               Download Receipt
                             </Button>
                             <Button size="sm" asChild>
-                              <Link to={`/book/${booking.vehicleId}`}>
+                              <Link to={`/vehicles/${booking.vehicleId}/book`}>
                                 <RotateCcw className="h-4 w-4 mr-1" />
                                 Book Again
                               </Link>

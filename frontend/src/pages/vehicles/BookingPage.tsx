@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { bookingStorage, BookingData } from "@/lib/booking-storage";
 import {
   Card,
   CardContent,
@@ -136,7 +137,7 @@ const BookingPage = () => {
     startDate: getTodayStr(),
     endDate: "",
     startTime: getTimeStr(),
-    endTime: getTimeStr(), 
+    endTime: getTimeStr(),
     rentalDuration: "daily",
     customerInfo: {
       fullName: currentUserData.fullName, // ✅ Auto-filled từ profile
@@ -194,116 +195,7 @@ const BookingPage = () => {
   const totalCost = baseCost + deposit;
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    if (field.includes(".")) {
-      const [parent, child] = field.split(".");
-      setBookingData((prev) => ({
-        ...prev,
-        [parent]: {
-          ...(prev[parent as keyof typeof prev] as object),
-          [child]: value,
-        },
-      }));
-    } else {
-      setBookingData((prev) => {
-        const newData = { ...prev, [field]: value };
-
-        // XỬ LÝ LOGIC ĐẶC BIỆT CHO HOURLY RENTAL
-        if (prev.rentalDuration === "hourly") {
-          if (field === "startDate") {
-            // Khi thay đổi Start Date trong hourly: End Date cũng thay đổi theo
-            newData.endDate = value as string;
-          } else if (field === "startTime") {
-            // Khi thay đổi Start Time: tự động cập nhật End Time (ít nhất +1h)
-            newData.endTime = calculateMinimumEndTime(value as string);
-          } else if (field === "endTime") {
-            // Validate End Time phải sau Start Time ít nhất 1h
-            const isValid = validateHourlyRental(prev.startTime, value as string);
-            if (!isValid) {
-              // Nếu không hợp lệ, set về minimum time
-              newData.endTime = calculateMinimumEndTime(prev.startTime);
-            }
-          }
-        }
-
-        // XỬ LÝ LOGIC CHO DAILY RENTAL
-        if (prev.rentalDuration === "daily" && field === "startDate") {
-          const startDate = new Date(value as string);
-          const tomorrow = new Date(startDate.getTime() + 24 * 60 * 60 * 1000); // Tính ngày hôm sau
-          newData.endDate = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
-        }
-
-        return newData;
-      });
-    }
-  };
-
-  const handleStepSubmit = () => {
-    if (step === 1) {
-      // Validate booking details
-      if (
-        !bookingData.startDate ||
-        !bookingData.endDate ||
-        !bookingData.startTime ||
-        !bookingData.endTime
-      ) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all required fields.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // THÊM VALIDATION CHO HOURLY RENTAL
-      if (bookingData.rentalDuration === "hourly") {
-        // Kiểm tra Start Date = End Date
-        if (bookingData.startDate !== bookingData.endDate) {
-          toast({
-            title: "Invalid Date Range",
-            description: "For hourly rental, start and end date must be the same.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Kiểm tra thời gian thuê tối thiểu 1h
-        const isValidTime = validateHourlyRental(bookingData.startTime, bookingData.endTime);
-        if (!isValidTime) {
-          toast({
-            title: "Invalid Time Range",
-            description: "Minimum rental duration is 1 hour.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      // THÊM VALIDATION CHO DAILY RENTAL
-      if (bookingData.rentalDuration === "daily") {
-        const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
-        const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
-        const diffMs = end.getTime() - start.getTime();
-        const days = diffMs / (1000 * 60 * 60 * 24);
-
-        if (days < 1) {
-          toast({
-            title: "Invalid Date Range",
-            description: "Minimum rental duration is 1 day.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      setStep(2);
-    } else if (step === 2) {
-      // Process payment (mock)
-      setStep(3);
-      toast({
-        title: "Booking Confirmed!",
-        description: "Your vehicle has been successfully booked.",
-      });
-    } else {
+   if (step === 3) {
       // Final confirmation - redirect to dashboard
       navigate("/dashboard");
     }
@@ -403,7 +295,7 @@ const BookingPage = () => {
                 />
                 {bookingData.rentalDuration === "daily" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                   
+
                   </p>
                 )}
               </div>
@@ -544,6 +436,69 @@ const BookingPage = () => {
         bookingId={`BOOK_${Date.now()}`}
         customerInfo={bookingData.customerInfo}
         onPaymentComplete={(paymentData) => {
+
+          // ✅ LƯU BOOKING KHI PAYMENT THÀNH CÔNG
+          try {
+            // Logic xác định status dựa trên thời gian
+            const now = new Date();
+            const startDateTime = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+            const endDateTime = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+
+            let status: "active" | "upcoming" | "completed";
+
+            if (now >= startDateTime && now <= endDateTime) {
+              status = "active"; // Đang trong thời gian thuê
+            } else if (now < startDateTime) {
+              status = "upcoming"; // Chưa đến thời gian thuê
+            } else {
+              status = "completed"; // Đã kết thúc (trường hợp ít xảy ra)
+            }
+
+            const newBooking = bookingStorage.addBooking({
+              vehicleId: vehicle.id,
+              vehicle: vehicle.name,
+              vehicleBrand: vehicle.brand,
+              vehicleYear: vehicle.year,
+              vehicleImage: vehicle.image,
+              startDate: bookingData.startDate,
+              endDate: bookingData.endDate,
+              startTime: bookingData.startTime,
+              endTime: bookingData.endTime,
+              rentalDuration: bookingData.rentalDuration as "hourly" | "daily",
+              pickupLocation: vehicle.location,
+              status: status,
+              totalCost: totalCost,
+              baseCost: baseCost,
+              deposit: deposit,
+              duration: bookingData.rentalDuration === "hourly"
+                ? (() => {
+                  const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+                  const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+                  const hours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                  return `${hours} hour${hours !== 1 ? 's' : ''}`;
+                })()
+                : (() => {
+                  const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+                  const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+                  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                  return `${days} day${days !== 1 ? 's' : ''}`;
+                })(),
+              customerInfo: bookingData.customerInfo,
+              paymentMethod: bookingData.paymentMethod,
+            });
+
+            console.log("Booking saved successfully:", newBooking);
+          } catch (error) {
+            console.error("Error saving booking:", error);
+            toast({
+              title: "Error",
+              description: "Failed to save booking. Please try again.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+
           toast({
             title: "Payment Successful!",
             description: "Your booking has been confirmed.",
@@ -851,25 +806,77 @@ const BookingPage = () => {
                           </div>
                         )}
 
-                        <Button
-                          className="w-full mt-4 btn-hero"
-                          onClick={handleStepSubmit}
-                          disabled={
-                            step === 1 &&
-                            (!bookingData.startDate ||
-                              !bookingData.endDate ||
-                              !bookingData.startTime ||
-                              !bookingData.endTime ||
-                              !bookingData.customerInfo.fullName ||
-                              !bookingData.customerInfo.email ||
-                              !bookingData.customerInfo.phone ||
-                              !bookingData.customerInfo.driverLicense)
-                          }
-                        >
-                          {step === 1 && "Continue to Payment"}
-                          {step === 2 && "Confirm Booking"}
-                          {step === 3 && "Go to Dashboard"}
-                        </Button>
+ {/* Chỉ hiển thị button cho step 1, step 2 không có button nào */}
+                       {step === 1 && (
+                         <Button
+                           className="w-full mt-4 btn-hero"
+                           onClick={() => {
+                             // Validate và chuyển sang payment
+                             if (
+                               !bookingData.startDate ||
+                               !bookingData.endDate ||
+                               !bookingData.startTime ||
+                               !bookingData.endTime ||
+                               !bookingData.customerInfo.fullName ||
+                               !bookingData.customerInfo.email ||
+                               !bookingData.customerInfo.phone ||
+                               !bookingData.customerInfo.driverLicense
+                             ) {
+                               toast({
+                                 title: "Missing Information",
+                                 description: "Please fill in all required fields.",
+                                 variant: "destructive",
+                               });
+                               return;
+                             }
+
+                             // VALIDATION CHO HOURLY RENTAL
+                             if (bookingData.rentalDuration === "hourly") {
+                               if (bookingData.startDate !== bookingData.endDate) {
+                                 toast({
+                                   title: "Invalid Date Range",
+                                   description: "For hourly rental, start and end date must be the same.",
+                                   variant: "destructive",
+                                 });
+                                 return;
+                               }
+
+                               const isValidTime = validateHourlyRental(bookingData.startTime, bookingData.endTime);
+                               if (!isValidTime) {
+                                 toast({
+                                   title: "Invalid Time Range",
+                                   description: "Minimum rental duration is 1 hour.",
+                                   variant: "destructive",
+                                 });
+                                 return;
+                               }
+                             }
+
+                             // VALIDATION CHO DAILY RENTAL
+                             if (bookingData.rentalDuration === "daily") {
+                               const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+                               const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+                               const diffMs = end.getTime() - start.getTime();
+                               const days = diffMs / (1000 * 60 * 60 * 24);
+
+                               if (days < 1) {
+                                 toast({
+                                   title: "Invalid Date Range",
+                                   description: "Minimum rental duration is 1 day.",
+                                   variant: "destructive",
+                                 });
+                                 return;
+                               }
+                             }
+
+                             // Chuyển sang payment step
+                             setStep(2);
+                           }}
+                         >
+                           Continue to Payment
+                         </Button>
+                       )}
+
                       </CardContent>
                     </Card>
                   </div>
