@@ -66,7 +66,7 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
     setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formElement = e.currentTarget;
@@ -109,39 +109,73 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
 
     setIsLoading(true);
 
-    // Mock sending registration data to backend and requesting OTP
-    setTimeout(() => {
-      // TODO: Replace with actual API call to send registration data and request OTP
-      // const response = await registerUserAPI(formData);
-      // if (response.success) {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+      // Call backend: register
+      const registerRes = await fetch(`${baseUrl}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth,
+          password: formData.password,
+        }),
+      });
+
+      const registerJson = await registerRes.json();
+      if (!registerRes.ok || !registerJson.success) {
+        throw new Error(registerJson?.message || "Đăng ký thất bại");
+      }
+
+      // Send OTP
+      const sendOtpRes = await fetch(`${baseUrl}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const sendOtpJson = await sendOtpRes.json();
+      if (!sendOtpRes.ok || !sendOtpJson.success) {
+        throw new Error(sendOtpJson?.message || "Gửi OTP thất bại");
+      }
+
       toast({
-        title: "Registration Submitted",
-        description: `We've sent a verification code to ${formData.email}`,
+        title: t("register.welcome"),
+        description: `Mã OTP đã gửi đến ${formData.email}`,
       });
       setStep("otp");
-      // }
+    } catch (err: any) {
+      toast({
+        title: t("register.error"),
+        description: err?.message || "Có lỗi xảy ra. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleOTPVerifySuccess = () => {
-    // Lưu tạm dữ liệu đã đăng ký để trang success hiển thị
-    localStorage.setItem(
-      "pendingRegister",
-      JSON.stringify({ fullName: formData.fullName, email: formData.email })
-    );
-    // Thiết lập user đăng nhập ngay sau khi xác thực OTP thành công
+    // Complete the registration process
     const userData: UserType = {
       id: `user_${Date.now()}`,
       name: formData.fullName,
       email: formData.email,
       role: "customer",
     };
-    // Gọi callback để App cập nhật navbar & lưu localStorage
     onRegister(userData);
-    // chuyển tới trang thành công đăng ký
-    navigate("/register/success", {
-      state: { pending: { fullName: formData.fullName, email: formData.email } },
+    toast({
+      title: t("register.welcome"),
+      description: t("register.accountCreated"),
+    });
+    // Navigate to personal info update instead of dashboard
+    navigate("/personal-info-update", {
+      state: {
+        fromRegistration: true,
+        user: userData,
+      },
     });
   };
 
@@ -187,7 +221,7 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
       }
       case "phone": {
         // chuẩn hóa: loại bỏ khoảng trắng và dấu gạch
-        const normalized = value.replace(/[\s\-\.()]/g, "");
+        const normalized = value.replace(/[\s\-.()]/g, "");
         if (!normalized) return "Số điện thoại không được để trống.";
         if (!phoneRegex.test(normalized))
           return "Số điện thoại không hợp lệ. Ví dụ: 0912345678 hoặc +84912345678";
@@ -226,7 +260,7 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
   };
 
   const handleBlur = (field: keyof typeof errors) => {
-    const message = validateField(field, (formData as any)[field] as string);
+    const message = validateField(field, formData[field] as string);
     setErrors((prev) => ({ ...prev, [field]: message }));
   };
 
@@ -240,10 +274,9 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
   })();
 
   return (
-    <div className="w-full">
-      <div className="w-full">
+    <>
       {step === "form" && (
-        <Card className="shadow-premium w-full">
+        <Card className="shadow-premium w-full max-w-md">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">
               {t("register.createAccount")}
@@ -505,7 +538,6 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
           description="We've sent a 6-digit verification code to complete your registration."
         />
       )}
-      </div>
-    </div>
+    </>
   );
 };

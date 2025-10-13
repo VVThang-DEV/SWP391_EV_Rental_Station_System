@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,55 +23,17 @@ import {
   Globe,
   Upload,
   CheckCircle,
-  CheckCircle2,
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
-import DocumentUpload from "@/components/DocumentUpload";
-import { documentStorage, type DocumentType } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
   const { t, language, setLanguage } = useTranslation();
-  const { toast } = useToast();
   const [notifications, setNotifications] = useState({
     emailBooking: true,
     emailPromotions: false,
     smsReminders: true,
     pushNotifications: true,
   });
-  const [uploadedDocuments, setUploadedDocuments] = useState(() =>
-    documentStorage.getUploadedDocuments()
-  );
-  const [pendingUploads, setPendingUploads] = useState<
-    Record<DocumentType, File | null>
-  >({
-    driverLicense: null,
-    driverLicenseBack: null,
-    nationalId_front: null,
-    nationalId_back: null,
-  });
-  
-  // Additional information state
-  const [additionalInfo, setAdditionalInfo] = useState({
-    citizenId: "",
-    driverLicenseNumber: "",
-    currentAddress: "",
-  });
-
-  const handleInfoChange = (field: keyof typeof additionalInfo, value: string) => {
-    setAdditionalInfo(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const validateCitizenId = (id: string) => {
-    return /^\d{9}(\d{3})?$/.test(id); // 9 digits for CCCD, 12 for CMND
-  };
-
-  const validateDriverLicenseNumber = (number: string) => {
-    return /^\d{12}$/.test(number); // 12 digits for Vietnamese driver license
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,7 +51,7 @@ const Settings = () => {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Tabs defaultValue="profile" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
             <TabsTrigger value="security">{t("settings.security")}</TabsTrigger>
             <TabsTrigger value="notifications">
@@ -98,7 +59,6 @@ const Settings = () => {
             </TabsTrigger>
             <TabsTrigger value="billing">{t("settings.billing")}</TabsTrigger>
             <TabsTrigger value="language">{t("settings.language")}</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -166,82 +126,193 @@ const Settings = () => {
 
                 <div>
                   <h3 className="text-lg font-semibold mb-4">
-                    Thông tin bổ sung
+                    {t("settings.driversLicense")}
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="citizenId">
-                        Số căn cước công dân / CMND
+                      <Label htmlFor="licenseNumber">
+                        {t("settings.licenseNumber")}
                       </Label>
-                      <div className="relative">
-                        <Input
-                          id="citizenId"
-                          placeholder="Nhập số căn cước công dân"
-                          value={additionalInfo.citizenId}
-                          onChange={(e) => handleInfoChange('citizenId', e.target.value)}
-                          maxLength={12}
-                          className={`text-black ${
-                            additionalInfo.citizenId && !validateCitizenId(additionalInfo.citizenId)
-                              ? 'border-red-500 focus:border-red-500'
-                              : ''
-                          }`}
-                        />
-                        {additionalInfo.citizenId && validateCitizenId(additionalInfo.citizenId) && (
-                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
-                        )}
-                      </div>
-                      {additionalInfo.citizenId && !validateCitizenId(additionalInfo.citizenId) && (
-                        <p className="text-xs text-red-500 mt-1">Vui lòng nhập 9 hoặc 12 số</p>
-                      )}
+                      <Input
+                        id="licenseNumber"
+                        defaultValue="B1234567890"
+                        className="text-black"
+                      />
                     </div>
                     <div>
-                      <Label htmlFor="driverLicenseNumber">
-                        Số bằng lái xe
+                      <Label htmlFor="licenseExpiry">
+                        {t("settings.expiryDate")}
                       </Label>
-                      <div className="relative">
-                        <Input
-                          id="driverLicenseNumber"
-                          placeholder="Nhập số bằng lái xe"
-                          value={additionalInfo.driverLicenseNumber}
-                          onChange={(e) => handleInfoChange('driverLicenseNumber', e.target.value)}
-                          maxLength={12}
-                          className={`text-black ${
-                            additionalInfo.driverLicenseNumber && !validateDriverLicenseNumber(additionalInfo.driverLicenseNumber)
-                              ? 'border-red-500 focus:border-red-500'
-                              : ''
-                          }`}
-                        />
-                        {additionalInfo.driverLicenseNumber && validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) && (
-                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
-                        )}
-                      </div>
-                      {additionalInfo.driverLicenseNumber && !validateDriverLicenseNumber(additionalInfo.driverLicenseNumber) && (
-                        <p className="text-xs text-red-500 mt-1">Vui lòng nhập đúng 12 số</p>
-                      )}
+                      <Input
+                        id="licenseExpiry"
+                        type="date"
+                        defaultValue="2028-12-31"
+                        className="text-black"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    {language === "vi"
+                      ? "Căn Cước Công Dân (CCCD)"
+                      : "Identity Verification"}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="cccdNumber">
+                        {language === "vi" ? "Số CCCD" : "ID Number"}
+                      </Label>
+                      <Input
+                        id="cccdNumber"
+                        defaultValue="079201012345"
+                        className="text-black"
+                        placeholder={
+                          language === "vi"
+                            ? "Nhập số CCCD 12 số"
+                            : "Enter 12-digit ID number"
+                        }
+                      />
                     </div>
                     <div>
-                      <Label htmlFor="currentAddress">
-                        Địa chỉ hiện tại
+                      <Label htmlFor="cccdIssueDate">
+                        {language === "vi" ? "Ngày cấp" : "Issue Date"}
                       </Label>
-                      <div className="relative">
-                        <Textarea
-                          id="currentAddress"
-                          placeholder="Nhập địa chỉ hiện tại đầy đủ (số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố)"
-                          value={additionalInfo.currentAddress}
-                          onChange={(e) => handleInfoChange('currentAddress', e.target.value)}
-                          className={`text-black min-h-[80px] ${
-                            additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length < 10
-                              ? 'border-red-500 focus:border-red-500'
-                              : ''
-                          }`}
-                        />
-                        {additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length >= 10 && (
-                          <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-500" />
-                        )}
+                      <Input
+                        id="cccdIssueDate"
+                        type="date"
+                        defaultValue="2021-01-15"
+                        className="text-black"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cccdExpiryDate">
+                        {language === "vi" ? "Ngày hết hạn" : "Expiry Date"}
+                      </Label>
+                      <Input
+                        id="cccdExpiryDate"
+                        type="date"
+                        defaultValue="2031-01-14"
+                        className="text-black"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cccdPlaceOfIssue">
+                        {language === "vi" ? "Nơi cấp" : "Place of Issue"}
+                      </Label>
+                      <Input
+                        id="cccdPlaceOfIssue"
+                        defaultValue={
+                          language === "vi"
+                            ? "Cục Cảnh sát ĐKQL cư trú và DLQG về dân cư"
+                            : "Police Department"
+                        }
+                        className="text-black"
+                      />
+                    </div>
+
+                    {/* CCCD Document Upload */}
+                    <div className="space-y-4">
+                      <Label className="text-base font-medium">
+                        {language === "vi"
+                          ? "Tải lên ảnh CCCD"
+                          : "Upload ID Documents"}
+                      </Label>
+
+                      {/* Front Side */}
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
+                        <div className="text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="mt-4">
+                            <Label className="cursor-pointer">
+                              <span className="mt-2 block text-sm font-medium text-gray-900">
+                                {language === "vi"
+                                  ? "Mặt trước CCCD"
+                                  : "ID Card Front Side"}
+                              </span>
+                              <input
+                                type="file"
+                                className="sr-only"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  // Handle file upload logic here
+                                  console.log(
+                                    "Front side file:",
+                                    e.target.files?.[0]
+                                  );
+                                }}
+                              />
+                              <span className="mt-2 block text-xs text-gray-500">
+                                {language === "vi"
+                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
+                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
+                              </span>
+                            </Label>
+                          </div>
+                        </div>
                       </div>
-                      {additionalInfo.currentAddress && additionalInfo.currentAddress.trim().length < 10 && (
-                        <p className="text-xs text-red-500 mt-1">Địa chỉ phải có ít nhất 10 ký tự</p>
-                      )}
+
+                      {/* Back Side */}
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
+                        <div className="text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="mt-4">
+                            <Label className="cursor-pointer">
+                              <span className="mt-2 block text-sm font-medium text-gray-900">
+                                {language === "vi"
+                                  ? "Mặt sau CCCD"
+                                  : "ID Card Back Side"}
+                              </span>
+                              <input
+                                type="file"
+                                className="sr-only"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  // Handle file upload logic here
+                                  console.log(
+                                    "Back side file:",
+                                    e.target.files?.[0]
+                                  );
+                                }}
+                              />
+                              <span className="mt-2 block text-xs text-gray-500">
+                                {language === "vi"
+                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
+                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
+                              </span>
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Upload Status */}
+                      <div className="rounded-lg bg-green-50 p-4 border border-green-200">
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            <CheckCircle className="h-5 w-5 text-green-400" />
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-green-800">
+                              {language === "vi"
+                                ? "Trạng thái xác minh"
+                                : "Verification Status"}
+                            </p>
+                            <p className="mt-1 text-sm text-green-700">
+                              {language === "vi"
+                                ? "✓ Đã xác minh thành công"
+                                : "✓ Successfully verified"}
+                            </p>
+                            <p className="mt-1 text-xs text-green-600">
+                              {language === "vi"
+                                ? "Cập nhật lần cuối: 15/01/2024"
+                                : "Last updated: Jan 15, 2024"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -495,211 +566,6 @@ const Settings = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          {/* Documents Tab */}
-          <TabsContent value="documents">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileText className="h-5 w-5 mr-2" />
-                  Identity Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {/* Current Status */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">
-                      Current Document Status
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(uploadedDocuments).map(([key, doc]) => {
-                        const pendingFile = pendingUploads[key as DocumentType];
-                        const hasConfirmed = doc !== null;
-                        const hasPending = pendingFile !== null;
-
-                        return (
-                          <div
-                            key={key}
-                            className="flex items-center justify-between p-3 border rounded-lg"
-                          >
-                            <div className="flex items-center gap-3">
-                              <CheckCircle
-                                className={`h-5 w-5 ${
-                                  hasConfirmed
-                                    ? "text-green-500"
-                                    : hasPending
-                                    ? "text-yellow-500"
-                                    : "text-gray-300"
-                                }`}
-                              />
-                              <div>
-                                <p className="font-medium">
-                                  {key === "driverLicense" &&
-                                    "Driver License (Front)"}
-                                  {key === "driverLicenseBack" &&
-                                    "Driver License (Back)"}
-                                  {key === "nationalId_front" &&
-                                    "National ID (Front)"}
-                                  {key === "nationalId_back" &&
-                                    "National ID (Back)"}
-                                </p>
-                                {hasConfirmed && (
-                                  <p className="text-sm text-muted-foreground">
-                                    Confirmed:{" "}
-                                    {new Date(
-                                      doc.uploadedAt
-                                    ).toLocaleDateString()}
-                                  </p>
-                                )}
-                                {hasPending && !hasConfirmed && (
-                                  <p className="text-sm text-yellow-600">
-                                    Pending confirmation
-                                  </p>
-                                )}
-                                {hasPending && hasConfirmed && (
-                                  <p className="text-sm text-blue-600">
-                                    New version pending confirmation
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            {hasConfirmed && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  documentStorage.removeDocument(
-                                    key as DocumentType
-                                  );
-                                  setUploadedDocuments(
-                                    documentStorage.getUploadedDocuments()
-                                  );
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {documentStorage.isProfileComplete() &&
-                      Object.values(pendingUploads).every(
-                        (file) => file === null
-                      ) && (
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <div className="flex items-center gap-2 text-green-800">
-                            <CheckCircle className="h-5 w-5" />
-                            <span className="font-medium">
-                              Profile Complete!
-                            </span>
-                          </div>
-                          <p className="text-sm text-green-700 mt-1">
-                            All required documents have been uploaded and
-                            verified.
-                          </p>
-                        </div>
-                      )}
-                  </div>
-
-                  <Separator />
-
-                  {/* Upload Section */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">
-                      Upload/Update Documents
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Cập nhật CMND/CCCD và Bằng lái xe của bạn. Tài liệu rõ
-                      nét, đầy đủ 4 góc, tối đa 5MB mỗi ảnh.
-                    </p>
-                    <DocumentUpload
-                      stagingMode={true}
-                      showProgress={false}
-                      onDocumentStaged={(documentType, file) => {
-                        // Store in pending uploads instead of saving immediately
-                        setPendingUploads((prev) => ({
-                          ...prev,
-                          [documentType as DocumentType]: file,
-                        }));
-                      }}
-                      requiredDocuments={[
-                        "driverLicense",
-                        "driverLicenseBack",
-                        "nationalId_front",
-                        "nationalId_back",
-                      ]}
-                      uploadedDocuments={{}}
-                    />
-
-                    <div className="flex justify-end gap-2 pt-4">
-                      {Object.values(pendingUploads).some(
-                        (file) => file !== null
-                      ) && (
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setPendingUploads({
-                              driverLicense: null,
-                              driverLicenseBack: null,
-                              nationalId_front: null,
-                              nationalId_back: null,
-                            });
-                          }}
-                          className="min-w-24"
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                      <Button
-                        onClick={() => {
-                          // Save all pending uploads
-                          Object.entries(pendingUploads).forEach(
-                            ([type, file]) => {
-                              if (file) {
-                                documentStorage.saveDocument(
-                                  type as DocumentType,
-                                  file
-                                );
-                              }
-                            }
-                          );
-
-                          // Update the displayed documents
-                          setUploadedDocuments(
-                            documentStorage.getUploadedDocuments()
-                          );
-
-                          // Clear pending uploads
-                          setPendingUploads({
-                            driverLicense: null,
-                            driverLicenseBack: null,
-                            nationalId_front: null,
-                            nationalId_back: null,
-                          });
-
-                          toast({
-                            title: "Documents Confirmed",
-                            description:
-                              "Your documents have been successfully submitted for verification.",
-                          });
-                        }}
-                        disabled={Object.values(pendingUploads).every(
-                          (file) => file === null
-                        )}
-                        className="min-w-32"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Confirm Documents
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Language Tab */}

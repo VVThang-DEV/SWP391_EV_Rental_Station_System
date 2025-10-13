@@ -11,10 +11,8 @@ export interface VehicleModel {
   model: string;
   type: string;
   image: string;
-  basePrice: {
-    perHour: number;
-    perDay: number;
-  };
+  pricePerHour: number; // Aligned with Vehicle interface
+  pricePerDay: number; // Aligned with Vehicle interface
   specs: {
     range: number;
     seats: number;
@@ -46,6 +44,27 @@ export const getVehicleModels = (): VehicleModel[] => {
   const vehicles = getVehicles("en");
   const modelMap = new Map<string, VehicleModel>();
 
+  const modelImages: Record<string, string> = {
+    VF3: "https://cafefcdn.com/203337114487263232/2024/5/8/photo-1-1715090660361300961755-1715140612593-171514061306027642983.jpg",
+    VF5: "https://media.vov.vn/sites/default/files/styles/large/public/2024-07/a7.jpg",
+    VF6: "https://oto-vinfastsaigon.com/wp-content/uploads/2024/11/mau-xe-vinfast-vf6-bang-mau-xe-vinfast-vf6-cap-nhat-chinh-hang-4fvtET.jpg.webp",
+    VF7: "https://img.autocarindia.com/Features/VF7%20Rivals%20Web.jpg?w=700&c=1",
+    VF8: "https://vinfastquangtri.vn/wp-content/uploads/2023/02/8-mau-VF8-scaled.jpg",
+    VF9: "https://vinfast-timescity.com.vn/wp-content/uploads/2022/12/cap-nhat-bang-mau-xe-vinfast-vf9-2023-1_optimized.jpeg",
+    EVO200:
+      "https://xedapchaydien.vn/upfiles/image/1.%20Xe%20%C4%91i%E1%BB%87n/xe-may-dien-infast-Evo200-21.jpg",
+    EVO200LITE:
+      "https://xedien2banh.com/image/catalog/%E1%BA%A2nh%20vi%E1%BA%BFt%20b%C3%A0i/Vinfast/xe-may-dien-vinfast-evo200-13.jpg",
+    EVOGRAND:
+      "https://shop.vinfastauto.com/on/demandware.static/-/Sites-app_vinfast_vn-Library/default/dw0a6b8f9c/landingpage/lp-xmd/evo-grand/hero-mb.webp",
+    EVOGRANDLITE: "https://vfxanh.vn/wp-content/uploads/2025/07/5@2x.jpg",
+    EVONEO:
+      "https://scontent.fsgn2-9.fna.fbcdn.net/v/t39.30808-6/494556506_1216786090451626_386267744405387881_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeH21OJRf1TiSmiQ5wi3iQNv8dPBsjmrYajx08GyOathqGuZv-BKLDZB7jZxSpwXzjPwLOGV9dccp4GKT7UdmdMK&_nc_ohc=QHmmNyhEvuUQ7kNvwEuLdHB&_nc_oc=Adnh8zQEhskF-R5R1kYrcC71Jw-EmZksR_iOQUCXXPIQc24ep0wyn0npqXxB5nPpNSI&_nc_zt=23&_nc_ht=scontent.fsgn2-9.fna&_nc_gid=GBCAh0PQ-1JlkkQavOkP3w&oh=00_AfdfS005KRiLziGNbKsUshtbDFQ4125iLYHW8vzlstf-yQ&oe=68E53C28",
+    FELIZS:
+      "https://oto-vinfastsaigon.com/wp-content/uploads/2021/08/xe-may-dien-vinfast-klara-tai-muaxegiabeo_10-800x400-1.jpg",
+    FELIZLITE:
+      "https://oto-vinfastsaigon.com/wp-content/uploads/2021/08/xe-may-dien-vinfast-klara-tai-muaxegiabeo_10-800x400-1.jpg",
+  };
   vehicles.forEach((vehicle) => {
     if (!modelMap.has(vehicle.modelId)) {
       modelMap.set(vehicle.modelId, {
@@ -54,11 +73,9 @@ export const getVehicleModels = (): VehicleModel[] => {
         brand: vehicle.brand,
         model: vehicle.model,
         type: vehicle.type,
-        image: vehicle.image,
-        basePrice: {
-          perHour: vehicle.pricePerHour,
-          perDay: vehicle.pricePerDay,
-        },
+        image: modelImages[vehicle.modelId] || vehicle.image,
+        pricePerHour: vehicle.pricePerHour,
+        pricePerDay: vehicle.pricePerDay,
         specs: {
           range: vehicle.range,
           seats: vehicle.seats,
@@ -131,14 +148,16 @@ export const findStationsWithModel = (
  * Get enhanced station data with vehicle model information
  */
 export const getStationsWithVehicleInfo = (): StationWithVehicles[] => {
-  const vehicles = getVehicles("en");
+  const vehicles = getVehicles("en"); // Lấy danh sách xe từ dữ liệu thực tế
 
   return stations.map((station) => {
+    // Lọc xe thuộc trạm hiện tại và có trạng thái "available"
     const stationVehicles = vehicles.filter(
       (vehicle) =>
         vehicle.stationId === station.id && vehicle.availability === "available"
     );
 
+    // Nhóm xe theo modelId
     const modelMap = new Map<string, Vehicle[]>();
     stationVehicles.forEach((vehicle) => {
       if (!modelMap.has(vehicle.modelId)) {
@@ -147,18 +166,20 @@ export const getStationsWithVehicleInfo = (): StationWithVehicles[] => {
       modelMap.get(vehicle.modelId)!.push(vehicle);
     });
 
+    // Tạo danh sách các mẫu xe có sẵn tại trạm
     const availableModels = Array.from(modelMap.entries()).map(
       ([modelId, vehicleList]) => ({
         modelId,
-        count: vehicleList.length,
+        count: vehicleList.length, // Số lượng xe thuộc mẫu xe tại trạm
         vehicles: vehicleList,
       })
     );
 
+    // Trả về thông tin trạm với các mẫu xe có sẵn
     return {
       ...station,
       availableModels,
-      totalAvailableVehicles: stationVehicles.length,
+      totalAvailableVehicles: stationVehicles.length, // Tổng số xe có sẵn tại trạm
     };
   });
 };
@@ -250,7 +271,7 @@ export const getRecommendedStations = (
 /**
  * Calculate distance between two coordinates using Haversine formula
  */
-const calculateDistance = (
+export const calculateDistance = (
   lat1: number,
   lng1: number,
   lat2: number,
