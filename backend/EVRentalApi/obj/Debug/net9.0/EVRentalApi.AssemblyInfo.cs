@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EVRentalApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9fabe1005e686107fb58ea578788da2277af4385")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2607b8be2589b81a50a319258e55b3577041c31e")]
 [assembly: System.Reflection.AssemblyProductAttribute("EVRentalApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EVRentalApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
