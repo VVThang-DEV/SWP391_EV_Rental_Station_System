@@ -79,7 +79,7 @@ import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
-import WalkInBookingManager from "@/components/WalkInBookingManager";
+import { WalkInBookingManager } from "@/components/walkin-booking";
 
 interface StaffDashboardProps {
   user: {
