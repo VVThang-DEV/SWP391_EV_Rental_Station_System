@@ -79,6 +79,7 @@ import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
+import WalkInBookingManager from "@/components/WalkInBookingManager";
 
 interface StaffDashboardProps {
   user: {
@@ -1857,12 +1858,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
                 </TabsTrigger>
                 <TabsTrigger value="pickups">Pickup Management</TabsTrigger>
+                <TabsTrigger value="walkin">Walk-in Booking</TabsTrigger>
                 <TabsTrigger value="payments">Payment Processing</TabsTrigger>
               </TabsList>
 
@@ -1876,6 +1878,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               <TabsContent value="pickups" className="mt-6">
                 <StaffPickupManager />
+              </TabsContent>
+
+              <TabsContent value="walkin" className="mt-6">
+                <WalkInBookingManager />
               </TabsContent>
 
               <TabsContent value="payments" className="mt-6">
