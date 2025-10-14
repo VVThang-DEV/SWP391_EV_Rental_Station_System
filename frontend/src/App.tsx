@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import Navbar from "./components/Navbar";
+
+
 import {
   Index,
   Vehicles,
