@@ -42,6 +42,14 @@ builder.Services.AddScoped<ForgotPasswordService>();
 builder.Services.AddScoped<PersonalInfoService>();
 builder.Services.AddHostedService<OtpCleanupService>();
 
+// DI: New repositories & services for vehicles and stations
+builder.Services.AddScoped<IStationRepository, StationRepository>();
+builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+builder.Services.AddScoped<IVehicleModelRepository, VehicleModelRepository>();
+builder.Services.AddScoped<IStationService, StationService>();
+builder.Services.AddScoped<IVehicleService, VehicleService>();
+builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
+
 // Add controllers
 builder.Services.AddControllers();
 

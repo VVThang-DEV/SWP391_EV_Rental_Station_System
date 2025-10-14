@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            color: #28a745;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .loading {
+            color: #007bff;
+            background-color: #cce7ff;
+            border-color: #b3d7ff;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .data-preview {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 EV Rental API Connection Test</h1>
+        <p>Testing connection to API at: <strong>http://localhost:5000</strong></p>
+        
+        <button onclick="testAllApis()">Test All APIs</button>
+        <button onclick="clearResults()">Clear Results</button>
+        
+        <div id="health" class="test-section">
+            <h3>Health Check</h3>
+            <div id="health-result">Click "Test All APIs" to start</div>
+        </div>
+        
+        <div id="vehicles" class="test-section">
+            <h3>Vehicles API</h3>
+            <div id="vehicles-result">Click "Test All APIs" to start</div>
+        </div>
+        
+        <div id="models" class="test-section">
+            <h3>Vehicle Models API</h3>
+            <div id="models-result">Click "Test All APIs" to start</div>
+        </div>
+        
+        <div id="stations" class="test-section">
+            <h3>Stations API</h3>
+            <div id="stations-result">Click "Test All APIs" to start</div>
+        </div>
+        
+        <div id="summary" class="test-section">
+            <h3>Summary</h3>
+            <div id="summary-result">Run tests to see summary</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        let testResults = {
+            health: false,
+            vehicles: false,
+            models: false,
+            stations: false
+        };
+
+        async function testApi(endpoint, resultElementId) {
+            const resultElement = document.getElementById(resultElementId);
+            resultElement.innerHTML = '<div class="loading">🔄 Testing...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const isArray = Array.isArray(data);
+                const count = isArray ? data.length : 1;
+                
+                resultElement.innerHTML = `
+                    <div class="success">✅ Success! (${count} ${isArray ? 'items' : 'item'})</div>
+                    <div class="data-preview">${JSON.stringify(data, null, 2)}</div>
+                `;
+                
+                return true;
+            } catch (error) {
+                resultElement.innerHTML = `
+                    <div class="error">❌ Error: ${error.message}</div>
+                `;
+                return false;
+            }
+        }
+
+        async function testAllApis() {
+            console.log('Starting API tests...');
+            
+            // Test Health Check
+            testResults.health = await testApi('/health', 'health-result');
+            
+            // Test Vehicles
+            testResults.vehicles = await testApi('/api/vehicles', 'vehicles-result');
+            
+            // Test Vehicle Models
+            testResults.models = await testApi('/api/VehicleModels', 'models-result');
+            
+            // Test Stations
+            testResults.stations = await testApi('/api/stations', 'stations-result');
+            
+            // Update Summary
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const summaryElement = document.getElementById('summary-result');
+            const totalTests = 4;
+            const passedTests = Object.values(testResults).filter(Boolean).length;
+            const successRate = Math.round((passedTests / totalTests) * 100);
+            
+            let summaryClass = 'error';
+            let summaryIcon = '❌';
+            
+            if (successRate === 100) {
+                summaryClass = 'success';
+                summaryIcon = '🎉';
+            } else if (successRate >= 75) {
+                summaryClass = 'success';
+                summaryIcon = '✅';
+            } else if (successRate >= 50) {
+                summaryClass = 'loading';
+                summaryIcon = '⚠️';
+            }
+            
+            summaryElement.innerHTML = `
+                <div class="${summaryClass}">
+                    ${summaryIcon} ${passedTests}/${totalTests} tests passed (${successRate}% success rate)
+                </div>
+                <div style="margin-top: 10px;">
+                    <strong>Results:</strong><br>
+                    • Health Check: ${testResults.health ? '✅' : '❌'}<br>
+                    • Vehicles: ${testResults.vehicles ? '✅' : '❌'}<br>
+                    • Vehicle Models: ${testResults.models ? '✅' : '❌'}<br>
+                    • Stations: ${testResults.stations ? '✅' : '❌'}
+                </div>
+            `;
+        }
+
+        function clearResults() {
+            document.getElementById('health-result').innerHTML = 'Click "Test All APIs" to start';
+            document.getElementById('vehicles-result').innerHTML = 'Click "Test All APIs" to start';
+            document.getElementById('models-result').innerHTML = 'Click "Test All APIs" to start';
+            document.getElementById('stations-result').innerHTML = 'Click "Test All APIs" to start';
+            document.getElementById('summary-result').innerHTML = 'Run tests to see summary';
+            
+            testResults = {
+                health: false,
+                vehicles: false,
+                models: false,
+                stations: false
+            };
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(testAllApis, 1000);
+        });
+    </script>
+</body>
+</html>

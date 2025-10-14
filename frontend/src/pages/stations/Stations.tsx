@@ -52,6 +52,7 @@ const Stations = () => {
   // Get vehicles data
   const allVehicles = getVehicles("en");
 
+
   // Function to get available vehicle models at a station
   const getStationModels = (stationId: string) => {
     const stationVehicles = allVehicles.filter(
@@ -98,6 +99,7 @@ const Stations = () => {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+
 
   // All available amenities
   const allAmenities = [
