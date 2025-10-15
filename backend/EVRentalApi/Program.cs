@@ -53,10 +53,35 @@ builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
 // Add controllers
 builder.Services.AddControllers();
 
+// Add JWT Authentication
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        var jwt = builder.Configuration.GetSection("Jwt");
+        var secret = jwt["Secret"]!;
+        var issuer = jwt["Issuer"]!;
+        var audience = jwt["Audience"]!;
+        
+        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = issuer,
+            ValidAudience = audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 // Middleware
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Serve static files (for uploaded documents)
 app.UseStaticFiles();
@@ -218,6 +243,44 @@ app.MapPost("/auth/update-document", async (UpdatePersonalInfoRequest req, Perso
         return Results.Ok(new { success = true, message = result.Message });
     }
     return Results.BadRequest(new { success = false, message = result.Message });
+});
+
+// Get current user info endpoint
+app.MapGet("/auth/current-user", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, AuthService auth) =>
+{
+    // Get user ID from JWT token
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.BadRequest(new { message = "Invalid user ID" });
+    }
+
+    try
+    {
+        var userInfo = await auth.GetUserInfoAsync(userId);
+        if (userInfo == null)
+        {
+            return Results.NotFound(new { message = "User not found" });
+        }
+
+        return Results.Ok(new { 
+            success = true, 
+            user = userInfo 
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            detail: ex.Message,
+            statusCode: 500,
+            title: "Error retrieving user information"
+        );
+    }
 });
 
 // Health

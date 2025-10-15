@@ -99,6 +99,19 @@ public sealed class AuthService
             return new RegisterResponse(false, $"Lỗi hệ thống: {ex.Message}");
         }
     }
+
+    public async Task<object?> GetUserInfoAsync(int userId)
+    {
+        try
+        {
+            var userInfo = await _users.GetUserInfoByIdAsync(userId);
+            return userInfo;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error retrieving user information: {ex.Message}");
+        }
+    }
 }
 
 

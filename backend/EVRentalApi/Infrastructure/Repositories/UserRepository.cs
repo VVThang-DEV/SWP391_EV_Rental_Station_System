@@ -19,6 +19,7 @@ public interface IUserRepository
     Task<int> GetUserIdByEmailAsync(string email);
     Task<bool> UpsertDocumentAsync(int userId, string documentUrl, string documentType);
     Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType);
+    Task<object?> GetUserInfoByIdAsync(int userId);
 }
 
 public sealed class UserRepository : IUserRepository
@@ -360,6 +361,58 @@ END
     public async Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType)
     {
         return await UpsertDocumentAsync(userId, documentUrl, documentType);
+    }
+
+    public async Task<object?> GetUserInfoByIdAsync(int userId)
+    {
+        const string sql = @"
+SELECT 
+    u.user_id,
+    u.email,
+    u.full_name,
+    u.phone,
+    u.cccd,
+    u.license_number,
+    u.address,
+    u.gender,
+    u.date_of_birth,
+    u.position,
+    r.role_name,
+    u.created_at,
+    u.updated_at
+FROM users u
+JOIN roles r ON u.role_id = r.role_id
+WHERE u.user_id = @UserId AND u.is_active = 1";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn)
+        {
+            CommandType = CommandType.Text
+        };
+        cmd.Parameters.AddWithValue("@UserId", userId);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new
+            {
+                userId = Convert.ToInt32(reader["user_id"]),
+                email = reader["email"].ToString(),
+                fullName = reader["full_name"].ToString(),
+                phone = reader["phone"]?.ToString(),
+                cccd = reader["cccd"]?.ToString(),
+                licenseNumber = reader["license_number"]?.ToString(),
+                address = reader["address"]?.ToString(),
+                gender = reader["gender"]?.ToString(),
+                dateOfBirth = reader["date_of_birth"] != DBNull.Value ? Convert.ToDateTime(reader["date_of_birth"]).ToString("yyyy-MM-dd") : null,
+                position = reader["position"]?.ToString(),
+                roleName = reader["role_name"].ToString(),
+                createdAt = Convert.ToDateTime(reader["created_at"]),
+                updatedAt = Convert.ToDateTime(reader["updated_at"])
+            };
+        }
+        return null;
     }
 }
 
