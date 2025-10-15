@@ -27,6 +27,7 @@ import {
 } from "@/components/EnhancedSearch";
 import { getVehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
+import { useVehicles, useStations, useVehicleModels } from "@/hooks/useApi";
 import {
   Search,
   Filter,
@@ -36,11 +37,15 @@ import {
   MapPin,
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
-import { getVehicleModels } from "@/data/vehicles";
 
 const Vehicles = () => {
   const { t, language } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // API hooks
+  const { data: apiVehicles, loading: vehiclesLoading, error: vehiclesError } = useVehicles();
+  const { data: apiStations, loading: stationsLoading, error: stationsError } = useStations();
+  const { data: apiVehicleModels, loading: modelsLoading, error: modelsError } = useVehicleModels();
 
   // Loading states
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -120,14 +125,56 @@ const Vehicles = () => {
     }
   }, [searchParams]);
 
-  // Simulate initial loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  // Data Mapper: Convert API data to UI format
+  const mapApiToUI = (apiVehicle: any) => {
+    const model = apiVehicleModels?.find(m => m.model_id === apiVehicle.model_id);
+    const station = apiStations?.find(s => s.station_id === apiVehicle.station_id);
+    
+    return {
+      id: apiVehicle.unique_vehicle_id,
+      modelId: apiVehicle.model_id,
+      uniqueVehicleId: apiVehicle.unique_vehicle_id,
+      licensePlate: apiVehicle.license_plate || '',
+      name: model ? `${model.brand} ${model.model_name}` : apiVehicle.unique_vehicle_id,
+      year: model ? model.year : 2024,
+      brand: model ? model.brand : 'VinFast',
+      model: model ? model.model_name : 'Unknown',
+      type: model ? model.type as any : 'Scooter',
+      seats: model ? model.seats : 2,
+      range: apiVehicle.max_range_km,
+      batteryLevel: apiVehicle.battery_level,
+      pricePerHour: apiVehicle.price_per_hour,
+      pricePerDay: apiVehicle.price_per_day,
+      rating: apiVehicle.rating,
+      reviewCount: apiVehicle.review_count,
+      trips: apiVehicle.trips,
+      mileage: apiVehicle.mileage,
+      availability: apiVehicle.status as any,
+      condition: apiVehicle.condition as any,
+      image: apiVehicle.image || (model ? model.image : ''),
+      location: apiVehicle.location,
+      stationId: apiVehicle.station_id?.toString() || '1',
+      stationName: station ? station.name : 'Unknown Station',
+      stationAddress: station ? station.address : '',
+      features: model ? model.features_list : [],
+      description: model ? model.description : '',
+      fuelEfficiency: apiVehicle.fuel_efficiency,
+      lastMaintenance: apiVehicle.last_maintenance,
+      inspectionDate: apiVehicle.inspection_date,
+      insuranceExpiry: apiVehicle.insurance_expiry,
+      createdAt: apiVehicle.created_at,
+      updatedAt: apiVehicle.updated_at
+    };
+  };
 
+  // Handle loading states
+  useEffect(() => {
+    if (!vehiclesLoading && !stationsLoading && !modelsLoading) {
+      setIsInitialLoading(false);
+    }
+  }, [vehiclesLoading, stationsLoading, modelsLoading]);
+
+  // Use static data for now (API integration disabled)
   const vehicles = getVehicles(language);
 
   // Update URL parameters when filters change
@@ -259,6 +306,14 @@ const Vehicles = () => {
     vehicles,
     language,
   ]);
+
+  // Simulate initial loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <PageTransition>

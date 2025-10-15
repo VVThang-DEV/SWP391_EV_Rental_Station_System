@@ -20,7 +20,8 @@ import { useCurrency } from "@/lib/currency";
 export interface Vehicle {
   id: string; // Unique vehicle instance ID (e.g., "VF8-D1-001")
   modelId?: string; // Model identifier (e.g., "VF8", "MODEL3", "LEAF") - optional for now
-  uniqueVehicleId?: string; // Physical vehicle identifier/VIN - optional for now
+  uniqueVehicleId?: string; // VIN Number - Vehicle Identification Number (also used as system tracking ID)
+  licensePlate?: string; // License plate number - optional for now
   name: string;
   year: number;
   brand: string;
@@ -42,6 +43,7 @@ export interface Vehicle {
   location: string;
   stationId?: string; // Station where this vehicle is currently located - optional for now
   availability: "available" | "rented" | "maintenance";
+  status?: "available" | "rented" | "maintenance"; // Alias for availability - for backward compatibility
   pricePerHour: number;
   pricePerDay: number;
   rating: number;

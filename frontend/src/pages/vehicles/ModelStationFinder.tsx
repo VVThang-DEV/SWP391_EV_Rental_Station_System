@@ -243,7 +243,7 @@ const ModelStationFinder = () => {
                         <DollarSign className="h-6 w-6 mb-2" />
                         <p className="text-sm text-white/80">Per Hour</p>
                         <p className="text-xl font-bold">
-                          ${model.basePrice.perHour}
+                          ${model.pricePerHour}
                         </p>
                       </div>
                       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
@@ -582,13 +582,13 @@ const ModelStationFinder = () => {
                         Hourly Rate:
                       </span>
                       <span className="font-semibold text-lg">
-                        ${model.basePrice.perHour}
+                        ${model.pricePerHour}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Daily Rate:</span>
                       <span className="font-semibold text-lg">
-                        ${model.basePrice.perDay}
+                        ${model.pricePerDay}
                       </span>
                     </div>
                   </div>

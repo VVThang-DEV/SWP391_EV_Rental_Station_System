@@ -32,6 +32,7 @@ import {
   NotFound,
   StaffDashboard,
   AdminDashboard,
+  ApiTest,
 } from "./pages/pages";
 
 const queryClient = new QueryClient();
@@ -184,6 +185,7 @@ const App = () => {
                 <Route path="/about" element={<About />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/safety" element={<Safety />} />
+                <Route path="/api-test" element={<ApiTest />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
