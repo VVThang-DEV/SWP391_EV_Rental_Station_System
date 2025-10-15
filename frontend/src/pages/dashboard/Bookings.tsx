@@ -27,15 +27,21 @@ import {
   RotateCcw,
   Edit,
 } from "lucide-react";
- 
+import QRCodeGenerator from "@/components/QRCodeGenerator";
+
 const Bookings = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
- const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(
+    null
+  );
   const [modifiedStartDate, setModifiedStartDate] = useState("");
   const [modifiedEndDate, setModifiedEndDate] = useState("");
   const [modifiedLocation, setModifiedLocation] = useState("");
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedBookingForDetails, setSelectedBookingForDetails] =
+    useState<BookingData | null>(null);
 
   useEffect(() => {
     // Lấy dữ liệu bookings thực từ storage
@@ -113,9 +119,9 @@ const Bookings = () => {
                             {booking.startDate}
                             {booking.startTime && (
                               <span className="block text-xs">
-                               {booking.startTime}
-                             </span>
-                           )}
+                                {booking.startTime}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -126,10 +132,10 @@ const Bookings = () => {
                           <div className="text-sm text-muted-foreground">
                             {booking.endDate}
                             {booking.endTime && (
-                            <span className="block text-xs">
-                               {booking.endTime}
-                             </span>
-                           )}
+                              <span className="block text-xs">
+                                {booking.endTime}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -171,11 +177,15 @@ const Bookings = () => {
                               <Phone className="h-4 w-4 mr-2" />
                               Contact Support
                             </Button>
-                            <Button size="sm" asChild>
-                              <Link to={`/vehicles/${booking.vehicleId}`}>
-                                <Eye className="h-4 w-4 mr-1" />
-                                View Details
-                              </Link>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBookingForDetails(booking);
+                                setDetailsDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Details
                             </Button>
                           </>
                         )}
@@ -273,20 +283,29 @@ const Bookings = () => {
                                   </Button>
                                   <Button
                                     onClick={() => {
-                                     // Cập nhật booking trong storage
-                                    if (selectedBooking) {
-                                       const updated = bookingStorage.updateBooking(selectedBooking.id, {
-                                         startDate: modifiedStartDate,
-                                         endDate: modifiedEndDate,
-                                         pickupLocation: modifiedLocation,
-                                       });
+                                      // Cập nhật booking trong storage
+                                      if (selectedBooking) {
+                                        const updated =
+                                          bookingStorage.updateBooking(
+                                            selectedBooking.id,
+                                            {
+                                              startDate: modifiedStartDate,
+                                              endDate: modifiedEndDate,
+                                              pickupLocation: modifiedLocation,
+                                            }
+                                          );
 
-                                       if (updated) {
-                                         // Refresh bookings list
-                                         setBookings(bookingStorage.getAllBookings());
-                                         console.log("Booking updated:", updated);
-                                       }
-                                     }
+                                        if (updated) {
+                                          // Refresh bookings list
+                                          setBookings(
+                                            bookingStorage.getAllBookings()
+                                          );
+                                          console.log(
+                                            "Booking updated:",
+                                            updated
+                                          );
+                                        }
+                                      }
                                       setModifyDialogOpen(false);
                                     }}
                                   >
@@ -295,11 +314,15 @@ const Bookings = () => {
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>
-                            <Button 
-                              variant="destructive" 
+                            <Button
+                              variant="destructive"
                               size="sm"
                               onClick={() => {
-                                if (window.confirm("Are you sure you want to cancel this booking?")) {
+                                if (
+                                  window.confirm(
+                                    "Are you sure you want to cancel this booking?"
+                                  )
+                                ) {
                                   bookingStorage.deleteBooking(booking.id);
                                   setBookings(bookingStorage.getAllBookings());
                                 }
@@ -345,6 +368,167 @@ const Bookings = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Booking Details Dialog */}
+        <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Car className="h-5 w-5" />
+                Booking Details - {selectedBookingForDetails?.id}
+              </DialogTitle>
+              <DialogDescription>
+                Complete information about your rental booking and receipt
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedBookingForDetails && (
+              <div className="space-y-6">
+                {/* Vehicle Information */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Vehicle Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">
+                        Vehicle
+                      </div>
+                      <div className="text-lg font-semibold">
+                        {selectedBookingForDetails.vehicle}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">
+                        Vehicle ID
+                      </div>
+                      <div className="font-mono">
+                        {selectedBookingForDetails.vehicleId}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">
+                        Pickup Location
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        {selectedBookingForDetails.pickupLocation}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">
+                        Status
+                      </div>
+                      {getStatusBadge(selectedBookingForDetails.status)}
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-sm font-medium text-muted-foreground mb-2">
+                      Rental Period
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <div className="text-sm font-medium">Start Date</div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          {selectedBookingForDetails.startDate}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">End Date</div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          {selectedBookingForDetails.endDate}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">Duration</div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          {selectedBookingForDetails.duration}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Receipt */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-3">Receipt</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Base Rental Rate (per day)</span>
+                      <span>
+                        $
+                        {(selectedBookingForDetails.totalCost * 0.7).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Duration Cost</span>
+                      <span>
+                        $
+                        {(selectedBookingForDetails.totalCost * 0.2).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Service Fee</span>
+                      <span>
+                        $
+                        {(selectedBookingForDetails.totalCost * 0.05).toFixed(
+                          2
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax (10%)</span>
+                      <span>
+                        $
+                        {(selectedBookingForDetails.totalCost * 0.1).toFixed(2)}
+                      </span>
+                    </div>
+                    <hr className="my-2" />
+                    <div className="flex justify-between font-semibold text-lg">
+                      <span>Total Amount</span>
+                      <span>
+                        ${selectedBookingForDetails.totalCost.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR Code */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Booking QR Code
+                  </h3>
+                  <div className="flex justify-center">
+                    <QRCodeGenerator
+                      bookingId={selectedBookingForDetails.id}
+                      vehicleId={selectedBookingForDetails.vehicleId}
+                      customerName="John Doe" // This would come from user context
+                      pickupLocation={selectedBookingForDetails.pickupLocation}
+                      size={150}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-2">
+                    This QR code contains your booking information for
+                    verification
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDetailsDialogOpen(false)}
+              >
+                Close
+              </Button>
+              <Button>Download Receipt</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

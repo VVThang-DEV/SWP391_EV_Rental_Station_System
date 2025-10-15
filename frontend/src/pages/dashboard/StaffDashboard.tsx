@@ -681,124 +681,129 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           <div className="space-y-4">
             {vehicles
               .filter((v) => v.stationId === currentUser.stationId)
-              .filter((vehicle) => 
-                searchQuery 
-                  ? vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    vehicle.uniqueVehicleId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              .filter((vehicle) =>
+                searchQuery
+                  ? vehicle.name
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    vehicle.uniqueVehicleId
+                      ?.toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
                     vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
                   : true
               )
               .map((vehicle) => (
-              <div
-                key={vehicle.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-muted rounded-full">
-                    <Car className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">{vehicle.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      ID: {vehicle.uniqueVehicleId || vehicle.id}
-                    </p>
-                    {vehicle.status === "available" && (
-                      <p className="text-sm text-muted-foreground">
-                        Location: {vehicle.location}
-                      </p>
-                    )}
-                    {vehicle.status === "rented" && (
-                      <p className="text-sm text-muted-foreground">
-                        Customer: {vehicle.customer}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  {vehicle.batteryLevel && (
-                    <div className="flex items-center space-x-1">
-                      <Battery className="h-4 w-4 text-success" />
-                      <span className="text-sm">{vehicle.batteryLevel}%</span>
+                <div
+                  key={vehicle.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-muted rounded-full">
+                      <Car className="h-6 w-6" />
                     </div>
-                  )}
+                    <div>
+                      <h4 className="font-semibold">{vehicle.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        ID: {vehicle.uniqueVehicleId || vehicle.id}
+                      </p>
+                      {vehicle.status === "available" && (
+                        <p className="text-sm text-muted-foreground">
+                          Location: {vehicle.location}
+                        </p>
+                      )}
+                      {vehicle.status === "rented" && (
+                        <p className="text-sm text-muted-foreground">
+                          {/* @ts-expect-error - customer may not exist on vehicle type */}
+                          Customer: {vehicle.customer || "N/A"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-                  <Badge
-                    variant={
-                      vehicle.status === "available"
-                        ? "default"
-                        : vehicle.status === "rented"
-                        ? "secondary"
-                        : "destructive"
-                    }
-                  >
-                    {vehicle.status}
-                  </Badge>
+                  <div className="flex items-center space-x-4">
+                    {vehicle.batteryLevel && (
+                      <div className="flex items-center space-x-1">
+                        <Battery className="h-4 w-4 text-success" />
+                        <span className="text-sm">{vehicle.batteryLevel}%</span>
+                      </div>
+                    )}
 
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEditVehicle(vehicle)}
+                    <Badge
+                      variant={
+                        vehicle.status === "available"
+                          ? "default"
+                          : vehicle.status === "rented"
+                          ? "secondary"
+                          : "destructive"
+                      }
                     >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
+                      {vehicle.status}
+                    </Badge>
 
-                    {vehicle.status === "available" && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleScheduleDetailedMaintenance(vehicle.id)
-                          }
-                        >
-                          <Wrench className="h-3 w-3 mr-1" />
-                          {t("common.scheduleMaintenance")}
-                        </Button>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditVehicle(vehicle)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+
+                      {vehicle.status === "available" && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleScheduleDetailedMaintenance(vehicle.id)
+                            }
+                          >
+                            <Wrench className="h-3 w-3 mr-1" />
+                            {t("common.scheduleMaintenance")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-primary"
+                            onClick={() =>
+                              handleStartPreRentalInspection(vehicle.id)
+                            }
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Pre-Rental Check
+                          </Button>
+                        </>
+                      )}
+
+                      {vehicle.status === "rented" && (
                         <Button
                           size="sm"
                           className="bg-primary"
                           onClick={() =>
-                            handleStartPreRentalInspection(vehicle.id)
+                            handleStartPostRentalInspection(vehicle.id)
+                          }
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Return Inspection
+                        </Button>
+                      )}
+
+                      {vehicle.status === "maintenance" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            handleVehicleStatusUpdate(vehicle.id, "available")
                           }
                         >
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Pre-Rental Check
+                          Mark Available
                         </Button>
-                      </>
-                    )}
-
-                    {vehicle.status === "rented" && (
-                      <Button
-                        size="sm"
-                        className="bg-primary"
-                        onClick={() =>
-                          handleStartPostRentalInspection(vehicle.id)
-                        }
-                      >
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        Return Inspection
-                      </Button>
-                    )}
-
-                    {vehicle.status === "maintenance" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          handleVehicleStatusUpdate(vehicle.id, "available")
-                        }
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Mark Available
-                      </Button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </CardContent>
       </Card>
@@ -914,7 +919,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                               <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                                 <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                 <div className="flex flex-col min-w-0">
-                                  <span className="text-xs text-muted-foreground">VIN</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    VIN
+                                  </span>
                                   <span className="font-mono text-xs truncate">
                                     {vehicle.uniqueVehicleId || vehicle.id}
                                   </span>
@@ -923,22 +930,34 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                               <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-md">
                                 <Battery className="h-4 w-4 text-green-600 flex-shrink-0" />
                                 <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">Battery</span>
-                                  <span className="font-semibold text-green-600">{vehicle.batteryLevel}%</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Battery
+                                  </span>
+                                  <span className="font-semibold text-green-600">
+                                    {vehicle.batteryLevel}%
+                                  </span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
                                 <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
                                 <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">Range</span>
-                                  <span className="font-semibold">{vehicle.range} km</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Range
+                                  </span>
+                                  <span className="font-semibold">
+                                    {vehicle.range} km
+                                  </span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/20 rounded-md">
                                 <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
                                 <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">Seats</span>
-                                  <span className="font-semibold">{vehicle.seats}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Seats
+                                  </span>
+                                  <span className="font-semibold">
+                                    {vehicle.seats}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -954,7 +973,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     : "outline"
                                 }
                               >
-                                {vehicle.condition === "excellent" ? "✅" : vehicle.condition === "good" ? "👍" : "⚠️"} {vehicle.condition}
+                                {vehicle.condition === "excellent"
+                                  ? "✅"
+                                  : vehicle.condition === "good"
+                                  ? "👍"
+                                  : "⚠️"}{" "}
+                                {vehicle.condition}
                               </Badge>
                               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                                 <span className="font-medium">
