@@ -3,29 +3,29 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000
 
 // Types
 export interface Vehicle {
-  vehicle_id: number;
-  model_id: string;
-  station_id: number;
-  unique_vehicle_id: string;
-  battery_level: number;
-  max_range_km: number;
+  vehicleId: number;
+  modelId: string;
+  stationId: number;
+  uniqueVehicleId: string;
+  batteryLevel: number;
+  maxRangeKm: number;
   status: string;
-  price_per_hour: number;
-  price_per_day: number;
+  pricePerHour: number;
+  pricePerDay: number;
   rating: number;
-  review_count: number;
+  reviewCount: number;
   trips: number;
   mileage: number;
-  last_maintenance: string | null;
-  inspection_date: string | null;
-  insurance_expiry: string | null;
+  lastMaintenance: string | null;
+  inspectionDate: string | null;
+  insuranceExpiry: string | null;
   condition: string;
   image: string;
-  license_plate: string;
-  fuel_efficiency: string;
+  licensePlate: string;
+  fuelEfficiency: string;
   location: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface VehicleModel {

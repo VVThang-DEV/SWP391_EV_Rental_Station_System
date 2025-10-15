@@ -24,3 +24,4 @@ namespace EVRentalApi.Models
                 : Features.Split(',').Select(f => f.Trim()).ToList();
     }
 }
+

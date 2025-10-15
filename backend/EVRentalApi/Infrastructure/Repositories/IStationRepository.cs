@@ -7,3 +7,4 @@ namespace EVRentalApi.Infrastructure.Repositories
         Task<IEnumerable<dynamic>> GetVehiclesByStationIdAsync(int stationId);
     }
 }
+
