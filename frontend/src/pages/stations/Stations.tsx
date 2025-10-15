@@ -37,6 +37,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { stations, Station } from "@/data/stations";
 import { getVehicles } from "@/data/vehicles";
+import { useStations, useVehicles } from "@/hooks/useApi";
 import {
   PageTransition,
   FadeIn,
@@ -49,8 +50,47 @@ const Stations = () => {
   const { toast } = useToast();
   const location = useLocation();
 
-  // Get vehicles data
-  const allVehicles = getVehicles("en");
+  // API hooks
+  const { data: apiStations, loading: stationsLoading, error: stationsError } = useStations();
+  const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
+
+  // Get vehicles data - use API with fallback
+  const staticVehicles = getVehicles("en");
+  const allVehicles = apiVehicles ? apiVehicles.map(vehicle => ({
+    // Map API vehicle to expected format
+    id: vehicle.uniqueVehicleId,
+    modelId: vehicle.modelId,
+    uniqueVehicleId: vehicle.uniqueVehicleId,
+    name: `${vehicle.modelId} Vehicle`,
+    brand: "VinFast",
+    model: vehicle.modelId,
+    type: "Scooter",
+    year: 2024,
+    seats: 2,
+    range: vehicle.maxRangeKm,
+    batteryLevel: vehicle.batteryLevel,
+    pricePerHour: vehicle.pricePerHour,
+    pricePerDay: vehicle.pricePerDay,
+    rating: vehicle.rating,
+    reviewCount: vehicle.reviewCount,
+    trips: vehicle.trips,
+    mileage: vehicle.mileage,
+    availability: vehicle.status,
+    condition: vehicle.condition,
+    image: vehicle.image || "",
+    location: vehicle.location,
+    stationId: vehicle.stationId.toString(),
+    stationName: "Unknown Station",
+    stationAddress: "",
+    features: [],
+    description: "",
+    fuelEfficiency: vehicle.fuelEfficiency,
+    lastMaintenance: vehicle.lastMaintenance,
+    inspectionDate: vehicle.inspectionDate,
+    insuranceExpiry: vehicle.insuranceExpiry,
+    createdAt: vehicle.createdAt,
+    updatedAt: vehicle.updatedAt
+  })) : staticVehicles;
 
 
   // Function to get available vehicle models at a station
@@ -81,7 +121,31 @@ const Stations = () => {
   const fromPersonalInfo = location.state?.fromPersonalInfo || false;
   const welcomeMessage = location.state?.message || "";
 
-  const [filteredStations, setFilteredStations] = useState<Station[]>(stations);
+  // Use API stations with fallback to static data
+  const staticStations = stations;
+  const apiStationsMapped = apiStations ? apiStations.map(station => ({
+    // Map API station to expected format
+    id: station.stationId.toString(),
+    name: station.name,
+    address: station.address,
+    city: station.city,
+    coordinates: {
+      lat: station.latitude,
+      lng: station.longitude
+    },
+    status: station.status,
+    availableVehicles: station.availableVehicles,
+    totalSlots: station.totalSlots,
+    amenities: typeof station.amenities === 'string' ? JSON.parse(station.amenities) : station.amenities,
+    rating: station.rating,
+    operatingHours: station.operatingHours,
+    fastCharging: station.fastCharging,
+    image: station.image,
+    createdAt: station.createdAt,
+    updatedAt: station.updatedAt
+  })) : staticStations;
+
+  const [filteredStations, setFilteredStations] = useState<Station[]>(apiStationsMapped);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<
     "name" | "rating" | "availability" | "distance"
@@ -140,7 +204,7 @@ const Stations = () => {
 
   // Apply filters and sorting
   useEffect(() => {
-    const filtered = stations.filter((station) => {
+    const filtered = apiStationsMapped.filter((station) => {
       // Search term filter
       if (
         searchTerm &&
@@ -213,7 +277,7 @@ const Stations = () => {
     });
 
     setFilteredStations(filtered);
-  }, [searchTerm, filters, sortBy, sortOrder]);
+  }, [searchTerm, filters, sortBy, sortOrder, apiStationsMapped]);
 
   const handleAmenityToggle = (amenity: string) => {
     setFilters((prev) => ({
@@ -269,9 +333,21 @@ const Stations = () => {
     (filters.minRating > 0 ? 1 : 0) +
     filters.selectedAmenities.length;
 
+  // Show loading while fetching API data
+  const isLoading = stationsLoading || vehiclesLoading;
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-background">
+        {/* Loading Overlay - Disabled to fix navigation */}
+        {/* {isLoading && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading stations...</p>
+            </div>
+          </div>
+        )} */}
         {/* Header */}
         <FadeIn>
           <div className="bg-gradient-hero py-16">
@@ -675,7 +751,7 @@ const Stations = () => {
                               </span>
                               <span className="text-muted-foreground">
                                 {" "}
-                                ({Math.floor(Math.random() * 100 + 50)} reviews)
+                                ({Math.floor(station.rating * 20 + 30)} reviews)
                               </span>
                             </p>
                           </div>

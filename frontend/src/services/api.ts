@@ -29,39 +29,39 @@ export interface Vehicle {
 }
 
 export interface VehicleModel {
-  model_id: string;
+  modelId: string;
   brand: string;
-  model_name: string;
+  modelName: string;
   type: string;
   year: number;
   seats: number;
   features: string;
   description: string;
   image: string;
-  price_per_hour: number;
-  price_per_day: number;
-  max_range_km: number;
-  created_at: string;
-  updated_at: string;
-  features_list: string[];
+  pricePerHour: number;
+  pricePerDay: number;
+  maxRangeKm: number;
+  createdAt: string;
+  updatedAt: string;
+  featuresList: string[];
 }
 
 export interface Station {
-  station_id: number;
+  stationId: number;
   name: string;
   latitude: number;
   longitude: number;
   address: string;
   status: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   city: string;
-  available_vehicles: number;
-  total_slots: number;
+  availableVehicles: number;
+  totalSlots: number;
   amenities: string;
   rating: number;
-  operating_hours: string;
-  fast_charging: boolean;
+  operatingHours: string;
+  fastCharging: boolean;
   image: string;
 }
 
