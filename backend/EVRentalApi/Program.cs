@@ -50,6 +50,10 @@ builder.Services.AddScoped<IStationService, StationService>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
 
+// DI: Staff management
+builder.Services.AddScoped<IStaffRepository, StaffRepository>();
+builder.Services.AddScoped<IStaffService, StaffService>();
+
 // Add controllers
 builder.Services.AddControllers();
 

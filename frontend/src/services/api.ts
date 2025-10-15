@@ -246,6 +246,290 @@ class ApiService {
   }
 }
 
+// Staff API interfaces
+export interface StaffProfile {
+  userId: number;
+  email: string;
+  fullName: string;
+  phone: string;
+  stationId: number | null;
+  stationName: string | null;
+  stationAddress: string | null;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface StationInfo {
+  stationId: number;
+  name: string;
+  address: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  status: string;
+  availableVehicles: number;
+  totalSlots: number;
+  amenities: string[];
+  rating: number;
+  operatingHours: string;
+  fastCharging: boolean;
+  image: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateVehicleRequest {
+  batteryLevel?: number;
+  condition?: string;
+  mileage?: number;
+  status?: string;
+  lastMaintenance?: string;
+  inspectionDate?: string;
+  notes?: string;
+}
+
+export interface AddVehicleRequest {
+  modelId: string;
+  uniqueVehicleId?: string;
+  batteryLevel: number;
+  condition: string;
+  mileage: number;
+  licensePlate?: string;
+  location?: string;
+  notes?: string;
+}
+
+export interface MaintenanceRecordRequest {
+  maintenanceType: string;
+  description?: string;
+  cost?: number;
+  completedAt: string;
+  notes?: string;
+}
+
+export interface MaintenanceRecord {
+  maintenanceId: number;
+  vehicleId: number;
+  vehicleModel: string | null;
+  vehicleUniqueId: string | null;
+  staffId: number;
+  staffName: string | null;
+  maintenanceType: string;
+  description: string | null;
+  cost: number | null;
+  completedAt: string;
+  createdAt: string;
+}
+
+export interface CustomerVerification {
+  userId: number;
+  fullName: string;
+  email: string;
+  phone: string;
+  cccd: string | null;
+  licenseNumber: string | null;
+  address: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  hasDocuments: boolean;
+  documents: Document[];
+  createdAt: string;
+}
+
+export interface Document {
+  documentId: number;
+  documentType: string;
+  fileUrl: string;
+  status: string | null;
+  verifiedAt: string | null;
+  verifiedBy: number | null;
+  verifiedByName: string | null;
+  uploadedAt: string;
+}
+
+export interface CustomerVerificationRequest {
+  documentType: string;
+  status: string; // "approved", "rejected", "pending"
+  notes?: string;
+}
+
+export interface HandoverRequest {
+  rentalId: number;
+  type: string; // "pickup", "return"
+  conditionNotes?: string;
+  imageUrls?: string[];
+}
+
+export interface Handover {
+  handoverId: number;
+  rentalId: number;
+  customerId: number | null;
+  customerName: string | null;
+  vehicleId: number | null;
+  vehicleModel: string | null;
+  vehicleUniqueId: string | null;
+  staffId: number;
+  staffName: string | null;
+  type: string;
+  conditionNotes: string | null;
+  imageUrls: string[] | null;
+  createdAt: string;
+}
+
+// Staff API Service
+class StaffApiService {
+  private baseUrl = 'http://localhost:5000/api/staff';
+
+  // Staff Profile
+  async getStaffProfile(): Promise<StaffProfile> {
+    const response = await fetch(`${this.baseUrl}/profile`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch staff profile');
+    }
+    return response.json();
+  }
+
+  // Vehicle Management
+  async getStationVehicles(): Promise<Vehicle[]> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/vehicles`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch station vehicles');
+    }
+    return response.json();
+  }
+
+  async getVehicle(vehicleId: number): Promise<Vehicle> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/vehicles/${vehicleId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch vehicle');
+    }
+    return response.json();
+  }
+
+  async updateVehicle(vehicleId: number, data: UpdateVehicleRequest): Promise<Vehicle> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/vehicles/${vehicleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update vehicle');
+    }
+    const result = await response.json();
+    return result.vehicle;
+  }
+
+  async addVehicle(data: AddVehicleRequest): Promise<Vehicle> {
+    const response = await fetch(`${this.baseUrl}/vehicles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to add vehicle');
+    }
+    const result = await response.json();
+    return result.vehicle;
+  }
+
+  // Maintenance Management
+  async recordMaintenance(vehicleId: number, data: MaintenanceRecordRequest): Promise<MaintenanceRecord> {
+    const response = await fetch(`${this.baseUrl}/vehicles/${vehicleId}/maintenance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to record maintenance');
+    }
+    const result = await response.json();
+    return result.record;
+  }
+
+  async getMaintenanceRecords(): Promise<MaintenanceRecord[]> {
+    const response = await fetch(`${this.baseUrl}/maintenance`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch maintenance records');
+    }
+    return response.json();
+  }
+
+  // Station Information
+  async getStationInfo(): Promise<StationInfo> {
+    const response = await fetch(`${this.baseUrl}/station`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch station info');
+    }
+    return response.json();
+  }
+
+  // Customer Verification
+  async getCustomersForVerification(): Promise<CustomerVerification[]> {
+    const response = await fetch(`${this.baseUrl}/customers`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch customers for verification');
+    }
+    return response.json();
+  }
+
+  async verifyCustomer(customerId: number, data: CustomerVerificationRequest): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/customers/${customerId}/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to verify customer');
+    }
+  }
+
+  // Handover Management
+  async getHandovers(): Promise<Handover[]> {
+    const response = await fetch(`${this.baseUrl}/handovers`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch handovers');
+    }
+    return response.json();
+  }
+
+  async recordHandover(data: HandoverRequest): Promise<Handover> {
+    const response = await fetch(`${this.baseUrl}/handovers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to record handover');
+    }
+    const result = await response.json();
+    return result.handover;
+  }
+}
+
 // Export singleton instance
 export const apiService = new ApiService();
+export const staffApiService = new StaffApiService();
 export default apiService;
