@@ -127,7 +127,7 @@ const Vehicles = () => {
 
   // Data Mapper: Convert API data to UI format
   const mapApiToUI = (apiVehicle: any) => {
-    const model = apiVehicleModels?.find(m => m.model_id === apiVehicle.modelId);
+    const model = apiVehicleModels?.find(m => m.modelId === apiVehicle.modelId);
     const station = apiStations?.find(s => s.station_id === apiVehicle.stationId);
     
     return {
@@ -135,10 +135,10 @@ const Vehicles = () => {
       modelId: apiVehicle.modelId,
       uniqueVehicleId: apiVehicle.uniqueVehicleId,
       licensePlate: apiVehicle.licensePlate || '',
-      name: model ? `${model.brand} ${model.model_name}` : apiVehicle.uniqueVehicleId,
+      name: model ? `${model.brand} ${model.modelName}` : `${apiVehicle.modelId} Vehicle`,
       year: model ? model.year : 2024,
       brand: model ? model.brand : 'VinFast',
-      model: model ? model.model_name : 'Unknown',
+      model: model ? model.modelName : apiVehicle.modelId,
       type: model ? model.type as any : 'Scooter',
       seats: model ? model.seats : 2,
       range: apiVehicle.maxRangeKm,
@@ -151,12 +151,13 @@ const Vehicles = () => {
       mileage: apiVehicle.mileage,
       availability: apiVehicle.status as any,
       condition: apiVehicle.condition as any,
+      // Use model image if vehicle doesn't have specific image
       image: apiVehicle.image || (model ? model.image : ''),
       location: apiVehicle.location,
       stationId: apiVehicle.stationId?.toString() || '1',
       stationName: station ? station.name : 'Unknown Station',
       stationAddress: station ? station.address : '',
-      features: model ? model.features_list : [],
+      features: model ? model.featuresList : [],
       description: model ? model.description : '',
       fuelEfficiency: apiVehicle.fuelEfficiency,
       lastMaintenance: apiVehicle.lastMaintenance,
@@ -320,20 +321,20 @@ const Vehicles = () => {
 
   // Remove simulated loading - now using real API loading
 
-  // Add polling for real-time updates
-  useEffect(() => {
-    if (!apiVehicles) return; // Only poll if we're using API data
-    
-    const interval = setInterval(() => {
-      // Refetch data every 30 seconds to get latest vehicle status
-      console.log('Polling for vehicle updates...');
-      refetchVehicles();
-      refetchStations();
-      refetchModels();
-    }, 30000); // 30 seconds
+  // Add polling for real-time updates (disabled for now to prevent UI jumping)
+  // useEffect(() => {
+  //   if (!apiVehicles) return; // Only poll if we're using API data
+  //   
+  //   const interval = setInterval(() => {
+  //     // Refetch data every 30 seconds to get latest vehicle status
+  //     console.log('Polling for vehicle updates...');
+  //     refetchVehicles();
+  //     refetchStations();
+  //     refetchModels();
+  //   }, 30000); // 30 seconds
 
-    return () => clearInterval(interval);
-  }, [apiVehicles, refetchVehicles, refetchStations, refetchModels]);
+  //   return () => clearInterval(interval);
+  // }, [apiVehicles, refetchVehicles, refetchStations, refetchModels]);
 
   return (
     <PageTransition>
