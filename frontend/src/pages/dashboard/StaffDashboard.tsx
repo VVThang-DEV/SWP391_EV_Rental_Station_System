@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -70,11 +71,13 @@ import {
   RefreshCw,
   Save,
   X,
+  DollarSign,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
+import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
 
 interface StaffDashboardProps {
@@ -117,6 +120,34 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [vehicleMileage, setVehicleMileage] = useState("");
   const [vehicleCondition, setVehicleCondition] = useState("");
   const [batteryLevel, setBatteryLevel] = useState("");
+
+  // Add Vehicle Dialog state
+  const [isAddVehicleDialogOpen, setIsAddVehicleDialogOpen] = useState(false);
+  const [selectedModelToAdd, setSelectedModelToAdd] = useState("");
+  const [newVehicleData, setNewVehicleData] = useState({
+    batteryLevel: "100",
+    condition: "excellent",
+    mileage: "0",
+  });
+
+  // Vehicle Inspection Workflow state
+  const [isPreRentalInspectionOpen, setIsPreRentalInspectionOpen] =
+    useState(false);
+  const [isPostRentalInspectionOpen, setIsPostRentalInspectionOpen] =
+    useState(false);
+  const [inspectingVehicleId, setInspectingVehicleId] = useState<string | null>(
+    null
+  );
+  const [inspectionData, setInspectionData] = useState({
+    batteryLevel: "",
+    mileage: "",
+    condition: "excellent",
+    exteriorCondition: "good",
+    interiorCondition: "good",
+    tiresCondition: "good",
+    notes: "",
+    damages: [] as string[],
+  });
 
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -351,6 +382,190 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     });
   };
 
+  const handleAddVehicle = () => {
+    if (!selectedModelToAdd) {
+      toast({
+        title: "Error",
+        description: "Please select a vehicle model",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get the selected model details
+    const availableModels = getVehicleModels();
+    const selectedModel = availableModels.find(
+      (m) => m.modelId === selectedModelToAdd
+    );
+
+    if (!selectedModel) return;
+
+    // Generate unique vehicle ID
+    const station = stations.find((s) => s.id === currentUser.stationId);
+    const existingVehiclesOfModel = vehicles.filter(
+      (v) =>
+        v.modelId === selectedModelToAdd &&
+        v.stationId === currentUser.stationId
+    );
+    const nextNumber = existingVehiclesOfModel.length + 1;
+    const stationCode = station?.name.split(" ")[1] || "ST";
+    const vehicleId = `${selectedModelToAdd}-${stationCode}-${String(
+      nextNumber
+    ).padStart(3, "0")}`;
+
+    // Generate unique VIN-style ID
+    const timestamp = Date.now().toString().slice(-6);
+    const uniqueVehicleId = `VN1${selectedModelToAdd}${timestamp}${nextNumber}`;
+
+    toast({
+      title: "Vehicle Added Successfully!",
+      description: `${selectedModel.name} (ID: ${vehicleId}) has been added to your station`,
+      duration: 3000,
+    });
+
+    // Reset form
+    setIsAddVehicleDialogOpen(false);
+    setSelectedModelToAdd("");
+    setNewVehicleData({
+      batteryLevel: "100",
+      condition: "excellent",
+      mileage: "0",
+    });
+  };
+
+  // Vehicle Inspection Handlers
+  const handleStartPreRentalInspection = (vehicleId: string) => {
+    console.log("Pre-Rental Inspection clicked for vehicle:", vehicleId);
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (vehicle) {
+      console.log("Vehicle found:", vehicle);
+      setInspectingVehicleId(vehicleId);
+      setInspectionData({
+        batteryLevel: vehicle.batteryLevel?.toString() || "100",
+        mileage: vehicle.mileage?.toString() || "0",
+        condition: "excellent",
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        notes: "",
+        damages: [],
+      });
+      setIsPreRentalInspectionOpen(true);
+      console.log("Dialog should open now, state set to true");
+    } else {
+      console.log("Vehicle not found!");
+    }
+  };
+
+  const handleCompletePreRentalInspection = () => {
+    if (!inspectingVehicleId) return;
+
+    // Validation
+    if (!inspectionData.batteryLevel || !inspectionData.mileage) {
+      toast({
+        title: "Incomplete Inspection",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Pre-Rental Inspection Complete",
+      description: `Vehicle ${inspectingVehicleId} is ready for rental`,
+      duration: 3000,
+    });
+
+    // Reset and close
+    setIsPreRentalInspectionOpen(false);
+    setInspectingVehicleId(null);
+    setInspectionData({
+      batteryLevel: "",
+      mileage: "",
+      condition: "excellent",
+      exteriorCondition: "good",
+      interiorCondition: "good",
+      tiresCondition: "good",
+      notes: "",
+      damages: [],
+    });
+  };
+
+  const handleStartPostRentalInspection = (vehicleId: string) => {
+    console.log("Post-Rental Inspection clicked for vehicle:", vehicleId);
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (vehicle) {
+      console.log("Vehicle found:", vehicle);
+      setInspectingVehicleId(vehicleId);
+      setInspectionData({
+        batteryLevel: "",
+        mileage: "",
+        condition: "excellent",
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        notes: "",
+        damages: [],
+      });
+      setIsPostRentalInspectionOpen(true);
+      console.log("Post-rental dialog should open now, state set to true");
+    } else {
+      console.log("Vehicle not found!");
+    }
+  };
+
+  const handleCompletePostRentalInspection = () => {
+    if (!inspectingVehicleId) return;
+
+    // Validation
+    if (!inspectionData.batteryLevel || !inspectionData.mileage) {
+      toast({
+        title: "Incomplete Inspection",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if vehicle needs maintenance
+    const needsMaintenance =
+      inspectionData.damages.length > 0 ||
+      inspectionData.exteriorCondition === "poor" ||
+      inspectionData.interiorCondition === "poor" ||
+      inspectionData.tiresCondition === "poor";
+
+    toast({
+      title: "Post-Rental Inspection Complete",
+      description: needsMaintenance
+        ? `Vehicle ${inspectingVehicleId} marked for maintenance`
+        : `Vehicle ${inspectingVehicleId} is now available`,
+      duration: 3000,
+    });
+
+    // Reset and close
+    setIsPostRentalInspectionOpen(false);
+    setInspectingVehicleId(null);
+    setInspectionData({
+      batteryLevel: "",
+      mileage: "",
+      condition: "excellent",
+      exteriorCondition: "good",
+      interiorCondition: "good",
+      tiresCondition: "good",
+      notes: "",
+      damages: [],
+    });
+  };
+
+  const handleToggleDamage = (damage: string) => {
+    setInspectionData((prev) => ({
+      ...prev,
+      damages: prev.damages.includes(damage)
+        ? prev.damages.filter((d) => d !== damage)
+        : [...prev.damages, damage],
+    }));
+  };
+
   const renderVehicleManagement = () => (
     <div className="space-y-6">
       {/* Quick Stats */}
@@ -451,121 +666,808 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 <Filter className="h-4 w-4 mr-2" />
                 {t("common.filter")}
               </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsAddVehicleDialogOpen(true)}
+                className="bg-primary"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Vehicle
+              </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {vehicleList.map((vehicle) => (
-              <div
-                key={vehicle.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-muted rounded-full">
-                    <Car className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">{vehicle.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      ID: {vehicle.id}
-                    </p>
-                    {vehicle.status === "available" && (
-                      <p className="text-sm text-muted-foreground">
-                        Location: {vehicle.location}
-                      </p>
-                    )}
-                    {vehicle.status === "rented" && (
-                      <p className="text-sm text-muted-foreground">
-                        Customer: {vehicle.customer}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  {vehicle.battery && (
-                    <div className="flex items-center space-x-1">
-                      <Battery className="h-4 w-4 text-success" />
-                      <span className="text-sm">{vehicle.battery}%</span>
+            {vehicles
+              .filter((v) => v.stationId === currentUser.stationId)
+              .filter((vehicle) =>
+                searchQuery
+                  ? vehicle.name
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    vehicle.uniqueVehicleId
+                      ?.toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
+                  : true
+              )
+              .map((vehicle) => (
+                <div
+                  key={vehicle.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-muted rounded-full">
+                      <Car className="h-6 w-6" />
                     </div>
-                  )}
+                    <div>
+                      <h4 className="font-semibold">{vehicle.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        ID: {vehicle.uniqueVehicleId || vehicle.id}
+                      </p>
+                      {vehicle.status === "available" && (
+                        <p className="text-sm text-muted-foreground">
+                          Location: {vehicle.location}
+                        </p>
+                      )}
+                      {vehicle.status === "rented" && (
+                        <p className="text-sm text-muted-foreground">
+                          {/* @ts-expect-error - customer may not exist on vehicle type */}
+                          Customer: {vehicle.customer || "N/A"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-                  <Badge
-                    variant={
-                      vehicle.status === "available"
-                        ? "default"
-                        : vehicle.status === "rented"
-                        ? "secondary"
-                        : "destructive"
-                    }
-                  >
-                    {vehicle.status}
-                  </Badge>
+                  <div className="flex items-center space-x-4">
+                    {vehicle.batteryLevel && (
+                      <div className="flex items-center space-x-1">
+                        <Battery className="h-4 w-4 text-success" />
+                        <span className="text-sm">{vehicle.batteryLevel}%</span>
+                      </div>
+                    )}
 
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEditVehicle(vehicle)}
+                    <Badge
+                      variant={
+                        vehicle.status === "available"
+                          ? "default"
+                          : vehicle.status === "rented"
+                          ? "secondary"
+                          : "destructive"
+                      }
                     >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
+                      {vehicle.status}
+                    </Badge>
 
-                    {vehicle.status === "available" && (
-                      <>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditVehicle(vehicle)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+
+                      {vehicle.status === "available" && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleScheduleDetailedMaintenance(vehicle.id)
+                            }
+                          >
+                            <Wrench className="h-3 w-3 mr-1" />
+                            {t("common.scheduleMaintenance")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-primary"
+                            onClick={() =>
+                              handleStartPreRentalInspection(vehicle.id)
+                            }
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Pre-Rental Check
+                          </Button>
+                        </>
+                      )}
+
+                      {vehicle.status === "rented" && (
+                        <Button
+                          size="sm"
+                          className="bg-primary"
+                          onClick={() =>
+                            handleStartPostRentalInspection(vehicle.id)
+                          }
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Return Inspection
+                        </Button>
+                      )}
+
+                      {vehicle.status === "maintenance" && (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() =>
-                            handleScheduleDetailedMaintenance(vehicle.id)
-                          }
-                        >
-                          <Wrench className="h-3 w-3 mr-1" />
-                          {t("common.scheduleMaintenance")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            handleVehicleCheckout(vehicle.id, "walk-in")
+                            handleVehicleStatusUpdate(vehicle.id, "available")
                           }
                         >
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Check Out
+                          Mark Available
                         </Button>
-                      </>
-                    )}
-
-                    {vehicle.status === "rented" && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleVehicleCheckin(vehicle.id)}
-                      >
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        {t("common.checkIn")}
-                      </Button>
-                    )}
-
-                    {vehicle.status === "maintenance" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          handleVehicleStatusUpdate(vehicle.id, "available")
-                        }
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Mark Available
-                      </Button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </CardContent>
       </Card>
+
+      {/* Assign Registered Vehicle to Station Dialog */}
+      <Dialog
+        open={isAddVehicleDialogOpen}
+        onOpenChange={setIsAddVehicleDialogOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Car className="h-6 w-6" />
+              Assign Vehicle to Your Station
+            </DialogTitle>
+            <p className="text-base text-muted-foreground mt-2">
+              Select a registered vehicle from the system to assign to{" "}
+              <strong className="text-primary">
+                {stations.find((s) => s.id === currentUser.stationId)?.name}
+              </strong>
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Search & Filter */}
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by VIN, License Plate, or Model..."
+                  className="pl-10"
+                  value={selectedModelToAdd}
+                  onChange={(e) => setSelectedModelToAdd(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Available Vehicles List */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Car className="h-5 w-5" />
+                Available Registered Vehicles
+              </h3>
+
+              <div className="grid grid-cols-1 gap-4 pr-2 pl-2 py-1">
+                {vehicles
+                  .filter((v) => !v.stationId || v.stationId === "") // Only show unassigned vehicles
+                  .filter((v) =>
+                    selectedModelToAdd
+                      ? v.name
+                          .toLowerCase()
+                          .includes(selectedModelToAdd.toLowerCase()) ||
+                        v.uniqueVehicleId
+                          ?.toLowerCase()
+                          .includes(selectedModelToAdd.toLowerCase()) ||
+                        v.id
+                          .toLowerCase()
+                          .includes(selectedModelToAdd.toLowerCase())
+                      : true
+                  )
+                  .map((vehicle) => (
+                    <Card
+                      key={vehicle.id}
+                      className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${
+                        newVehicleData.mileage === vehicle.id
+                          ? "ring-2 ring-primary bg-primary/5 shadow-md"
+                          : "hover:border-primary/50"
+                      }`}
+                      onClick={() => {
+                        setNewVehicleData({
+                          ...newVehicleData,
+                          mileage: vehicle.id, // Using mileage field to store selected vehicle ID temporarily
+                        });
+                      }}
+                    >
+                      <CardContent className="p-3 pl-4">
+                        <div className="flex gap-3">
+                          {/* Vehicle Image */}
+                          <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
+                            <img
+                              src={vehicle.image}
+                              alt={vehicle.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          {/* Vehicle Details */}
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="font-bold text-lg text-foreground">
+                                  {vehicle.name}
+                                </h4>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {vehicle.type} • {vehicle.year}
+                                </p>
+                                {vehicle.licensePlate && (
+                                  <p className="text-sm font-semibold text-primary mt-1">
+                                    License: {vehicle.licensePlate}
+                                  </p>
+                                )}
+                              </div>
+                              {newVehicleData.mileage === vehicle.id && (
+                                <Badge className="bg-primary text-white text-base px-3 py-1.5 shadow-md">
+                                  ✓ Selected
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs text-muted-foreground">
+                                    VIN
+                                  </span>
+                                  <span className="font-mono text-xs truncate">
+                                    {vehicle.uniqueVehicleId || vehicle.id}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-md">
+                                <Battery className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground">
+                                    Battery
+                                  </span>
+                                  <span className="font-semibold text-green-600">
+                                    {vehicle.batteryLevel}%
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
+                                <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground">
+                                    Range
+                                  </span>
+                                  <span className="font-semibold">
+                                    {vehicle.range} km
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/20 rounded-md">
+                                <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground">
+                                    Seats
+                                  </span>
+                                  <span className="font-semibold">
+                                    {vehicle.seats}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <Badge
+                                className="text-sm px-3 py-1"
+                                variant={
+                                  vehicle.condition === "excellent"
+                                    ? "default"
+                                    : vehicle.condition === "good"
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                              >
+                                {vehicle.condition === "excellent"
+                                  ? "✅"
+                                  : vehicle.condition === "good"
+                                  ? "👍"
+                                  : "⚠️"}{" "}
+                                {vehicle.condition}
+                              </Badge>
+                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                <span className="font-medium">
+                                  ₫{vehicle.pricePerHour.toLocaleString()}/hr
+                                </span>
+                                <span className="text-muted-foreground">•</span>
+                                <span className="font-medium">
+                                  ₫{vehicle.pricePerDay.toLocaleString()}/day
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                {vehicles.filter((v) => !v.stationId || v.stationId === "")
+                  .length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="font-medium">
+                      No unassigned vehicles available
+                    </p>
+                    <p className="text-sm">
+                      All vehicles have been assigned to stations
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-900 dark:text-blue-100 space-y-1">
+                  <p className="font-medium">About Assigning Vehicles:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Only vehicles registered by admin are shown here</li>
+                    <li>
+                      You can only assign vehicles that are not currently
+                      assigned to other stations
+                    </li>
+                    <li>
+                      Selected vehicle will be assigned to:{" "}
+                      <strong>
+                        {
+                          stations.find((s) => s.id === currentUser.stationId)
+                            ?.name
+                        }
+                      </strong>
+                    </li>
+                    <li>
+                      Vehicle status and condition are set during registration
+                      by admin
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddVehicleDialogOpen(false);
+                setSelectedModelToAdd("");
+                setNewVehicleData({
+                  batteryLevel: "100",
+                  condition: "excellent",
+                  mileage: "0",
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddVehicle}
+              disabled={
+                !newVehicleData.mileage || newVehicleData.mileage === "0"
+              }
+              className="bg-primary"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Assign Vehicle to Station
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pre-Rental Inspection Dialog */}
+      <Dialog
+        open={isPreRentalInspectionOpen}
+        onOpenChange={setIsPreRentalInspectionOpen}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pre-Rental Vehicle Inspection</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Vehicle ID: {inspectingVehicleId}
+            </p>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Vehicle Metrics */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="preBatteryLevel">Battery Level (%)*</Label>
+                <Input
+                  id="preBatteryLevel"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={inspectionData.batteryLevel}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      batteryLevel: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="preMileage">Current Mileage (km)*</Label>
+                <Input
+                  id="preMileage"
+                  type="number"
+                  min="0"
+                  value={inspectionData.mileage}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      mileage: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Condition Checks */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm">
+                Vehicle Condition Assessment
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="preExterior">Exterior Condition</Label>
+                  <select
+                    id="preExterior"
+                    value={inspectionData.exteriorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        exteriorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="preInterior">Interior Condition</Label>
+                  <select
+                    id="preInterior"
+                    value={inspectionData.interiorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        interiorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="preTires">Tires Condition</Label>
+                  <select
+                    id="preTires"
+                    value={inspectionData.tiresCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        tiresCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Damage Checklist */}
+            <div className="space-y-3">
+              <Label>Pre-existing Damages (if any)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  "Scratches",
+                  "Dents",
+                  "Broken lights",
+                  "Cracked windshield",
+                  "Worn tires",
+                  "Interior stains",
+                  "Missing parts",
+                  "Other damages",
+                ].map((damage) => (
+                  <label
+                    key={damage}
+                    className="flex items-center space-x-2 text-sm cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={inspectionData.damages.includes(damage)}
+                      onChange={() => handleToggleDamage(damage)}
+                      className="rounded"
+                    />
+                    <span>{damage}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <Label htmlFor="preNotes">Additional Notes</Label>
+              <Textarea
+                id="preNotes"
+                value={inspectionData.notes}
+                onChange={(e) =>
+                  setInspectionData({
+                    ...inspectionData,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder="Any additional observations or concerns..."
+                rows={3}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsPreRentalInspectionOpen(false);
+                  setInspectingVehicleId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCompletePreRentalInspection}
+                className="bg-primary"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Complete & Ready for Rental
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post-Rental Inspection Dialog */}
+      <Dialog
+        open={isPostRentalInspectionOpen}
+        onOpenChange={setIsPostRentalInspectionOpen}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Post-Rental Vehicle Inspection</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Vehicle ID: {inspectingVehicleId}
+            </p>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Vehicle Metrics */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="postBatteryLevel">Battery Level (%)*</Label>
+                <Input
+                  id="postBatteryLevel"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={inspectionData.batteryLevel}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      batteryLevel: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="postMileage">Return Mileage (km)*</Label>
+                <Input
+                  id="postMileage"
+                  type="number"
+                  min="0"
+                  value={inspectionData.mileage}
+                  onChange={(e) =>
+                    setInspectionData({
+                      ...inspectionData,
+                      mileage: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Condition Checks */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm">
+                Vehicle Condition Assessment
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="postExterior">Exterior Condition</Label>
+                  <select
+                    id="postExterior"
+                    value={inspectionData.exteriorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        exteriorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="postInterior">Interior Condition</Label>
+                  <select
+                    id="postInterior"
+                    value={inspectionData.interiorCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        interiorCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="postTires">Tires Condition</Label>
+                  <select
+                    id="postTires"
+                    value={inspectionData.tiresCondition}
+                    onChange={(e) =>
+                      setInspectionData({
+                        ...inspectionData,
+                        tiresCondition: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Damage Checklist */}
+            <div className="space-y-3">
+              <Label className="text-destructive">
+                New Damages Found (if any)
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  "Scratches",
+                  "Dents",
+                  "Broken lights",
+                  "Cracked windshield",
+                  "Worn tires",
+                  "Interior stains",
+                  "Missing parts",
+                  "Other damages",
+                ].map((damage) => (
+                  <label
+                    key={damage}
+                    className="flex items-center space-x-2 text-sm cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={inspectionData.damages.includes(damage)}
+                      onChange={() => handleToggleDamage(damage)}
+                      className="rounded"
+                    />
+                    <span>{damage}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Alert for damages */}
+            {inspectionData.damages.length > 0 && (
+              <div className="bg-destructive-light p-4 rounded-md border border-destructive">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-sm text-destructive">
+                      Damages Detected
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Vehicle will be marked for maintenance after inspection.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <Label htmlFor="postNotes">Inspection Notes*</Label>
+              <Textarea
+                id="postNotes"
+                value={inspectionData.notes}
+                onChange={(e) =>
+                  setInspectionData({
+                    ...inspectionData,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder="Document any issues, customer feedback, or observations..."
+                rows={3}
+                required
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsPostRentalInspectionOpen(false);
+                  setInspectingVehicleId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCompletePostRentalInspection}
+                className="bg-primary"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Complete Inspection & Return Vehicle
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Maintenance Scheduling Dialog */}
       <Dialog

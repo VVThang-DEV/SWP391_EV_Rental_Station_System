@@ -28,3 +28,6 @@ export { default as Safety } from "./public/Safety";
 export { default as Terms } from "./public/Terms";
 export { default as Privacy } from "./public/Privacy";
 export { default as NotFound } from "./public/NotFound";
+
+// API Test component
+export { default as ApiTest } from "../components/ApiTest";

@@ -53,7 +53,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
   const [personalData, setPersonalData] = useState({
     fullName: user?.name || "",
     email: user?.email || "",
-    phone: "",
+    phone: "0399106850", // Use correct phone from database
     address: "",
     cccd: "",
     licenseNumber: "",
@@ -206,6 +206,15 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
 
       // Debug logging
       console.log("Sending data to API:", updateData);
+      console.log("Data types:", {
+        email: typeof updateData.email,
+        cccd: typeof updateData.cccd,
+        LicenseNumber: typeof updateData.LicenseNumber,
+        address: typeof updateData.address,
+        gender: typeof updateData.gender,
+        dateOfBirth: typeof updateData.dateOfBirth,
+        phone: typeof updateData.phone
+      });
 
       // Call API to update personal information
       const response = await fetch("http://localhost:5000/auth/update-personal-info", {
@@ -217,7 +226,11 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update personal information");
+        const errorText = await response.text();
+        console.error("API Error Response:", errorText);
+        console.error("Response Status:", response.status);
+        console.error("Response Headers:", Object.fromEntries(response.headers.entries()));
+        throw new Error(`Failed to update personal information: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
