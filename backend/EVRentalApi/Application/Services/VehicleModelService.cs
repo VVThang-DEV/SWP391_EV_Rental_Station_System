@@ -82,3 +82,4 @@ namespace EVRentalApi.Application.Services
         }
     }
 }
+

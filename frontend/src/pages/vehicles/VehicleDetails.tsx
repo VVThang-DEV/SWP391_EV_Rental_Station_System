@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getVehicleById } from "@/data/vehicles";
+import { useVehicles } from "@/hooks/useApi";
 import { stations } from "@/data/stations";
 import { calculateDistance } from "@/lib/vehicle-station-utils";
 import { useTranslation } from "@/contexts/TranslationContext";
@@ -31,7 +32,46 @@ const VehicleDetails = () => {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const { formatPrice } = useCurrency();
-  const vehicle = id ? getVehicleById(id) : null;
+  
+  // Use API data with fallback to static data
+  const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
+  const staticVehicle = id ? getVehicleById(id) : null;
+  
+  // Find vehicle from API data or fallback to static
+  const apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === id);
+  const vehicle = apiVehicle ? {
+    // Map API data to expected format
+    id: apiVehicle.uniqueVehicleId,
+    name: `${apiVehicle.modelId} Vehicle`,
+    brand: "VinFast",
+    model: apiVehicle.modelId,
+    type: "Scooter",
+    year: 2024,
+    seats: 2,
+    range: apiVehicle.maxRangeKm,
+    batteryLevel: apiVehicle.batteryLevel,
+    pricePerHour: apiVehicle.pricePerHour,
+    pricePerDay: apiVehicle.pricePerDay,
+    rating: apiVehicle.rating,
+    reviewCount: apiVehicle.reviewCount,
+    trips: apiVehicle.trips,
+    mileage: apiVehicle.mileage,
+    availability: apiVehicle.status,
+    condition: apiVehicle.condition,
+    image: apiVehicle.image || "",
+    location: apiVehicle.location,
+    stationId: apiVehicle.stationId.toString(),
+    stationName: "Unknown Station",
+    stationAddress: "",
+    features: [],
+    description: "",
+    fuelEfficiency: apiVehicle.fuelEfficiency,
+    lastMaintenance: apiVehicle.lastMaintenance,
+    inspectionDate: apiVehicle.inspectionDate,
+    insuranceExpiry: apiVehicle.insuranceExpiry,
+    createdAt: apiVehicle.createdAt,
+    updatedAt: apiVehicle.updatedAt
+  } : staticVehicle;
   const [distanceToStation, setDistanceToStation] = useState<number | null>(null);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationError, setLocationError] = useState<string>("");
@@ -70,6 +110,18 @@ const VehicleDetails = () => {
       setLocationError("Geolocation not supported");
     }
   }, [vehicle]);
+
+  // Show loading while fetching API data
+  if (vehiclesLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading vehicle details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!vehicle) {
     return (

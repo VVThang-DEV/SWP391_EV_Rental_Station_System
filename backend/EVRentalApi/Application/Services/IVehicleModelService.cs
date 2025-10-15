@@ -9,3 +9,4 @@ namespace EVRentalApi.Application.Services
         Task<IEnumerable<VehicleDto>> GetVehiclesByModelIdAsync(string modelId);
     }
 }
+

@@ -38,3 +38,4 @@ namespace EVRentalApi.Models
         public double Lng { get; set; }
     }
 }
+

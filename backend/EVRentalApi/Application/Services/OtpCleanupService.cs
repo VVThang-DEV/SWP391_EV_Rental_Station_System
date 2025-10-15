@@ -23,7 +23,7 @@ public sealed class OtpCleanupService : BackgroundService
             try
             {
                 using var scope = _services.CreateScope();
-                var repo = scope.ServiceProvider.GetRequiredService<OTPRepository>();
+                var repo = scope.ServiceProvider.GetRequiredService<IOTPRepository>();
                 await repo.CleanupExpiredOTPsAsync();
             }
             catch (Exception ex)
