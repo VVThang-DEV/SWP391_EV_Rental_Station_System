@@ -648,7 +648,7 @@ const BookingPage = () => {
                     })()}
                   </div>
                 )}
-                
+
                 {bookingData.rentalDuration === "hourly" && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Select a pick up time - the car must be picked up within this time
@@ -665,7 +665,7 @@ const BookingPage = () => {
                           <div className="flex items-center space-x-2 p-2 bg-green-50 border border-green-200 rounded-md">
                             <Clock className="h-4 w-4 text-green-600" />
                             <span className="text-sm text-green-700 font-medium">
-                              ⏰ {timeToPickup}
+                              {timeToPickup}
                             </span>
                           </div>
                         );
@@ -1243,13 +1243,17 @@ const BookingPage = () => {
                               if (bookingData.rentalDuration === "daily") {
                                 const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
                                 const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
-                                const diffMs = end.getTime() - start.getTime();
+                                // ✅ FIX: Tính số ngày chính xác
+                                const startDateOnly = new Date(bookingData.startDate);
+                                const endDateOnly = new Date(bookingData.endDate);
+                                const diffMs = endDateOnly.getTime() - startDateOnly.getTime();
                                 const days = diffMs / (1000 * 60 * 60 * 24);
 
-                                if (days < 1) {
+                               // ✅     Cho phép từ 1 ngày trở lên (không tính giờ)
+                               if (days < 1) {
                                   toast({
                                     title: "Invalid Date Range",
-                                    description: "Minimum rental duration is 1 day.",
+                                    description: `Selected duration: ${days} day(s). Minimum rental duration is 1 day.`,
                                     variant: "destructive",
                                   });
                                   return;
