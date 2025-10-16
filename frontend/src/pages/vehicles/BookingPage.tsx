@@ -95,32 +95,88 @@ const BookingPage = () => {
     return diffHours >= 1; // Tối thiểu 1 giờ
   };
 
+  // THÊM MỚI: Function tính thời gian còn lại để pickup
+  const calculateTimeToPickup = (selectedDate: string, selectedTime: string) => {
+    if (!selectedDate || !selectedTime) return null;
+
+    const now = new Date();
+    const [hours, minutes] = selectedTime.split(':').map(Number);
+    const pickupDateTime = new Date(selectedDate);
+    pickupDateTime.setHours(hours, minutes, 0, 0);
+
+    const diffMs = pickupDateTime.getTime() - now.getTime();
+
+   // Tính thời gian kết thúc của pickup slot
+   let pickupEndHour = hours;
+   let pickupEndMinute = 0;
+
+   if (minutes === 0) {
+     // Slot XX:00 - XX:30 → có thể pickup đến XX:30
+     pickupEndHour = hours;
+     pickupEndMinute = 30;
+   } else {
+     // Slot XX:30 - (XX+1):00 → có thể pickup đến (XX+1):00
+     pickupEndHour = hours + 1;
+     pickupEndMinute = 0;
+   }
+
+   const pickupEndDateTime = new Date(selectedDate);
+   pickupEndDateTime.setHours(pickupEndHour, pickupEndMinute, 0, 0);
+
+   const diffMsToEnd = pickupEndDateTime.getTime() - now.getTime();
+
+   // Nếu đã qua thời gian kết thúc pickup slot
+   if (diffMsToEnd <= 0) return null;
+
+    const diffMinutes = Math.floor(diffMsToEnd / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+    const remainingMinutes = diffMinutes % 60;
+
+    if (diffHours > 0) {
+      if (remainingMinutes > 0) {
+        return `You have ${diffHours} hour${diffHours !== 1 ? 's' : ''} and ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} to pick up the vehicle`;
+      } else {
+        return `You have ${diffHours} hour${diffHours !== 1 ? 's' : ''} to pick up the vehicle`;
+      }
+    } else {
+      return `You have ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} to pick up the vehicle`;
+    }
+  };
+
   const handleRentalDurationChange = (value: string) => {
     setBookingData((prev) => {
       if (value === "hourly") {
-        // Khi chọn hourly: End Date = Start Date và End Time = Start Time + 1 giờ
-        const currentStartTime = prev.startTime || getTimeStr();
-        const endTime = calculateMinimumEndTime(currentStartTime);
+        const bestSlot = getBestAvailableSlot();
+        if (bestSlot) {
+          const returnOptions = getReturnTimeOptions(bestSlot.value);
+          const defaultReturnTime = returnOptions[0]?.value || "";
 
+          return {
+            ...prev,
+            rentalDuration: value,
+            endDate: prev.startDate,
+            startTime: bestSlot.value,
+            endTime: defaultReturnTime,
+          };
+        }
         return {
           ...prev,
           rentalDuration: value,
-          endDate: prev.startDate, // End Date = Start Date
-          endTime: endTime,
+          endDate: prev.startDate,
         };
       } else {
-        // Daily rental: giữ logic cũ
         const today = new Date();
-        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000); // Tính ngày hôm sau
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
         const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
-        const currentTime = getTimeStr(); // Giờ hiện tại
+        const bestSlot = getBestAvailableSlot();
+        const pickupSlot = bestSlot ? bestSlot.value : "09:00";
         return {
           ...prev,
           rentalDuration: value,
-          startDate: getTodayStr(), //  Chỉ cần set ngày bắt đầu
-          endDate: tomorrowStr,  //  End Date sẽ được chọn bởi user
-          startTime: currentTime, // ✅ Set giờ hiện tại
-          endTime: currentTime,   // ✅ Set giờ hiện tại
+          startDate: getTodayStr(),
+          endDate: tomorrowStr,
+          startTime: pickupSlot,
+          endTime: pickupSlot,
         };
       }
     });
@@ -171,11 +227,31 @@ const BookingPage = () => {
     if (!bookingData.startDate || !bookingData.endDate) return 0;
 
     if (bookingData.rentalDuration === "hourly") {
-      const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
-      const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
-      const diffMs = end.getTime() - start.getTime();
-      const hours = Math.ceil(diffMs / (1000 * 60 * 60));
-      return hours * vehicle.pricePerHour;
+      // FIX: Tính toán đúng cho hourly rental dựa trên slot system
+      const [startHour, startMinute] = bookingData.startTime.split(':').map(Number);
+      const [endHour, endMinute] = bookingData.endTime.split(':').map(Number);
+
+      // Tính thời gian kết thúc của pickup slot
+      let pickupEndHour = startHour;
+      let pickupEndMinute = 0;
+
+      if (startMinute === 0) {
+        pickupEndHour = startHour;
+        pickupEndMinute = 30;
+      } else {
+        pickupEndHour = startHour + 1;
+        pickupEndMinute = 0;
+      }
+      const pickupEndTime = pickupEndHour * 60 + pickupEndMinute;
+      let returnTime = endHour * 60 + endMinute;
+      if (endHour === 0 && endMinute === 0) {
+        returnTime = 24 * 60;
+      }
+
+      const diffMinutes = returnTime - pickupEndTime;
+      const hours = Math.ceil(diffMinutes / 60);
+
+      return Math.max(hours, 1) * vehicle.pricePerHour;
     } else {
       // DAILY: tính theo ngày, từ startTime ngày đầu đến endTime ngày cuối
       const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
@@ -188,6 +264,188 @@ const BookingPage = () => {
     }
   };
 
+  // 🚀 DI CHUYỂN CÁC HELPER FUNCTIONS LÊN ĐÂY (TRƯỚC handleRentalDurationChange)
+  const getAvailablePickupSlots = () => {
+    // Dựa vào ngày được chọn, không chỉ ngày hiện tại
+    const selectedDate = new Date(bookingData.startDate);
+    const today = new Date();
+    const isToday = selectedDate.toDateString() === today.toDateString();
+
+    let currentHour, currentMinute;
+
+    if (isToday) {
+      // Nếu chọn ngày hôm nay, dùng giờ hiện tại
+      currentHour = today.getHours();
+      currentMinute = today.getMinutes();
+    } else {
+      // Nếu chọn ngày tương lai, bắt đầu từ 00:00
+      currentHour = 0;
+      currentMinute = 0;
+    }
+
+    const slots = [];
+
+    // Tính slot bắt đầu dựa trên thời gian hiện tại
+    let startHour = currentHour;
+    let startSlot = currentMinute >= 30 ? 30 : 0;
+
+    // Nếu không phải hôm nay, bắt đầu từ slot đầu tiên (00:00)
+    if (!isToday) {
+      startHour = 0;
+      startSlot = 0;
+    }
+
+    // Tạo các slots từ thời điểm hiện tại đến 23h 
+    for (let hour = startHour; hour < 23; hour++) {
+      const minuteStart = hour === startHour ? startSlot : 0;
+
+      // Slot 1: XX:00 - XX:30
+      if (minuteStart === 0) {
+        const timeStart = `${hour.toString().padStart(2, '0')}:00`;
+        const timeEnd = `${hour.toString().padStart(2, '0')}:30`;
+        slots.push({
+          value: timeStart,
+          label: `${timeStart} - ${timeEnd}`,
+          pickupStart: timeStart,
+          pickupEnd: timeEnd
+        });
+      }
+
+      // Slot 2: XX:30 - (XX+1):00
+      if (hour <= 22) {
+        const timeStart = `${hour.toString().padStart(2, '0')}:30`;
+        const timeEnd = `${(hour + 1).toString().padStart(2, '0')}:00`;
+        slots.push({
+          value: timeStart,
+          label: `${timeStart} - ${timeEnd}`,
+          pickupStart: timeStart,
+          pickupEnd: timeEnd
+        });
+      }
+    }
+
+    return slots;
+  };
+
+  const getReturnTimeOptions = (pickupSlotStart: string) => {
+    if (!pickupSlotStart) return [];
+
+    const [startHour, startMinute] = pickupSlotStart.split(':').map(Number);
+
+    // Tính thời gian kết thúc của pickup slot
+    let pickupEndHour = startHour;
+    let pickupEndMinute = 0;
+
+    if (startMinute === 0) {
+      // Slot XX:00 - XX:30 → kết thúc lúc XX:30
+      pickupEndHour = startHour;
+      pickupEndMinute = 30;
+    } else {
+      // Slot XX:30 - (XX+1):00 → kết thúc lúc (XX+1):00
+      pickupEndHour = startHour + 1;
+      pickupEndMinute = 0;
+    }
+
+    const options = [];
+    // Tạo nhiều options cho user lựa chọn (từ 1h đến 10h)
+    for (let i = 1; i <= 10; i++) {
+      const returnHour = pickupEndHour + i;
+      const returnMinute = pickupEndMinute;
+
+      if (returnHour > 24) break;
+      let timeStr, timeValue;
+      if (returnHour === 24 && returnMinute === 0) {
+        timeStr = "24:00";
+        timeValue = "00:00";
+      } else if (returnHour === 24) {
+        break;
+      } else {
+        timeStr = `${returnHour.toString().padStart(2, '0')}:${returnMinute.toString().padStart(2, '0')}`;
+        timeValue = timeStr;
+      }
+
+      options.push({
+        value: timeValue,
+        label: timeStr,
+        duration: `${i} hour${i !== 1 ? 's' : ''}`
+      });
+    }
+
+    return options;
+  };
+
+  const getBestAvailableSlot = () => {
+    const availableSlots = getAvailablePickupSlots();
+    return availableSlots[0] || null;
+  };
+
+  const handlePickupSlotChange = (value: string) => {
+    const returnOptions = getReturnTimeOptions(value);
+    const defaultReturnTime = returnOptions[0]?.value || "";
+
+    setBookingData(prev => ({
+      ...prev,
+      startTime: value,
+      endTime: defaultReturnTime
+    }));
+  };
+
+  const handleDailyPickupSlotChange = (value: string) => {
+    setBookingData(prev => ({
+      ...prev,
+      startTime: value,
+      endTime: value
+    }));
+  };
+
+  const handleStartDateChange = (newStartDate: string) => {
+    setBookingData(prev => {
+      if (prev.rentalDuration === "hourly") {
+        const bestSlot = getBestAvailableSlot();
+        if (bestSlot) {
+          const returnOptions = getReturnTimeOptions(bestSlot.value);
+          const defaultReturnTime = returnOptions[0]?.value || "";
+
+          return {
+            ...prev,
+            startDate: newStartDate,
+            endDate: newStartDate,
+            startTime: bestSlot.value,
+            endTime: defaultReturnTime,
+          };
+        }
+        return {
+          ...prev,
+          startDate: newStartDate,
+          endDate: newStartDate,
+        };
+      } else {
+        const startDate = new Date(newStartDate);
+        const currentEndDate = new Date(prev.endDate || newStartDate);
+
+        let newEndDate = prev.endDate;
+        if (currentEndDate <= startDate) {
+          const nextDay = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+          newEndDate = `${nextDay.getFullYear()}-${pad(nextDay.getMonth() + 1)}-${pad(nextDay.getDate())}`;
+        }
+
+        return {
+          ...prev,
+          startDate: newStartDate,
+          endDate: newEndDate,
+        };
+      }
+    });
+  };
+
+  const handleEndDateChange = (newEndDate: string) => {
+    setBookingData(prev => ({
+      ...prev,
+      endDate: newEndDate
+    }));
+  };
+
+
   const baseCost = calculateCost();
 
   const deposit = 200; // Fixed deposit
@@ -195,11 +453,29 @@ const BookingPage = () => {
   const totalCost = baseCost + deposit;
 
   const handleInputChange = (field: string, value: string | boolean) => {
-   if (step === 3) {
-      // Final confirmation - redirect to dashboard
-      navigate("/dashboard");
-    }
+    setBookingData(prev => {
+      const keys = field.split('.');
+      if (keys.length === 1) {
+        // Simple field update
+        return {
+          ...prev,
+          [field]: value
+        };
+      } else if (keys.length === 2) {
+        // Nested field update (e.g., customerInfo.fullName)
+        return {
+          ...prev,
+          [keys[0]]: {
+            ...prev[keys[0]],
+            [keys[1]]: value
+          }
+        };
+      }
+      return prev;
+    });
   };
+
+
 
   const renderBookingDetails = () => (
     <div className="space-y-6">
@@ -247,9 +523,7 @@ const BookingPage = () => {
                   id="startDate"
                   type="date"
                   value={bookingData.startDate}
-                  onChange={(e) =>
-                    handleInputChange("startDate", e.target.value)
-                  }
+                  onChange={(e) => handleStartDateChange(e.target.value)}
                   min={new Date().toISOString().split("T")[0]}
                   className="text-black"
                   required
@@ -261,10 +535,15 @@ const BookingPage = () => {
                   id="endDate"
                   type="date"
                   value={bookingData.endDate}
-                  onChange={(e) => handleInputChange("endDate", e.target.value)}
+                  onChange={(e) => handleEndDateChange(e.target.value)}
                   min={
-                    bookingData.startDate ||
-                    new Date().toISOString().split("T")[0]
+                    bookingData.rentalDuration === "daily"
+                      ? (() => {
+                        const startDate = new Date(bookingData.startDate);
+                        const nextDay = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+                        return `${nextDay.getFullYear()}-${pad(nextDay.getMonth() + 1)}-${pad(nextDay.getDate())}`;
+                      })()
+                      : bookingData.startDate
                   }
                   className="text-black"
                   required
@@ -276,49 +555,124 @@ const BookingPage = () => {
                     For hourly rental, end date is same as start date
                   </p>
                 )}
+                {bookingData.rentalDuration === "daily" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Minimum rental is 1 day - select at least tomorrow
+                  </p>
+                )}
               </div>
             </div>
+
             {/* THÊM: Start Time và End Time hiển thị cho cả Hourly và Daily */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="startTime">Start Time *</Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={bookingData.startTime}
-                  onChange={(e) =>
-                    handleInputChange("startTime", e.target.value)
-                  }
-                  className="text-black"
-                  required
-                  disabled={bookingData.rentalDuration === "daily"} // ✅ Disable cho Daily
-                />
+                <Label htmlFor="startTime">
+                  {bookingData.rentalDuration === "hourly" ? "Pickup Time Slot *" : "Pickup Time Slot *"}
+                </Label>
+                {bookingData.rentalDuration === "hourly" ? (
+                  <Select
+                    value={bookingData.startTime}
+                    onValueChange={handlePickupSlotChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pickup time slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailablePickupSlots().map((slot) => (
+                        <SelectItem key={slot.value} value={slot.value}>
+                          {slot.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select
+                    value={bookingData.startTime}
+                    onValueChange={handleDailyPickupSlotChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pickup time slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailablePickupSlots().map((slot) => (
+                        <SelectItem key={slot.value} value={slot.value}>
+                          {slot.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* ✨ THÊM MỚI: Countdown timer cho hourly rental */}
+              {bookingData.rentalDuration === "hourly" && bookingData.startTime && (
+                <div className="mt-2">
+                  {(() => {
+                    const timeToPickup = calculateTimeToPickup(bookingData.startDate, bookingData.startTime);
+                    if (timeToPickup) {
+                      return (
+                        <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                          <Clock className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm text-blue-700 font-medium">
+                             {timeToPickup}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
+
                 {bookingData.rentalDuration === "daily" && (
                   <p className="text-xs text-muted-foreground mt-1">
-
+                    Select a pick up time - the car must be picked up within this time
                   </p>
                 )}
               </div>
+
               <div>
-                <Label htmlFor="endTime">End Time *</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={bookingData.endTime}
-                  onChange={(e) => handleInputChange("endTime", e.target.value)}
-                  className="text-black"
-                  required
-                  disabled={bookingData.rentalDuration === "daily"} // ✅ Disable cho Daily
-                  min={bookingData.rentalDuration === "hourly" ? calculateMinimumEndTime(bookingData.startTime) : undefined}
-                />
+                <Label htmlFor="endTime">
+                  {bookingData.rentalDuration === "hourly" ? "Return Time *" : "Return Time Slot *"}
+                </Label>
+                {bookingData.rentalDuration === "hourly" ? (
+                  <Select
+                    value={bookingData.endTime}
+                    onValueChange={(value) => handleInputChange("endTime", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select return time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getReturnTimeOptions(bookingData.startTime).map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label} ({option.duration})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex items-center space-x-2 px-3 py-2 border rounded-md bg-secondary/50">
+                    <span className="text-sm text-muted-foreground">
+                      {bookingData.startTime ? (
+                        (() => {
+                          const [hour, minute] = bookingData.startTime.split(':').map(Number);
+                          const endHour = minute === 0 ? hour : hour + 1;
+                          const endMinute = minute === 0 ? 30 : 0;
+                          const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                          return `${bookingData.startTime} - ${endTime}`;
+                        })()
+                      ) : 'Select pickup slot first'}
+                    </span>
+                  </div>
+                )}
                 {bookingData.rentalDuration === "hourly" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Minimum rental duration: 1 hour
+                    Choose your rental duration - minimum 1 hour after pickup slot ends
                   </p>
                 )}
                 {bookingData.rentalDuration === "daily" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    End time same as start time for daily rental
+                    Vehicle must be returned during the same time slot on the end date
                   </p>
                 )}
               </div>
@@ -806,76 +1160,76 @@ const BookingPage = () => {
                           </div>
                         )}
 
- {/* Chỉ hiển thị button cho step 1, step 2 không có button nào */}
-                       {step === 1 && (
-                         <Button
-                           className="w-full mt-4 btn-hero"
-                           onClick={() => {
-                             // Validate và chuyển sang payment
-                             if (
-                               !bookingData.startDate ||
-                               !bookingData.endDate ||
-                               !bookingData.startTime ||
-                               !bookingData.endTime ||
-                               !bookingData.customerInfo.fullName ||
-                               !bookingData.customerInfo.email ||
-                               !bookingData.customerInfo.phone ||
-                               !bookingData.customerInfo.driverLicense
-                             ) {
-                               toast({
-                                 title: "Missing Information",
-                                 description: "Please fill in all required fields.",
-                                 variant: "destructive",
-                               });
-                               return;
-                             }
+                        {/* Chỉ hiển thị button cho step 1, step 2 không có button nào */}
+                        {step === 1 && (
+                          <Button
+                            className="w-full mt-4 btn-hero"
+                            onClick={() => {
+                              // Validate và chuyển sang payment
+                              if (
+                                !bookingData.startDate ||
+                                !bookingData.endDate ||
+                                !bookingData.startTime ||
+                                !bookingData.endTime ||
+                                !bookingData.customerInfo.fullName ||
+                                !bookingData.customerInfo.email ||
+                                !bookingData.customerInfo.phone ||
+                                !bookingData.customerInfo.driverLicense
+                              ) {
+                                toast({
+                                  title: "Missing Information",
+                                  description: "Please fill in all required fields.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
 
-                             // VALIDATION CHO HOURLY RENTAL
-                             if (bookingData.rentalDuration === "hourly") {
-                               if (bookingData.startDate !== bookingData.endDate) {
-                                 toast({
-                                   title: "Invalid Date Range",
-                                   description: "For hourly rental, start and end date must be the same.",
-                                   variant: "destructive",
-                                 });
-                                 return;
-                               }
+                              // VALIDATION CHO HOURLY RENTAL
+                              if (bookingData.rentalDuration === "hourly") {
+                                if (bookingData.startDate !== bookingData.endDate) {
+                                  toast({
+                                    title: "Invalid Date Range",
+                                    description: "For hourly rental, start and end date must be the same.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
 
-                               const isValidTime = validateHourlyRental(bookingData.startTime, bookingData.endTime);
-                               if (!isValidTime) {
-                                 toast({
-                                   title: "Invalid Time Range",
-                                   description: "Minimum rental duration is 1 hour.",
-                                   variant: "destructive",
-                                 });
-                                 return;
-                               }
-                             }
+                                const isValidTime = validateHourlyRental(bookingData.startTime, bookingData.endTime);
+                                if (!isValidTime) {
+                                  toast({
+                                    title: "Invalid Time Range",
+                                    description: "Minimum rental duration is 1 hour.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                              }
 
-                             // VALIDATION CHO DAILY RENTAL
-                             if (bookingData.rentalDuration === "daily") {
-                               const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
-                               const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
-                               const diffMs = end.getTime() - start.getTime();
-                               const days = diffMs / (1000 * 60 * 60 * 24);
+                              // VALIDATION CHO DAILY RENTAL
+                              if (bookingData.rentalDuration === "daily") {
+                                const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+                                const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+                                const diffMs = end.getTime() - start.getTime();
+                                const days = diffMs / (1000 * 60 * 60 * 24);
 
-                               if (days < 1) {
-                                 toast({
-                                   title: "Invalid Date Range",
-                                   description: "Minimum rental duration is 1 day.",
-                                   variant: "destructive",
-                                 });
-                                 return;
-                               }
-                             }
+                                if (days < 1) {
+                                  toast({
+                                    title: "Invalid Date Range",
+                                    description: "Minimum rental duration is 1 day.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                              }
 
-                             // Chuyển sang payment step
-                             setStep(2);
-                           }}
-                         >
-                           Continue to Payment
-                         </Button>
-                       )}
+                              // Chuyển sang payment step
+                              setStep(2);
+                            }}
+                          >
+                            Continue to Payment
+                          </Button>
+                        )}
 
                       </CardContent>
                     </Card>
