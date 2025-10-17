@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useStationVehicles } from "@/hooks/useStaffApi";
 import {
   Card,
   CardContent,
@@ -79,6 +80,7 @@ import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
+import { WalkInBookingManager } from "@/components/walkin-booking";
 
 interface StaffDashboardProps {
   user: {
@@ -94,6 +96,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [selectedTab, setSelectedTab] = useState("vehicles");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+
+  // API Hook for Vehicle Management only
+  const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
+  
+  // Debug API data
+  console.log('API Vehicles:', apiVehicles);
+  console.log('Vehicles Loading:', vehiclesLoading);
+  console.log('Vehicles Error:', vehiclesError);
+  console.log('Token:', localStorage.getItem('token'));
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [maintenanceNotes, setMaintenanceNotes] = useState("");
@@ -187,7 +198,29 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     },
   };
 
-  const vehicleList = [
+  // Use API data for Vehicle Management, fallback to static data
+  const vehicleList = apiVehicles ? apiVehicles.map(vehicle => ({
+    id: vehicle.uniqueVehicleId || vehicle.vehicleId.toString(),
+    name: `${vehicle.modelId} - ${vehicle.uniqueVehicleId || vehicle.vehicleId}`,
+    status: vehicle.status,
+    battery: vehicle.batteryLevel,
+    location: vehicle.location || "Unknown",
+    lastMaintenance: vehicle.lastMaintenance || "N/A",
+    bookings: [],
+    condition: vehicle.condition,
+    mileage: vehicle.mileage,
+    rating: vehicle.rating,
+    trips: vehicle.trips,
+    stationId: vehicle.stationId,
+    type: "Unknown",
+    year: 2024,
+    seats: 5,
+    range: vehicle.maxRangeKm,
+    brand: "VinFast",
+    model: vehicle.modelId,
+    availability: vehicle.status,
+    image: vehicle.image || "",
+  })) : [
     {
       id: "EV001",
       name: "Tesla Model 3",
@@ -342,13 +375,51 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     setIsEditVehicleDialogOpen(true);
   };
 
-  const handleSaveVehicleChanges = () => {
-    if (editingVehicle) {
-      toast({
-        title: "Vehicle Updated",
-        description: `${editingVehicle.name} has been successfully updated.`,
-        duration: 3000,
-      });
+  const handleSaveVehicleChanges = async () => {
+    console.log('handleSaveVehicleChanges called');
+    console.log('editingVehicle:', editingVehicle);
+    console.log('apiVehicles:', apiVehicles);
+    
+    if (editingVehicle && apiVehicles) {
+      try {
+        console.log('Saving vehicle changes:', editingVehicle);
+        const apiVehicle = apiVehicles.find(v => 
+          (v.uniqueVehicleId && v.uniqueVehicleId === editingVehicle.id) ||
+          v.vehicleId.toString() === editingVehicle.id
+        );
+        
+        console.log('Found API vehicle:', apiVehicle);
+        
+        if (apiVehicle) {
+          const updateData = {
+            batteryLevel: parseInt(batteryLevel) || editingVehicle.batteryLevel,
+            condition: vehicleCondition || editingVehicle.condition,
+            mileage: parseInt(vehicleMileage) || editingVehicle.mileage,
+            lastMaintenance: editingVehicle.lastMaintenance,
+          };
+          
+          console.log('Updating vehicle with data:', updateData);
+          await updateVehicle(apiVehicle.vehicleId, updateData);
+          console.log('Vehicle updated successfully');
+          
+          // Refresh the vehicle list to show updated data
+          await refetchVehicles();
+          console.log('Vehicle list refreshed');
+        }
+        
+        toast({
+          title: "Vehicle Updated",
+          description: `${editingVehicle.name} has been successfully updated.`,
+          duration: 3000,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update vehicle. Please try again.",
+          duration: 3000,
+        });
+      }
+      
       setIsEditVehicleDialogOpen(false);
       setEditingVehicle(null);
     }
@@ -679,20 +750,29 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {vehicles
-              .filter((v) => v.stationId === currentUser.stationId)
-              .filter((vehicle) =>
-                searchQuery
-                  ? vehicle.name
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase()) ||
-                    vehicle.uniqueVehicleId
-                      ?.toLowerCase()
-                      .includes(searchQuery.toLowerCase()) ||
-                    vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
-                  : true
-              )
-              .map((vehicle) => (
+            {vehiclesLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading vehicles...</p>
+              </div>
+            ) : vehiclesError ? (
+              <div className="text-center py-8 text-red-500">
+                <p>Error loading vehicles: {vehiclesError}</p>
+              </div>
+            ) : vehicleList.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No vehicles found</p>
+              </div>
+            ) : (
+              vehicleList
+                .filter((vehicle) =>
+                  searchQuery
+                    ? vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
+                    : true
+                )
+                .map((vehicle) => (
                 <div
                   key={vehicle.id}
                   className="flex items-center justify-between p-4 border rounded-lg"
@@ -703,9 +783,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                     <div>
                       <h4 className="font-semibold">{vehicle.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        ID: {vehicle.uniqueVehicleId || vehicle.id}
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         ID: {vehicle.id}
+                       </p>
                       {vehicle.status === "available" && (
                         <p className="text-sm text-muted-foreground">
                           Location: {vehicle.location}
@@ -721,10 +801,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   </div>
 
                   <div className="flex items-center space-x-4">
-                    {vehicle.batteryLevel && (
+                    {vehicle.battery && (
                       <div className="flex items-center space-x-1">
                         <Battery className="h-4 w-4 text-success" />
-                        <span className="text-sm">{vehicle.batteryLevel}%</span>
+                        <span className="text-sm">{vehicle.battery}%</span>
                       </div>
                     )}
 
@@ -803,7 +883,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </div>
                 </div>
-              ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1784,8 +1865,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <FadeIn delay={100}>
-          <div className="bg-gradient-hero relative overflow-hidden">
-            <div className="absolute inset-0 bg-black/30"></div>
+          <div 
+            className="relative overflow-hidden bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: "url('/src/assets/home-bg.jpg')"
+            }}
+          >
+            <div className="absolute inset-0 bg-black/40"></div>
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
               <div className="text-center">
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -1881,12 +1967,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
                 </TabsTrigger>
                 <TabsTrigger value="pickups">Pickup Management</TabsTrigger>
+                <TabsTrigger value="walkin">Walk-in Booking</TabsTrigger>
                 <TabsTrigger value="payments">Payment Processing</TabsTrigger>
               </TabsList>
 
@@ -1900,6 +1987,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               <TabsContent value="pickups" className="mt-6">
                 <StaffPickupManager />
+              </TabsContent>
+
+              <TabsContent value="walkin" className="mt-6">
+                <WalkInBookingManager />
               </TabsContent>
 
               <TabsContent value="payments" className="mt-6">
@@ -1968,7 +2059,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   <Input
                     id="lastMaintenance"
                     type="date"
-                    value={editingVehicle?.lastMaintenance}
+                    value={editingVehicle?.lastMaintenance || ""}
                     onChange={(e) =>
                       setEditingVehicle((prev) =>
                         prev

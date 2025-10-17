@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import Navbar from "./components/Navbar";
+
 import {
   Index,
   Vehicles,
@@ -71,12 +72,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true,
-            }}
-          >
+          <BrowserRouter>
             <div className="min-h-screen bg-background">
               <Navbar user={user} onLogout={handleLogout} />
               <Routes>

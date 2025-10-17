@@ -13,6 +13,7 @@ import VehicleCard from "@/components/VehicleCard";
 import { GoogleMaps } from "@/components/GoogleMaps";
 import { stations } from "@/data/stations";
 import { getVehicles } from "@/data/vehicles";
+import { useStations, useVehicles } from "@/hooks/useApi";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -39,8 +40,72 @@ const StationDetails = () => {
   const [searchParams] = useSearchParams();
   const [selectedStation, setSelectedStation] = useState<string>("");
 
-  const station = stations.find((s) => s.id === id);
-  const vehicles = getVehicles(language);
+  // API hooks
+  const { data: apiStations, loading: stationsLoading } = useStations();
+  const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
+
+  // Use API data with fallback to static data
+  const staticStations = stations;
+  const staticVehicles = getVehicles(language);
+  
+  const apiStationsMapped = apiStations ? apiStations.map(station => ({
+    id: station.stationId.toString(),
+    name: station.name,
+    address: station.address,
+    city: station.city,
+    coordinates: {
+      lat: station.latitude,
+      lng: station.longitude
+    },
+    status: station.status,
+    availableVehicles: station.availableVehicles,
+    totalSlots: station.totalSlots,
+    amenities: typeof station.amenities === 'string' ? JSON.parse(station.amenities) : station.amenities,
+    rating: station.rating,
+    operatingHours: station.operatingHours,
+    fastCharging: station.fastCharging,
+    image: station.image,
+    createdAt: station.createdAt,
+    updatedAt: station.updatedAt
+  })) : staticStations;
+
+  const apiVehiclesMapped = apiVehicles ? apiVehicles.map(vehicle => ({
+    id: vehicle.uniqueVehicleId,
+    modelId: vehicle.modelId,
+    uniqueVehicleId: vehicle.uniqueVehicleId,
+    name: `${vehicle.modelId} Vehicle`,
+    brand: "VinFast",
+    model: vehicle.modelId,
+    type: "Scooter",
+    year: 2024,
+    seats: 2,
+    range: vehicle.maxRangeKm,
+    batteryLevel: vehicle.batteryLevel,
+    pricePerHour: vehicle.pricePerHour,
+    pricePerDay: vehicle.pricePerDay,
+    rating: vehicle.rating,
+    reviewCount: vehicle.reviewCount,
+    trips: vehicle.trips,
+    mileage: vehicle.mileage,
+    availability: vehicle.status,
+    condition: vehicle.condition,
+    image: vehicle.image || "",
+    location: vehicle.location,
+    stationId: vehicle.stationId.toString(),
+    stationName: "Unknown Station",
+    stationAddress: "",
+    features: [],
+    description: "",
+    fuelEfficiency: vehicle.fuelEfficiency,
+    lastMaintenance: vehicle.lastMaintenance,
+    inspectionDate: vehicle.inspectionDate,
+    insuranceExpiry: vehicle.insuranceExpiry,
+    createdAt: vehicle.createdAt,
+    updatedAt: vehicle.updatedAt
+  })) : staticVehicles;
+
+  const station = apiStationsMapped.find((s) => s.id === id);
+  const vehicles = apiVehiclesMapped;
 
   // Get model filter from query params
   const modelFilter = searchParams.get("model");
@@ -95,6 +160,9 @@ const StationDetails = () => {
     }
   }, [userReady, toast]);
 
+  // Show loading while fetching API data
+  const isLoading = stationsLoading || vehiclesLoading;
+
   if (!station) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -131,6 +199,15 @@ const StationDetails = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Loading Overlay - Disabled to fix navigation */}
+      {/* {isLoading && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading station details...</p>
+          </div>
+        </div>
+      )} */}
       {/* Header */}
       <div className="bg-gradient-hero py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

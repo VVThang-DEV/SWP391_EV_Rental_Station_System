@@ -62,3 +62,4 @@ namespace EVRentalApi.Application.Controllers
         }
     }
 }
+

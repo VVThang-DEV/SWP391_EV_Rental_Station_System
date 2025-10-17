@@ -43,9 +43,9 @@ const Vehicles = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
   // API hooks
-  const { data: apiVehicles, loading: vehiclesLoading, error: vehiclesError } = useVehicles();
-  const { data: apiStations, loading: stationsLoading, error: stationsError } = useStations();
-  const { data: apiVehicleModels, loading: modelsLoading, error: modelsError } = useVehicleModels();
+  const { data: apiVehicles, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useVehicles();
+  const { data: apiStations, loading: stationsLoading, error: stationsError, refetch: refetchStations } = useStations();
+  const { data: apiVehicleModels, loading: modelsLoading, error: modelsError, refetch: refetchModels } = useVehicleModels();
 
   // Loading states
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -127,43 +127,44 @@ const Vehicles = () => {
 
   // Data Mapper: Convert API data to UI format
   const mapApiToUI = (apiVehicle: any) => {
-    const model = apiVehicleModels?.find(m => m.model_id === apiVehicle.model_id);
-    const station = apiStations?.find(s => s.station_id === apiVehicle.station_id);
+    const model = apiVehicleModels?.find(m => m.modelId === apiVehicle.modelId);
+    const station = apiStations?.find(s => s.station_id === apiVehicle.stationId);
     
     return {
-      id: apiVehicle.unique_vehicle_id,
-      modelId: apiVehicle.model_id,
-      uniqueVehicleId: apiVehicle.unique_vehicle_id,
-      licensePlate: apiVehicle.license_plate || '',
-      name: model ? `${model.brand} ${model.model_name}` : apiVehicle.unique_vehicle_id,
+      id: apiVehicle.uniqueVehicleId,
+      modelId: apiVehicle.modelId,
+      uniqueVehicleId: apiVehicle.uniqueVehicleId,
+      licensePlate: apiVehicle.licensePlate || '',
+      name: model ? `${model.brand} ${model.modelName}` : `${apiVehicle.modelId} Vehicle`,
       year: model ? model.year : 2024,
       brand: model ? model.brand : 'VinFast',
-      model: model ? model.model_name : 'Unknown',
+      model: model ? model.modelName : apiVehicle.modelId,
       type: model ? model.type as any : 'Scooter',
       seats: model ? model.seats : 2,
-      range: apiVehicle.max_range_km,
-      batteryLevel: apiVehicle.battery_level,
-      pricePerHour: apiVehicle.price_per_hour,
-      pricePerDay: apiVehicle.price_per_day,
+      range: apiVehicle.maxRangeKm,
+      batteryLevel: apiVehicle.batteryLevel,
+      pricePerHour: apiVehicle.pricePerHour,
+      pricePerDay: apiVehicle.pricePerDay,
       rating: apiVehicle.rating,
-      reviewCount: apiVehicle.review_count,
+      reviewCount: apiVehicle.reviewCount,
       trips: apiVehicle.trips,
       mileage: apiVehicle.mileage,
       availability: apiVehicle.status as any,
       condition: apiVehicle.condition as any,
+      // Use model image if vehicle doesn't have specific image
       image: apiVehicle.image || (model ? model.image : ''),
       location: apiVehicle.location,
-      stationId: apiVehicle.station_id?.toString() || '1',
+      stationId: apiVehicle.stationId?.toString() || '1',
       stationName: station ? station.name : 'Unknown Station',
       stationAddress: station ? station.address : '',
-      features: model ? model.features_list : [],
+      features: model ? model.featuresList : [],
       description: model ? model.description : '',
-      fuelEfficiency: apiVehicle.fuel_efficiency,
-      lastMaintenance: apiVehicle.last_maintenance,
-      inspectionDate: apiVehicle.inspection_date,
-      insuranceExpiry: apiVehicle.insurance_expiry,
-      createdAt: apiVehicle.created_at,
-      updatedAt: apiVehicle.updated_at
+      fuelEfficiency: apiVehicle.fuelEfficiency,
+      lastMaintenance: apiVehicle.lastMaintenance,
+      inspectionDate: apiVehicle.inspectionDate,
+      insuranceExpiry: apiVehicle.insuranceExpiry,
+      createdAt: apiVehicle.createdAt,
+      updatedAt: apiVehicle.updatedAt
     };
   };
 
@@ -174,8 +175,19 @@ const Vehicles = () => {
     }
   }, [vehiclesLoading, stationsLoading, modelsLoading]);
 
-  // Use static data for now (API integration disabled)
-  const vehicles = getVehicles(language);
+  // Show loading if API is being called
+  const isActuallyLoading = vehiclesLoading || stationsLoading || modelsLoading;
+
+  // Use API data with fallback to static data
+  const staticVehicles = getVehicles(language);
+  
+  // Debug logging
+  console.log('API Vehicles:', apiVehicles);
+  console.log('API Loading:', vehiclesLoading);
+  console.log('API Error:', vehiclesError);
+  console.log('Static Vehicles:', staticVehicles.length);
+  
+  const vehicles = apiVehicles ? apiVehicles.map(mapApiToUI) : staticVehicles;
 
   // Update URL parameters when filters change
   const updateSearchParams = (key: string, value: string) => {
@@ -307,13 +319,22 @@ const Vehicles = () => {
     language,
   ]);
 
-  // Simulate initial loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  // Remove simulated loading - now using real API loading
+
+  // Add polling for real-time updates (disabled for now to prevent UI jumping)
+  // useEffect(() => {
+  //   if (!apiVehicles) return; // Only poll if we're using API data
+  //   
+  //   const interval = setInterval(() => {
+  //     // Refetch data every 30 seconds to get latest vehicle status
+  //     console.log('Polling for vehicle updates...');
+  //     refetchVehicles();
+  //     refetchStations();
+  //     refetchModels();
+  //   }, 30000); // 30 seconds
+
+  //   return () => clearInterval(interval);
+  // }, [apiVehicles, refetchVehicles, refetchStations, refetchModels]);
 
   return (
     <PageTransition>
@@ -669,7 +690,7 @@ const Vehicles = () => {
 
           {/* Vehicle Grid/List */}
           <LoadingWrapper
-            isLoading={isInitialLoading}
+            isLoading={isActuallyLoading}
             fallback={
               <div className="grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {[...Array(6)].map((_, i) => (
