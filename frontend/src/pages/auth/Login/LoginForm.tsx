@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import "./Style.css";
 
-
 type Props = { onLogin?: (user: any) => void };
 
 const LoginForm = ({ onLogin }: Props) => {
@@ -35,10 +34,14 @@ const LoginForm = ({ onLogin }: Props) => {
       });
       return;
     }
+
     setIsLoading(true);
 
     try {
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5000";
+      const baseUrl =
+        (import.meta as any).env?.VITE_API_URL ||
+        (import.meta as any).env?.VITE_API_BASE_URL ||
+        "http://localhost:5000";
       const res = await fetch(`${baseUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,9 +57,13 @@ const LoginForm = ({ onLogin }: Props) => {
 
       localStorage.setItem("token", data.token);
       if (data.role) localStorage.setItem("role", String(data.role));
-      if (data.fullName) localStorage.setItem("fullName", String(data.fullName));
+      if (data.fullName)
+        localStorage.setItem("fullName", String(data.fullName));
 
-      toast({ title: t("common.welcomeBack"), description: t("common.signInSuccess") });
+      toast({
+        title: t("common.welcomeBack"),
+        description: t("common.signInSuccess"),
+      });
 
       const roleLower = String(data.role || "").toLowerCase();
       if (onLogin) {
@@ -72,7 +79,8 @@ const LoginForm = ({ onLogin }: Props) => {
     } catch (err) {
       toast({
         title: t("common.error"),
-        description: t("login.invalidCredentials") || "Email hoặc mật khẩu không đúng.",
+        description:
+          t("login.invalidCredentials") || "Email hoặc mật khẩu không đúng.",
         variant: "destructive",
       });
     } finally {
@@ -82,51 +90,51 @@ const LoginForm = ({ onLogin }: Props) => {
 
   return (
     <form onSubmit={handleSubmit} className="login-form space-y-4">
-     
-
       {/* Email */}
-<div className="relative mb-6">
-  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-  <Input
-    id="email"
-    type="email"
-    value={email}
-    onChange={(e) => setEmail(e.target.value)}
-    className="pl-10 text-black"
-    placeholder=" "
-    required
-  />
-  <label htmlFor="email">{t("common.emailAddress")}</label>
-</div>
+      <div className="relative mb-6">
+        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="pl-10 text-black"
+          placeholder=" "
+          required
+        />
+        <label htmlFor="email">{t("common.emailAddress")}</label>
+      </div>
 
-{/* Password */}
-<div className="relative mb-6">
-  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-  <Input
-    id="password"
-    type={showPassword ? "text" : "password"}
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    className="pl-10 pr-10 text-black"
-    placeholder=" "
-    required
-  />
-  <label htmlFor="password" style={{ zIndex: 10 }}>{t("common.password")}</label>
-  <Button
-    type="button"
-    variant="ghost"
-    size="sm"
-    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-    onClick={() => setShowPassword(!showPassword)}
-    tabIndex={-1}
-  >
-    {showPassword ? (
-      <EyeOff className="h-4 w-4 text-muted-foreground" />
-    ) : (
-      <Eye className="h-4 w-4 text-muted-foreground" />
-    )}
-  </Button>
-</div>
+      {/* Password */}
+      <div className="relative mb-6">
+        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="pl-10 pr-10 text-black"
+          placeholder=" "
+          required
+        />
+        <label htmlFor="password" style={{ zIndex: 10 }}>
+          {t("common.password")}
+        </label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+          onClick={() => setShowPassword(!showPassword)}
+          tabIndex={-1}
+        >
+          {showPassword ? (
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Eye className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      </div>
 
       {/* Forgot Password */}
       <div className="text-right">
@@ -139,11 +147,7 @@ const LoginForm = ({ onLogin }: Props) => {
       </div>
 
       {/* Submit */}
-      <Button
-        type="submit"
-        className="w-full btn-hero"
-        disabled={isLoading}
-      >
+      <Button type="submit" className="w-full btn-hero" disabled={isLoading}>
         {isLoading ? t("common.signingIn") : t("common.signIn")}
       </Button>
     </form>

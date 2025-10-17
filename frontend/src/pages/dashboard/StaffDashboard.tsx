@@ -80,6 +80,7 @@ import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
+import { WalkInBookingManager } from "@/components/walkin-booking";
 
 interface StaffDashboardProps {
   user: {
@@ -1864,8 +1865,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <FadeIn delay={100}>
-          <div className="bg-gradient-hero relative overflow-hidden">
-            <div className="absolute inset-0 bg-black/30"></div>
+          <div 
+            className="relative overflow-hidden bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: "url('/src/assets/home-bg.jpg')"
+            }}
+          >
+            <div className="absolute inset-0 bg-black/40"></div>
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
               <div className="text-center">
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -1961,12 +1967,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
                 </TabsTrigger>
                 <TabsTrigger value="pickups">Pickup Management</TabsTrigger>
+                <TabsTrigger value="walkin">Walk-in Booking</TabsTrigger>
                 <TabsTrigger value="payments">Payment Processing</TabsTrigger>
               </TabsList>
 
@@ -1980,6 +1987,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               <TabsContent value="pickups" className="mt-6">
                 <StaffPickupManager />
+              </TabsContent>
+
+              <TabsContent value="walkin" className="mt-6">
+                <WalkInBookingManager />
               </TabsContent>
 
               <TabsContent value="payments" className="mt-6">

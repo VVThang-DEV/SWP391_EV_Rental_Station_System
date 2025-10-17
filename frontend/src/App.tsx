@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import Navbar from "./components/Navbar";
+
+
 import {
   Index,
   Vehicles,
@@ -50,7 +52,19 @@ const App = () => {
   const [user, setUser] = useState<User | null>(() => {
     // Try to load user from localStorage on app start
     const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
+    //return savedUser ? JSON.parse(savedUser) : null;
+    //tài khoản ảo để test
+    if (savedUser) return JSON.parse(savedUser);
+    
+    // Mock user for development (remove this in production)
+    // Change role to "admin" or "staff" as needed
+    return {
+      id: "1",
+      name: "Staff User",  //Staff User or Admin User
+      email: "staff@ev.local", //staff@ev.local or admin@ev.local
+      role: "staff",  //staff or admin
+      stationId: "station-1"
+    };
   });
 
   const handleLogin = (userData: User) => {

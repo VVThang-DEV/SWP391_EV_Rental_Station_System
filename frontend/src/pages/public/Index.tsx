@@ -54,7 +54,7 @@ import {
   List,
   Check,
 } from "lucide-react";
-import heroImage from "@/assets/hero-ev-station.jpg";
+import heroImage from "@/assets/home-bg.jpg";
 
 interface IndexProps {
   user?: {
