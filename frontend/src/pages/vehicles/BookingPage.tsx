@@ -53,6 +53,7 @@ import {
   Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeSVG } from "qrcode.react";
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -840,6 +841,8 @@ const BookingPage = () => {
       <PaymentSystem
         amount={totalCost}
         bookingId={`BOOK_${Date.now()}`}
+        vehicleId={vehicle.id}
+        vehicleName={vehicle.name}
         customerInfo={bookingData.customerInfo}
         onPaymentComplete={(paymentData) => {
 
@@ -1057,12 +1060,27 @@ const BookingPage = () => {
         </CardHeader>
         <CardContent className="text-center pb-6">
           <div className="inline-block p-4 bg-white rounded-xl shadow-md border-2 border-amber-200">
-            <QRCodeGenerator
-              bookingId={`EV-${Date.now().toString().slice(-6)}`}
-              vehicleId={vehicle.id}
-              customerName={bookingData.customerInfo.fullName}
-              pickupLocation={vehicle.location}
+            <QRCodeSVG
+              value={JSON.stringify({
+                bookingId: `EV-${Date.now().toString().slice(-6)}`,
+                vehicleId: vehicle.id,
+                vehicleName: vehicle.name,
+                customerName: bookingData.customerInfo.fullName,
+                pickupLocation: vehicle.location,
+                startDate: bookingData.startDate,
+                startTime: bookingData.startTime,
+                endDate: bookingData.endDate,
+                endTime: bookingData.endTime,
+                rentalDuration: bookingData.rentalDuration,
+                totalCost: totalCost,
+                accessCode: `ACCESS_${Date.now().toString().slice(-8)}`,
+                timestamp: new Date().toISOString(),
+              })}
               size={180}
+              level="M"
+              includeMargin={true}
+              fgColor="#1f2937"
+              bgColor="#ffffff"
             />
           </div>
           <p className="text-xs text-amber-700 mt-3 max-w-md mx-auto">
@@ -1249,8 +1267,8 @@ const BookingPage = () => {
                                 const diffMs = endDateOnly.getTime() - startDateOnly.getTime();
                                 const days = diffMs / (1000 * 60 * 60 * 24);
 
-                               // ✅     Cho phép từ 1 ngày trở lên (không tính giờ)
-                               if (days < 1) {
+                                // ✅     Cho phép từ 1 ngày trở lên (không tính giờ)
+                                if (days < 1) {
                                   toast({
                                     title: "Invalid Date Range",
                                     description: `Selected duration: ${days} day(s). Minimum rental duration is 1 day.`,
