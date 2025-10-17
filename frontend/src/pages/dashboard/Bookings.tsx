@@ -27,12 +27,12 @@ import {
   RotateCcw,
   Edit,
 } from "lucide-react";
- 
+
 const Bookings = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
- const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
   const [modifiedStartDate, setModifiedStartDate] = useState("");
   const [modifiedEndDate, setModifiedEndDate] = useState("");
   const [modifiedLocation, setModifiedLocation] = useState("");
@@ -108,28 +108,24 @@ const Bookings = () => {
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
-                          <div className="text-sm font-medium">Start Date</div>
+                          <div className="text-sm font-medium">Pickup Slot</div>
                           <div className="text-sm text-muted-foreground">
-                            {booking.startDate}
-                            {booking.startTime && (
-                              <span className="block text-xs">
-                               {booking.startTime}
-                             </span>
-                           )}
+                            {booking.rentalDuration === 'daily'
+                              ? `${booking.startTime}-${booking.endTime}`
+                              : `${booking.startDate} ${booking.startTime}`
+                            }
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
-                          <div className="text-sm font-medium">End Date</div>
+                          <div className="text-sm font-medium">Return Slot</div>
                           <div className="text-sm text-muted-foreground">
-                            {booking.endDate}
-                            {booking.endTime && (
-                            <span className="block text-xs">
-                               {booking.endTime}
-                             </span>
-                           )}
+                            {booking.rentalDuration === 'daily'
+                              ? `${booking.startTime}-${booking.endTime}`
+                              : `${booking.endDate} ${booking.endTime}`
+                            }
                           </div>
                         </div>
                       </div>
@@ -146,7 +142,7 @@ const Bookings = () => {
                         <MapPin className="h-4 w-4 text-primary" />
                         <div>
                           <div className="text-sm font-medium">
-                            Pickup Location
+                           Location 
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {booking.pickupLocation}
@@ -273,20 +269,20 @@ const Bookings = () => {
                                   </Button>
                                   <Button
                                     onClick={() => {
-                                     // Cập nhật booking trong storage
-                                    if (selectedBooking) {
-                                       const updated = bookingStorage.updateBooking(selectedBooking.id, {
-                                         startDate: modifiedStartDate,
-                                         endDate: modifiedEndDate,
-                                         pickupLocation: modifiedLocation,
-                                       });
+                                      // Cập nhật booking trong storage
+                                      if (selectedBooking) {
+                                        const updated = bookingStorage.updateBooking(selectedBooking.id, {
+                                          startDate: modifiedStartDate,
+                                          endDate: modifiedEndDate,
+                                          pickupLocation: modifiedLocation,
+                                        });
 
-                                       if (updated) {
-                                         // Refresh bookings list
-                                         setBookings(bookingStorage.getAllBookings());
-                                         console.log("Booking updated:", updated);
-                                       }
-                                     }
+                                        if (updated) {
+                                          // Refresh bookings list
+                                          setBookings(bookingStorage.getAllBookings());
+                                          console.log("Booking updated:", updated);
+                                        }
+                                      }
                                       setModifyDialogOpen(false);
                                     }}
                                   >
@@ -295,8 +291,8 @@ const Bookings = () => {
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>
-                            <Button 
-                              variant="destructive" 
+                            <Button
+                              variant="destructive"
                               size="sm"
                               onClick={() => {
                                 if (window.confirm("Are you sure you want to cancel this booking?")) {
