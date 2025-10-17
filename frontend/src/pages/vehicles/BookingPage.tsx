@@ -914,7 +914,7 @@ const BookingPage = () => {
           });
           setStep(3);
         }}
-        paymentMethod={bookingData.paymentMethod as "qr_code" | "cash" | "card"}
+        paymentMethod={bookingData.paymentMethod as "qr_code" | "cash"}
         onBack={() => setStep(1)}
       />
     </div>
