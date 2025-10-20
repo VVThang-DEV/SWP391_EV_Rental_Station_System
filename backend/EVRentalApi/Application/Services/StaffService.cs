@@ -42,6 +42,16 @@ public class StaffService : IStaffService
                 };
             }
 
+            // Check if vehicle is currently rented - prevent editing rented vehicles
+            if (vehicle.Status?.ToLower() == "rented")
+            {
+                return new VehicleUpdateResponse
+                {
+                    Success = false,
+                    Message = "Cannot edit vehicle that is currently rented. Please wait until the rental period ends."
+                };
+            }
+
             // Update vehicle
             var updatedVehicle = await _staffRepository.UpdateVehicleAsync(vehicleId, request);
             if (updatedVehicle == null)
@@ -125,6 +135,16 @@ public class StaffService : IStaffService
                 {
                     Success = false,
                     Message = "Vehicle not found or not accessible"
+                };
+            }
+
+            // Check if vehicle is currently rented - prevent maintenance on rented vehicles
+            if (vehicle.Status?.ToLower() == "rented")
+            {
+                return new MaintenanceResponse
+                {
+                    Success = false,
+                    Message = "Cannot perform maintenance on vehicle that is currently rented. Please wait until the rental period ends."
                 };
             }
 
