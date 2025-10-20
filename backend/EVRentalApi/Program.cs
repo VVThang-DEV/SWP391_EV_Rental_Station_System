@@ -227,6 +227,28 @@ app.MapPost("/auth/update-document", async (UpdatePersonalInfoRequest req, Perso
 // Health
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
+// Debug vehicles endpoint
+app.MapGet("/debug/vehicles", async (IVehicleService vehicleService) =>
+{
+    try
+    {
+        var vehicles = await vehicleService.GetAllVehiclesAsync();
+        return Results.Ok(new { 
+            success = true, 
+            count = vehicles.Count(),
+            vehicles = vehicles.Take(3) // Only return first 3 for debugging
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { 
+            success = false, 
+            error = ex.Message,
+            stackTrace = ex.StackTrace
+        });
+    }
+});
+
 // Debug endpoint
 app.MapPost("/auth/debug-update", (UpdatePersonalInfoRequest req) =>
 {

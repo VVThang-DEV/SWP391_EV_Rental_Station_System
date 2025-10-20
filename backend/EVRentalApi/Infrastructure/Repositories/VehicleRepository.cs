@@ -161,27 +161,27 @@ namespace EVRentalApi.Infrastructure.Repositories
             {
                 vehicle_id = reader.GetInt32("vehicle_id"),
                 model_id = reader.GetString("model_id"),
-                station_id = reader.GetInt32("station_id"),
-                unique_vehicle_id = reader.GetString("unique_vehicle_id"),
+                station_id = reader.IsDBNull("station_id") ? 0 : reader.GetInt32("station_id"),
+                unique_vehicle_id = reader.IsDBNull("unique_vehicle_id") ? "" : reader.GetString("unique_vehicle_id"),
                 battery_level = reader.GetInt32("battery_level"),
-                max_range_km = reader.GetInt32("max_range_km"),
+                max_range_km = reader.IsDBNull("max_range_km") ? 0 : reader.GetInt32("max_range_km"),
                 status = reader.GetString("status"),
                 price_per_hour = reader.GetDecimal("price_per_hour"),
-                price_per_day = reader.GetDecimal("price_per_day"),
-                rating = reader.GetDecimal("rating"),
-                review_count = reader.GetInt32("review_count"),
-                trips = reader.GetInt32("trips"),
-                mileage = reader.GetInt32("mileage"),
+                price_per_day = reader.IsDBNull("price_per_day") ? 0 : reader.GetDecimal("price_per_day"),
+                rating = reader.IsDBNull("rating") ? 0 : reader.GetDecimal("rating"),
+                review_count = reader.IsDBNull("review_count") ? 0 : reader.GetInt32("review_count"),
+                trips = reader.IsDBNull("trips") ? 0 : reader.GetInt32("trips"),
+                mileage = reader.IsDBNull("mileage") ? 0 : reader.GetInt32("mileage"),
                 last_maintenance = reader.IsDBNull("last_maintenance") ? null : reader.GetDateTime("last_maintenance").ToString("yyyy-MM-dd"),
                 inspection_date = reader.IsDBNull("inspection_date") ? null : reader.GetDateTime("inspection_date").ToString("yyyy-MM-dd"),
                 insurance_expiry = reader.IsDBNull("insurance_expiry") ? null : reader.GetDateTime("insurance_expiry").ToString("yyyy-MM-dd"),
-                condition = reader.GetString("condition"),
+                condition = reader.IsDBNull("condition") ? "unknown" : reader.GetString("condition"),
                 image = reader.IsDBNull("image") ? "" : reader.GetString("image"),
                 license_plate = reader.IsDBNull("license_plate") ? "" : reader.GetString("license_plate"),
                 fuel_efficiency = reader.IsDBNull("fuel_efficiency") ? "" : reader.GetString("fuel_efficiency"),
                 location = reader.IsDBNull("location") ? "" : reader.GetString("location"),
-                created_at = reader.GetDateTime("created_at"),
-                updated_at = reader.GetDateTime("updated_at")
+                created_at = reader.IsDBNull("created_at") ? DateTime.Now : reader.GetDateTime("created_at"),
+                updated_at = reader.IsDBNull("updated_at") ? DateTime.Now : reader.GetDateTime("updated_at")
             };
         }
     }
