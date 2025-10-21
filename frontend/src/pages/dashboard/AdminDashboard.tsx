@@ -88,6 +88,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { adminApiService, AdminCreateVehicleRequest } from "../../services/api";
 
 interface AdminDashboardProps {
   user: {
@@ -132,8 +133,11 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
     warrantyExpiry: "",
     insuranceExpiry: "",
     lastMaintenanceDate: "",
+    inspectionDate: "",
     nextMaintenanceDate: "",
+    fuelEfficiency: "",
     notes: "",
+    location: "",
   });
 
   const { toast } = useToast();
@@ -205,7 +209,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   };
 
   // Vehicle Management Handlers
-  const handleRegisterVehicle = () => {
+  const handleRegisterVehicle = async () => {
     if (
       !selectedModelForRegistration ||
       !vehicleRegistrationData.licensePlate ||
@@ -220,34 +224,66 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       return;
     }
 
-    const selectedModel = getVehicleModels().find(
-      (m) => m.modelId === selectedModelForRegistration
-    );
+    try {
+      const requestData: AdminCreateVehicleRequest = {
+        modelId: selectedModelForRegistration,
+        uniqueVehicleId: vehicleRegistrationData.vinNumber,
+        batteryLevel: parseInt(vehicleRegistrationData.batteryLevel),
+        condition: vehicleRegistrationData.condition,
+        mileage: parseInt(vehicleRegistrationData.mileage),
+        licensePlate: vehicleRegistrationData.licensePlate,
+        lastMaintenance: vehicleRegistrationData.lastMaintenanceDate || undefined,
+        inspectionDate: vehicleRegistrationData.inspectionDate || undefined,
+        insuranceExpiry: vehicleRegistrationData.insuranceExpiry || undefined,
+        location: vehicleRegistrationData.location || undefined,
+        // Các trường mới
+        color: vehicleRegistrationData.color || undefined,
+        year: vehicleRegistrationData.year ? parseInt(vehicleRegistrationData.year) : undefined,
+        batteryCapacity: vehicleRegistrationData.batteryCapacity ? parseFloat(vehicleRegistrationData.batteryCapacity) : undefined,
+        purchaseDate: vehicleRegistrationData.purchaseDate || undefined,
+        warrantyExpiry: vehicleRegistrationData.warrantyExpiry || undefined,
+        nextMaintenanceDate: vehicleRegistrationData.nextMaintenanceDate || undefined,
+        fuelEfficiency: vehicleRegistrationData.fuelEfficiency ? parseFloat(vehicleRegistrationData.fuelEfficiency) : undefined,
+        notes: vehicleRegistrationData.notes || undefined,
+      };
 
-    toast({
-      title: "Vehicle Registered Successfully",
-      description: `${selectedModel?.name} with license plate ${vehicleRegistrationData.licensePlate} has been registered to the system.`,
-    });
+      const result = await adminApiService.createVehicle(requestData);
+      
+      // Check if the request was successful (no error thrown)
+      toast({
+        title: "Vehicle Registered Successfully",
+        description: `Vehicle with license plate ${vehicleRegistrationData.licensePlate} has been registered to the system.`,
+      });
 
-    // Reset form
-    setIsRegisterVehicleDialogOpen(false);
-    setSelectedModelForRegistration("");
-    setVehicleRegistrationData({
-      licensePlate: "",
-      vinNumber: "",
-      color: "",
-      year: new Date().getFullYear().toString(),
-      batteryCapacity: "",
-      batteryLevel: "100",
-      mileage: "0",
-      condition: "excellent",
-      purchaseDate: "",
-      warrantyExpiry: "",
-      insuranceExpiry: "",
-      lastMaintenanceDate: "",
-      nextMaintenanceDate: "",
-      notes: "",
-    });
+        // Reset form
+        setIsRegisterVehicleDialogOpen(false);
+        setSelectedModelForRegistration("");
+        setVehicleRegistrationData({
+          licensePlate: "",
+          vinNumber: "",
+          color: "",
+          year: new Date().getFullYear().toString(),
+          batteryCapacity: "",
+          batteryLevel: "100",
+          mileage: "0",
+          condition: "excellent",
+          purchaseDate: "",
+          warrantyExpiry: "",
+          insuranceExpiry: "",
+          lastMaintenanceDate: "",
+          inspectionDate: "",
+          nextMaintenanceDate: "",
+          fuelEfficiency: "",
+          notes: "",
+          location: "",
+        });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to register vehicle",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteVehicle = (vehicleId: string) => {
@@ -1646,6 +1682,27 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                       className="mt-2 text-base"
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="fuelEfficiency" className="text-base">
+                      Fuel Efficiency (km/kWh)
+                    </Label>
+                    <Input
+                      id="fuelEfficiency"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="e.g., 5.2"
+                      value={vehicleRegistrationData.fuelEfficiency}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          fuelEfficiency: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1750,6 +1807,24 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                       className="mt-2 text-base"
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="inspectionDate" className="text-base">
+                      Inspection Date
+                    </Label>
+                    <Input
+                      id="inspectionDate"
+                      type="date"
+                      value={vehicleRegistrationData.inspectionDate}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          inspectionDate: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1849,8 +1924,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                     warrantyExpiry: "",
                     insuranceExpiry: "",
                     lastMaintenanceDate: "",
+                    inspectionDate: "",
                     nextMaintenanceDate: "",
                     notes: "",
+                    location: "",
                   });
                 }}
               >

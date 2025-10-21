@@ -9,6 +9,9 @@ namespace EVRentalApi.Application.Services
         Task<IEnumerable<VehicleDto>> GetAvailableVehiclesAsync();
         Task<IEnumerable<VehicleDto>> GetVehiclesByModelIdAsync(string modelId);
         Task<IEnumerable<VehicleDto>> GetVehiclesByStationIdAsync(int stationId);
+        Task<IEnumerable<VehicleDto>> GetUnassignedVehiclesAsync();
+        Task<bool> AssignVehicleToStationAsync(int vehicleId, int stationId, string location);
+        Task<AdminCreateVehicleResponse> CreateVehicleAsync(AdminCreateVehicleRequest request);
     }
 }
 

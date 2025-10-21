@@ -77,7 +77,7 @@ public class StaffRepository : IStaffRepository
                 v.trips,
                 v.mileage,
                 v.last_maintenance,
-                v.inspection_date,
+                v.last_maintenance,
                 v.insurance_expiry,
                 v.condition,
                 v.created_at,
@@ -117,7 +117,6 @@ public class StaffRepository : IStaffRepository
                 Trips = reader.IsDBNull("trips") ? 0 : reader.GetInt32("trips"),
                 Mileage = reader.IsDBNull("mileage") ? 0 : reader.GetInt32("mileage"),
                 LastMaintenance = reader.IsDBNull("last_maintenance") ? "" : reader.GetDateTime("last_maintenance").ToString("yyyy-MM-dd"),
-                InspectionDate = reader.IsDBNull("inspection_date") ? "" : reader.GetDateTime("inspection_date").ToString("yyyy-MM-dd"),
                 InsuranceExpiry = reader.IsDBNull("insurance_expiry") ? "" : reader.GetDateTime("insurance_expiry").ToString("yyyy-MM-dd"),
                 Condition = reader.IsDBNull("condition") ? null : reader.GetString("condition"),
                 CreatedAt = reader.GetDateTime("created_at"),
@@ -150,7 +149,7 @@ public class StaffRepository : IStaffRepository
                 v.trips,
                 v.mileage,
                 v.last_maintenance,
-                v.inspection_date,
+                v.last_maintenance,
                 v.insurance_expiry,
                 v.condition,
                 v.created_at,
@@ -189,7 +188,6 @@ public class StaffRepository : IStaffRepository
                 Trips = reader.IsDBNull("trips") ? 0 : reader.GetInt32("trips"),
                 Mileage = reader.IsDBNull("mileage") ? 0 : reader.GetInt32("mileage"),
                 LastMaintenance = reader.IsDBNull("last_maintenance") ? "" : reader.GetDateTime("last_maintenance").ToString("yyyy-MM-dd"),
-                InspectionDate = reader.IsDBNull("inspection_date") ? "" : reader.GetDateTime("inspection_date").ToString("yyyy-MM-dd"),
                 InsuranceExpiry = reader.IsDBNull("insurance_expiry") ? "" : reader.GetDateTime("insurance_expiry").ToString("yyyy-MM-dd"),
                 Condition = reader.IsDBNull("condition") ? null : reader.GetString("condition"),
                 CreatedAt = reader.GetDateTime("created_at"),
@@ -214,7 +212,6 @@ public class StaffRepository : IStaffRepository
                 mileage = COALESCE(@Mileage, mileage),
                 status = COALESCE(@Status, status),
                 last_maintenance = COALESCE(@LastMaintenance, last_maintenance),
-                inspection_date = COALESCE(@InspectionDate, inspection_date),
                 updated_at = GETDATE()
             WHERE vehicle_id = @VehicleId";
 

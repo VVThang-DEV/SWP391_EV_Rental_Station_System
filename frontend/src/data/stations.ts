@@ -109,7 +109,7 @@ export const stations: Station[] = [
   },
   {
     id: "st7",
-    name: "District 8 Station",
+    name: "Thu Duc Station",
     address: "987 Pham The Hien Street",
     city: "Ho Chi Minh City",
     coordinates: { lat: 10.7406, lng: 106.6792 },

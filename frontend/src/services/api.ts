@@ -241,6 +241,17 @@ class ApiService {
     return this.request<Vehicle[]>(`/api/vehicles/station/${stationId}`);
   }
 
+  async getUnassignedVehicles(): Promise<Vehicle[]> {
+    return this.request<Vehicle[]>("/api/vehicles/unassigned");
+  }
+
+  async assignVehicleToStation(vehicleId: number, stationId: number, location: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/api/vehicles/assign-to-station", {
+      method: "POST",
+      body: JSON.stringify({ vehicleId, stationId, location }),
+    });
+  }
+
   // Vehicle Models
   async getVehicleModels(): Promise<VehicleModel[]> {
     return this.request<VehicleModel[]>("/api/VehicleModels");
@@ -320,6 +331,28 @@ export interface AddVehicleRequest {
   mileage: number;
   licensePlate?: string;
   location?: string;
+  notes?: string;
+}
+
+export interface AdminCreateVehicleRequest {
+  modelId: string;
+  uniqueVehicleId?: string;
+  batteryLevel: number;
+  condition: string;
+  mileage: number;
+  licensePlate?: string;
+  lastMaintenance?: string;
+  inspectionDate?: string;
+  insuranceExpiry?: string;
+  location?: string;
+  // Các trường mới từ form
+  color?: string;
+  year?: number;
+  batteryCapacity?: number;
+  purchaseDate?: string;
+  warrantyExpiry?: string;
+  nextMaintenanceDate?: string;
+  fuelEfficiency?: number;
   notes?: string;
 }
 
@@ -571,7 +604,33 @@ class StaffApiService {
   }
 }
 
+// Admin API Service
+class AdminApiService {
+  private baseUrl = 'http://localhost:5000/api/admin';
+
+  // Create Vehicle (Admin only)
+  async createVehicle(data: AdminCreateVehicleRequest): Promise<any> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/vehicles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create vehicle');
+    }
+
+    return response.json();
+  }
+}
+
 // Export singleton instance
 export const apiService = new ApiService();
 export const staffApiService = new StaffApiService();
+export const adminApiService = new AdminApiService();
 export default apiService;
