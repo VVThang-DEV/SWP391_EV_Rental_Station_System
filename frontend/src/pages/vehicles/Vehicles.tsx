@@ -153,7 +153,7 @@ const Vehicles = () => {
       condition: apiVehicle.condition as any,
       // Use model image if vehicle doesn't have specific image
       image: apiVehicle.image || (model ? model.image : ''),
-      location: apiVehicle.location,
+      location: apiVehicle.location || station?.city || 'Unknown Location',
       stationId: apiVehicle.stationId?.toString() || '1',
       stationName: station ? station.name : 'Unknown Station',
       stationAddress: station ? station.address : '',
@@ -245,7 +245,8 @@ const Vehicles = () => {
   // Get unique locations for filter
   const locations = useMemo(() => {
     const uniqueLocations = [...new Set(vehicles.map((v) => v.location))];
-    return uniqueLocations;
+    // Filter out empty strings and null/undefined values
+    return uniqueLocations.filter(location => location && location.trim() !== '');
   }, [vehicles]);
 
   // Filter and sort vehicles
@@ -399,14 +400,17 @@ const Vehicles = () => {
                     <SelectItem value="all">
                       {t("common.allLocations")}
                     </SelectItem>
-                    {locations.map((location) => (
-                      <SelectItem
-                        key={String(location)}
-                        value={String(location)}
-                      >
-                        {String(location)}
-                      </SelectItem>
-                    ))}
+                    {locations.map((location) => {
+                      const locationValue = String(location).trim();
+                      return locationValue ? (
+                        <SelectItem
+                          key={locationValue}
+                          value={locationValue}
+                        >
+                          {locationValue}
+                        </SelectItem>
+                      ) : null;
+                    })}
                   </SelectContent>
                 </Select>
 
