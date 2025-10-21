@@ -201,6 +201,29 @@ class ApiService {
     });
   }
 
+  async getCurrentUser() {
+    return this.request<{
+      success: boolean;
+      user: {
+        userId: number;
+        email: string;
+        fullName: string;
+        phone?: string;
+        cccd?: string;
+        licenseNumber?: string;
+        address?: string;
+        gender?: string;
+        dateOfBirth?: string;
+        position?: string;
+        roleName: string;
+        createdAt: string;
+        updatedAt: string;
+      };
+    }>("/auth/current-user", {
+      method: "GET",
+    });
+  }
+
   // Vehicles
   async getVehicles(): Promise<Vehicle[]> {
     return this.request<Vehicle[]>("/api/vehicles");
