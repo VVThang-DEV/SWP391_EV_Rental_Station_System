@@ -406,9 +406,28 @@ class StaffApiService {
 
   // Staff Profile
   async getStaffProfile(): Promise<StaffProfile> {
-    const response = await fetch(`${this.baseUrl}/profile`);
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/profile`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch staff profile');
+    }
+    return response.json();
+  }
+
+  // Station Info
+  async getStationInfo(): Promise<StationInfo> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/station`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch station info');
     }
     return response.json();
   }

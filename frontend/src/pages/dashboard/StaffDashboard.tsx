@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useStationVehicles } from "@/hooks/useStaffApi";
+import { useStationVehicles, useStaffProfile, useStationInfo } from "@/hooks/useStaffApi";
 import {
   Card,
   CardContent,
@@ -97,10 +97,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  // API Hook for Vehicle Management only
+  // API Hooks for Staff Dashboard
+  const { data: staffProfile, loading: profileLoading, error: profileError } = useStaffProfile();
+  const { data: stationInfo, loading: stationLoading, error: stationError } = useStationInfo();
   const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
   
   // Debug API data
+  console.log('Staff Profile:', staffProfile);
+  console.log('Station Info:', stationInfo);
   console.log('API Vehicles:', apiVehicles);
   console.log('Vehicles Loading:', vehiclesLoading);
   console.log('Vehicles Error:', vehiclesError);
@@ -181,20 +185,34 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   // Use provided user
   const currentUser = user;
 
-  // Mock data for Station District 1
-  const stationData = {
-    name: "District 1 EV Station",
+  // Use API data for station information, fallback to mock data
+  const stationData = stationInfo ? {
+    name: stationInfo.name,
     vehicles: {
-      available: 12,
-      rented: 8,
-      maintenance: 2,
-      total: 22,
+      available: apiVehicles?.filter(v => v.status === 'available').length || 0,
+      rented: apiVehicles?.filter(v => v.status === 'rented').length || 0,
+      maintenance: apiVehicles?.filter(v => v.status === 'maintenance').length || 0,
+      total: apiVehicles?.length || 0,
     },
     todayStats: {
-      checkouts: 15,
-      checkins: 12,
-      revenue: 2340,
-      newCustomers: 3,
+      checkouts: 15, // TODO: Get from API
+      checkins: 12, // TODO: Get from API
+      revenue: 2340, // TODO: Get from API
+      newCustomers: 3, // TODO: Get from API
+    },
+  } : {
+    name: "Loading Station...",
+    vehicles: {
+      available: 0,
+      rented: 0,
+      maintenance: 0,
+      total: 0,
+    },
+    todayStats: {
+      checkouts: 0,
+      checkins: 0,
+      revenue: 0,
+      newCustomers: 0,
     },
   };
 
@@ -1881,7 +1899,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </h1>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
-                  {t("common.welcomeUser")}, {currentUser.name}
+                  {t("common.welcomeUser")}, {staffProfile?.fullName || currentUser.name}
                 </p>
               </div>
             </div>
