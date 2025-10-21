@@ -10,11 +10,14 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { Wallet } from "@/components/Wallet";
 
 interface NavbarProps {
   user?: {
+    id?: string;
     name: string;
     email: string;
+    role?: string;
   } | null;
   onLogout?: () => void;
 }
@@ -88,54 +91,64 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
           {/* User Menu / Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center space-x-2"
-                  >
-                    <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-white" />
+              <>
+                {/* Wallet Component */}
+                {user.role !== "staff" && user.role !== "admin" && (
+                  <Wallet userId={user.id || "1"} userName={user.name} />
+                )}
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="flex items-center space-x-2"
+                    >
+                      <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">{user.name}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1.5">
+                      <p className="text-sm font-medium">{user.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
                     </div>
-                    <span className="text-sm font-medium">{user.name}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      {t("nav.dashboard")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/bookings" className="flex items-center">
-                      <History className="mr-2 h-4 w-4" />
-                      {t("nav.bookings")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      {t("nav.settings")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => { onLogout?.(); navigate("/"); }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t("nav.logout")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        {t("nav.dashboard")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/bookings" className="flex items-center">
+                        <History className="mr-2 h-4 w-4" />
+                        {t("nav.bookings")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        {t("nav.settings")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onLogout?.();
+                        navigate("/");
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      {t("nav.logout")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Button variant="ghost" asChild>
@@ -223,6 +236,14 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                         {user.email}
                       </p>
                     </div>
+
+                    {/* Wallet in Mobile Menu */}
+                    {user.role !== "staff" && user.role !== "admin" && (
+                      <div className="px-3 py-2">
+                        <Wallet userId={user.id || "1"} userName={user.name} />
+                      </div>
+                    )}
+
                     <Link
                       to="/dashboard"
                       className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"

@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { bookingStorage } from "@/lib/booking-storage";
 import { useEffect, useState } from "react";
+import { Wallet } from "@/components/Wallet";
 import {
   Car,
   Clock,
@@ -78,8 +79,7 @@ const Dashboard = ({ user }: DashboardProps) => {
         </div>
       </div>
     );
-  } 
-
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -220,27 +220,23 @@ const Dashboard = ({ user }: DashboardProps) => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Battery Level</span>
-                    <span className="font-medium">
-                      85%
-                    </span>
+                    <span className="font-medium">85%</span>
                   </div>
-                  <Progress
-                    value={85}
-                    className="h-2"
-                  />
+                  <Progress value={85} className="h-2" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
-                      Started: {formatDate(dashboardData.currentRental.startDate)}
+                      Started:{" "}
+                      {formatDate(dashboardData.currentRental.startDate)}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span>
-                     Ends: {formatDate(dashboardData.currentRental.endDate)}
+                      Ends: {formatDate(dashboardData.currentRental.endDate)}
                     </span>
                   </div>
                 </div>
@@ -281,6 +277,11 @@ const Dashboard = ({ user }: DashboardProps) => {
               <CardDescription>Common tasks and shortcuts</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Wallet Button */}
+              <div className="w-full">
+                <Wallet userId={user.id} userName={user.name} />
+              </div>
+
               <Button
                 variant="outline"
                 className="w-full justify-between"
@@ -392,7 +393,6 @@ const Dashboard = ({ user }: DashboardProps) => {
                 </Button>
               </div>
             )}
-
           </CardContent>
         </Card>
 
