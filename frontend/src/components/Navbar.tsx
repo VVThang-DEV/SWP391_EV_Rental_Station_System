@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Car, User, Menu, X, LogOut, Settings, History } from "lucide-react";
+import {
+  Car,
+  User,
+  Menu,
+  X,
+  LogOut,
+  Settings,
+  History,
+  Wallet,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +19,6 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
-import { Wallet } from "@/components/Wallet";
 
 interface NavbarProps {
   user?: {
@@ -92,11 +100,6 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                {/* Wallet Component */}
-                {user.role !== "staff" && user.role !== "admin" && (
-                  <Wallet userId={user.id || "1"} userName={user.name} />
-                )}
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -129,6 +132,14 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                         {t("nav.bookings")}
                       </Link>
                     </DropdownMenuItem>
+                    {user.role !== "staff" && user.role !== "admin" && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/wallet" className="flex items-center">
+                          <Wallet className="mr-2 h-4 w-4" />
+                          My Wallet
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link to="/settings" className="flex items-center">
                         <Settings className="mr-2 h-4 w-4" />
@@ -237,13 +248,6 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                       </p>
                     </div>
 
-                    {/* Wallet in Mobile Menu */}
-                    {user.role !== "staff" && user.role !== "admin" && (
-                      <div className="px-3 py-2">
-                        <Wallet userId={user.id || "1"} userName={user.name} />
-                      </div>
-                    )}
-
                     <Link
                       to="/dashboard"
                       className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -258,6 +262,15 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                     >
                       {t("nav.bookings")}
                     </Link>
+                    {user.role !== "staff" && user.role !== "admin" && (
+                      <Link
+                        to="/wallet"
+                        className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        My Wallet
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         onLogout?.();

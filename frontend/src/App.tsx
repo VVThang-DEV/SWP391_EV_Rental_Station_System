@@ -23,6 +23,7 @@ import {
   HowItWorks,
   Bookings,
   Settings,
+  Wallet,
   ForgotPassword,
   Terms,
   Privacy,
@@ -174,6 +175,7 @@ const App = () => {
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/wallet" element={<Wallet user={user} />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
