@@ -257,3 +257,4 @@ E:\New folder (8)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\
 E:\New folder (8)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.pdb
 E:\New folder (8)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.genruntimeconfig.cache
 E:\New folder (8)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\ref\EVRentalApi.dll
+E:\New folder (7)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
