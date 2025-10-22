@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
+import { ChargingProvider } from "@/contexts/ChargingContext";
 import Navbar from "./components/Navbar";
 
 import {
@@ -70,13 +71,14 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TranslationProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <div className="min-h-screen bg-background">
-              <Navbar user={user} onLogout={handleLogout} />
-              <Routes>
+        <ChargingProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <div className="min-h-screen bg-background">
+                <Navbar user={user} onLogout={handleLogout} />
+                <Routes>
                 <Route path="/" element={<Index user={user} />} />
                 <Route path="/vehicles" element={<Vehicles />} />
                 <Route path="/vehicles/:id" element={<VehicleDetails />} />
@@ -190,9 +192,10 @@ const App = () => {
             </div>
           </BrowserRouter>
         </TooltipProvider>
-      </TranslationProvider>
-    </QueryClientProvider>
-  );
+      </ChargingProvider>
+    </TranslationProvider>
+  </QueryClientProvider>
+);
 };
 
 export default App;
