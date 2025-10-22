@@ -274,6 +274,19 @@ class ApiService {
     return this.request<Station>(`/api/stations/${id}`);
   }
 
+  async updateStation(id: number, data: Partial<Station>): Promise<Station> {
+    return this.request<Station>(`/api/stations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateStationAvailableVehicles(id: number): Promise<Station> {
+    return this.request<Station>(`/api/stations/${id}/update-available-vehicles`, {
+      method: "PUT",
+    });
+  }
+
   // Health check
   async healthCheck() {
     return this.request<{ status: string }>("/health");

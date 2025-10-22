@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using EVRentalApi.Models;
 
 namespace EVRentalApi.Infrastructure.Repositories
 {
@@ -152,6 +153,155 @@ namespace EVRentalApi.Infrastructure.Repositories
             }
             
             return vehicles;
+        }
+
+        public async Task<dynamic?> UpdateStationAsync(int id, StationUpdateRequest request)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            
+            // Build dynamic SQL query based on provided fields
+            var updateFields = new List<string>();
+            var parameters = new List<SqlParameter>();
+            
+            if (!string.IsNullOrEmpty(request.Name))
+            {
+                updateFields.Add("name = @Name");
+                parameters.Add(new SqlParameter("@Name", request.Name));
+            }
+            
+            if (!string.IsNullOrEmpty(request.Address))
+            {
+                updateFields.Add("address = @Address");
+                parameters.Add(new SqlParameter("@Address", request.Address));
+            }
+            
+            if (!string.IsNullOrEmpty(request.City))
+            {
+                updateFields.Add("city = @City");
+                parameters.Add(new SqlParameter("@City", request.City));
+            }
+            
+            if (request.Latitude.HasValue)
+            {
+                updateFields.Add("latitude = @Latitude");
+                parameters.Add(new SqlParameter("@Latitude", request.Latitude.Value));
+            }
+            
+            if (request.Longitude.HasValue)
+            {
+                updateFields.Add("longitude = @Longitude");
+                parameters.Add(new SqlParameter("@Longitude", request.Longitude.Value));
+            }
+            
+            if (!string.IsNullOrEmpty(request.Status))
+            {
+                updateFields.Add("status = @Status");
+                parameters.Add(new SqlParameter("@Status", request.Status));
+            }
+            
+            if (request.TotalSlots.HasValue)
+            {
+                updateFields.Add("total_slots = @TotalSlots");
+                parameters.Add(new SqlParameter("@TotalSlots", request.TotalSlots.Value));
+            }
+            
+            if (!string.IsNullOrEmpty(request.Amenities))
+            {
+                updateFields.Add("amenities = @Amenities");
+                parameters.Add(new SqlParameter("@Amenities", request.Amenities));
+            }
+            
+            if (request.Rating.HasValue)
+            {
+                updateFields.Add("rating = @Rating");
+                parameters.Add(new SqlParameter("@Rating", request.Rating.Value));
+            }
+            
+            if (!string.IsNullOrEmpty(request.OperatingHours))
+            {
+                updateFields.Add("operating_hours = @OperatingHours");
+                parameters.Add(new SqlParameter("@OperatingHours", request.OperatingHours));
+            }
+            
+            if (request.FastCharging.HasValue)
+            {
+                updateFields.Add("fast_charging = @FastCharging");
+                parameters.Add(new SqlParameter("@FastCharging", request.FastCharging.Value));
+            }
+            
+            if (!string.IsNullOrEmpty(request.Image))
+            {
+                updateFields.Add("image = @Image");
+                parameters.Add(new SqlParameter("@Image", request.Image));
+            }
+            
+            if (updateFields.Count == 0)
+            {
+                return null; // No fields to update
+            }
+            
+            updateFields.Add("updated_at = GETDATE()");
+            
+            var query = $@"
+                UPDATE stations 
+                SET {string.Join(", ", updateFields)}
+                WHERE station_id = @StationId";
+            
+            using var command = new SqlCommand(query, connection);
+            command.Parameters.AddWithValue("@StationId", id);
+            
+            foreach (var param in parameters)
+            {
+                command.Parameters.Add(param);
+            }
+            
+            var rowsAffected = await command.ExecuteNonQueryAsync();
+            
+            if (rowsAffected > 0)
+            {
+                // Return updated station
+                return await GetStationByIdAsync(id);
+            }
+            
+            return null;
+        }
+
+        public async Task<dynamic?> UpdateAvailableVehiclesAsync(int stationId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            
+            // Count available vehicles for this station
+            var countQuery = @"
+                SELECT COUNT(*) as available_count
+                FROM vehicles 
+                WHERE station_id = @StationId AND status = 'available'";
+            
+            using var countCommand = new SqlCommand(countQuery, connection);
+            countCommand.Parameters.AddWithValue("@StationId", stationId);
+            
+            var availableCount = (int)await countCommand.ExecuteScalarAsync();
+            
+            // Update the station's available_vehicles count
+            var updateQuery = @"
+                UPDATE stations 
+                SET available_vehicles = @AvailableCount, updated_at = GETDATE()
+                WHERE station_id = @StationId";
+            
+            using var updateCommand = new SqlCommand(updateQuery, connection);
+            updateCommand.Parameters.AddWithValue("@AvailableCount", availableCount);
+            updateCommand.Parameters.AddWithValue("@StationId", stationId);
+            
+            var rowsAffected = await updateCommand.ExecuteNonQueryAsync();
+            
+            if (rowsAffected > 0)
+            {
+                // Return updated station
+                return await GetStationByIdAsync(stationId);
+            }
+            
+            return null;
         }
     }
 }

@@ -30,6 +30,18 @@ namespace EVRentalApi.Application.Services
             return vehicles.Select(MapVehicleToDto);
         }
 
+        public async Task<StationDto?> UpdateStationAsync(int id, StationUpdateRequest request)
+        {
+            var updatedStation = await _stationRepository.UpdateStationAsync(id, request);
+            return updatedStation != null ? MapToDto(updatedStation) : null;
+        }
+
+        public async Task<StationDto?> UpdateAvailableVehiclesAsync(int stationId)
+        {
+            var updatedStation = await _stationRepository.UpdateAvailableVehiclesAsync(stationId);
+            return updatedStation != null ? MapToDto(updatedStation) : null;
+        }
+
         private static StationDto MapToDto(dynamic station)
         {
             return new StationDto
