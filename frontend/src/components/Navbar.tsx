@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { Wallet } from "@/components/Wallet";
+import BatteryAlertBell from "@/components/BatteryAlertBell";
+import { useChargingContext } from "@/contexts/ChargingContext";
 
 interface NavbarProps {
   user?: {
@@ -92,6 +94,11 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
+                {/* Battery Alert Bell - only show for staff */}
+                {user.role === "staff" && (
+                  <BatteryAlertBell />
+                )}
+
                 {/* Wallet Component */}
                 {user.role !== "staff" && user.role !== "admin" && (
                   <Wallet userId={user.id || "1"} userName={user.name} />

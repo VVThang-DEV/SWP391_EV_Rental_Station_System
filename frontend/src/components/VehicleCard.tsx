@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { useCurrency } from "@/lib/currency";
+import { useChargingContext } from "@/contexts/ChargingContext";
+import { BATTERY_THRESHOLDS, isLowBattery, isAvailableForBooking } from "@/lib/vehicle-constants";
 
 export interface Vehicle {
   id: string; // Unique vehicle instance ID (e.g., "VF8-D1-001")
@@ -69,7 +71,37 @@ interface VehicleCardProps {
 const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
   const { t } = useTranslation();
   const { formatPrice } = useCurrency();
+  const { chargingVehicles } = useChargingContext();
+  
+  // Check if vehicle is currently charging
+  const isCharging = chargingVehicles.has(vehicle.id) || chargingVehicles.has(vehicle.uniqueVehicleId || '');
+  
+  // Check if vehicle has low battery
+  const hasLowBattery = isLowBattery(vehicle.batteryLevel);
+  
+  // Determine if vehicle is available for booking
+  const canBookVehicle = isAvailableForBooking(
+    vehicle.availability,
+    vehicle.batteryLevel,
+    isCharging
+  );
   const getStatusBadge = () => {
+    if (isCharging) {
+      return (
+        <Badge className="badge-charging bg-blue-100 text-blue-800 border-blue-200">
+          🔌 {t("common.charging")}
+        </Badge>
+      );
+    }
+    
+    if (hasLowBattery) {
+      return (
+        <Badge className="badge-low-battery bg-orange-100 text-orange-800 border-orange-200">
+          ⚠️ {t("common.lowBattery")}
+        </Badge>
+      );
+    }
+    
     switch (vehicle.availability) {
       case "available":
         return (
@@ -244,12 +276,24 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
                 {t("common.viewDetails")}
               </Link>
             </Button>
-            {vehicle.availability === "available" && (
+            {canBookVehicle && (
               <Button size="sm" className="btn-success w-full" asChild>
                 <Link to={`/book/${vehicle.id}`}>
                   <Clock className="h-3 w-3 mr-1" />
                   {t("common.bookNow")}
                 </Link>
+              </Button>
+            )}
+            
+            {isCharging && (
+              <Button size="sm" className="w-full" disabled>
+                🔌 {t("common.charging")} - {t("common.notAvailable")}
+              </Button>
+            )}
+            
+            {hasLowBattery && !isCharging && (
+              <Button size="sm" className="w-full" disabled>
+                ⚠️ {t("common.lowBattery")} - {t("common.notAvailable")}
               </Button>
             )}
           </div>

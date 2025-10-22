@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
+import { ChargingProvider, useChargingContext } from "@/contexts/ChargingContext";
 import Navbar from "./components/Navbar";
 
 import {
@@ -47,7 +48,7 @@ interface User {
   stationId?: string; // For staff members
 }
 
-const App = () => {
+const AppContent = () => {
   const [user, setUser] = useState<User | null>(() => {
     // Try to load user from localStorage on app start
     const savedUser = localStorage.getItem("user");
@@ -67,15 +68,13 @@ const App = () => {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TranslationProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <div className="min-h-screen bg-background">
-              <Navbar user={user} onLogout={handleLogout} />
-              <Routes>
+    <BrowserRouter>
+      <div className="min-h-screen bg-background">
+        <Navbar 
+          user={user} 
+          onLogout={handleLogout}
+        />
+        <Routes>
                 <Route path="/" element={<Index user={user} />} />
                 <Route path="/vehicles" element={<Vehicles />} />
                 <Route path="/vehicles/:id" element={<VehicleDetails />} />
@@ -185,9 +184,22 @@ const App = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </div>
-          </BrowserRouter>
-        </TooltipProvider>
+      </div>
+    </BrowserRouter>
+  );
+};
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TranslationProvider>
+        <ChargingProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <AppContent />
+          </TooltipProvider>
+        </ChargingProvider>
       </TranslationProvider>
     </QueryClientProvider>
   );

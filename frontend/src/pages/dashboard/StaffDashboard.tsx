@@ -76,11 +76,13 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { useChargingContext } from "@/contexts/ChargingContext";
 import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
 import { WalkInBookingManager } from "@/components/walkin-booking";
+import BatteryAlertBell from "@/components/BatteryAlertBell";
 
 interface StaffDashboardProps {
   user: {
@@ -96,6 +98,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [selectedTab, setSelectedTab] = useState("vehicles");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const { chargingVehicles } = useChargingContext();
 
   // API Hook for Vehicle Management only
   const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
@@ -810,14 +813,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
                     <Badge
                       variant={
-                        vehicle.status === "available"
+                        chargingVehicles.has(vehicle.id)
+                          ? "secondary"
+                          : vehicle.status === "available"
                           ? "default"
                           : vehicle.status === "rented"
                           ? "secondary"
                           : "destructive"
                       }
                     >
-                      {vehicle.status}
+                      {chargingVehicles.has(vehicle.id) ? "đang sạc" : vehicle.status}
                     </Badge>
 
                     <div className="flex space-x-2">
@@ -1875,14 +1880,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           >
             <div className="absolute inset-0 bg-black/40"></div>
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              <div className="text-center">
-                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                  {t("common.staffDashboard")}
-                </h1>
-                <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
-                <p className="text-white/80">
-                  {t("common.welcomeUser")}, {currentUser.name}
-                </p>
+              <div className="flex items-center justify-between">
+                <div className="text-center flex-1">
+                  <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                    {t("common.staffDashboard")}
+                  </h1>
+                  <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
+                  <p className="text-white/80">
+                    {t("common.welcomeUser")}, {currentUser.name}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
