@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { TranslationProvider } from "@/contexts/TranslationContext";
-import { ChargingProvider, useChargingContext } from "@/contexts/ChargingContext";
 import Navbar from "./components/Navbar";
 
 import {
@@ -24,6 +23,7 @@ import {
   HowItWorks,
   Bookings,
   Settings,
+  Wallet,
   ForgotPassword,
   Terms,
   Privacy,
@@ -48,7 +48,7 @@ interface User {
   stationId?: string; // For staff members
 }
 
-const AppContent = () => {
+const App = () => {
   const [user, setUser] = useState<User | null>(() => {
     // Try to load user from localStorage on app start
     const savedUser = localStorage.getItem("user");
@@ -68,13 +68,15 @@ const AppContent = () => {
   };
 
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-background">
-        <Navbar 
-          user={user} 
-          onLogout={handleLogout}
-        />
-        <Routes>
+    <QueryClientProvider client={queryClient}>
+      <TranslationProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <div className="min-h-screen bg-background">
+              <Navbar user={user} onLogout={handleLogout} />
+              <Routes>
                 <Route path="/" element={<Index user={user} />} />
                 <Route path="/vehicles" element={<Vehicles />} />
                 <Route path="/vehicles/:id" element={<VehicleDetails />} />
@@ -173,6 +175,7 @@ const AppContent = () => {
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/wallet" element={<Wallet user={user} />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
@@ -184,22 +187,9 @@ const AppContent = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-      </div>
-    </BrowserRouter>
-  );
-};
-
-const App = () => {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TranslationProvider>
-        <ChargingProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <AppContent />
-          </TooltipProvider>
-        </ChargingProvider>
+            </div>
+          </BrowserRouter>
+        </TooltipProvider>
       </TranslationProvider>
     </QueryClientProvider>
   );

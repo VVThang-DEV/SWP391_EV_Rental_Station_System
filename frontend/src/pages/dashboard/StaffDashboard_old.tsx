@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useStationVehicles, useStaffProfile, useStationInfo } from "@/hooks/useStaffApi";
-import { apiService, Vehicle } from "@/services/api";
 import {
   Card,
   CardContent,
@@ -77,6 +76,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import StaffPickupManager from "@/components/StaffPickupManager";
@@ -138,15 +138,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
   // Add Vehicle Dialog state
   const [isAddVehicleDialogOpen, setIsAddVehicleDialogOpen] = useState(false);
-  const [selectedModelToAdd, setSelectedModelToAdd] = useState("");
   const [unassignedVehicles, setUnassignedVehicles] = useState<Vehicle[]>([]);
   const [unassignedVehiclesLoading, setUnassignedVehiclesLoading] = useState(false);
   const [unassignedVehiclesError, setUnassignedVehiclesError] = useState<string | null>(null);
-  const [newVehicleData, setNewVehicleData] = useState({
-    batteryLevel: "100",
-    condition: "excellent",
-    mileage: "0",
-  });
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Vehicle Inspection Workflow state
   const [isPreRentalInspectionOpen, setIsPreRentalInspectionOpen] =
@@ -167,29 +162,52 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     damages: [] as string[],
   });
 
-  // Load unassigned vehicles when dialog opens
-  useEffect(() => {
-    if (isAddVehicleDialogOpen) {
-      loadUnassignedVehicles();
-    }
-  }, [isAddVehicleDialogOpen]);
+  const { toast } = useToast();
+  const { t } = useTranslation();
 
+  // Load unassigned vehicles when dialog opens
   const loadUnassignedVehicles = async () => {
     setUnassignedVehiclesLoading(true);
     setUnassignedVehiclesError(null);
     try {
-      const vehicles = await apiService.getUnassignedVehicles();
+      const vehicles = await staffApiService.getUnassignedVehicles();
       setUnassignedVehicles(vehicles);
     } catch (error) {
-      console.error('Error loading unassigned vehicles:', error);
       setUnassignedVehiclesError(error instanceof Error ? error.message : 'Failed to load vehicles');
     } finally {
       setUnassignedVehiclesLoading(false);
     }
   };
 
-  const { toast } = useToast();
-  const { t } = useTranslation();
+  // Assign vehicle to station
+  const handleAssignVehicle = async (vehicleId: number) => {
+    try {
+      await staffApiService.assignVehicleToStation(vehicleId);
+      toast({
+        title: "Success",
+        description: "Vehicle assigned to your station successfully!",
+      });
+      
+      // Close dialog and refresh data
+      setIsAddVehicleDialogOpen(false);
+      setSearchQuery("");
+      
+      // Refresh station vehicles
+      window.location.reload(); // Simple refresh for now
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to assign vehicle",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Open dialog and load unassigned vehicles
+  const handleOpenAddVehicleDialog = () => {
+    setIsAddVehicleDialogOpen(true);
+    loadUnassignedVehicles();
+  };
 
   if (!user) {
     return (
@@ -206,46 +224,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     );
   }
 
-  // Show loading while staff profile is loading
-  if (profileLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading staff profile...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if staff has station assigned
-  if (!profileLoading && staffProfile && !staffProfile.stationId) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4 text-red-600">
-            No Station Assigned
-          </h1>
-          <p className="text-muted-foreground mb-6">
-            Please contact administrator to assign a station to your account.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Use provided user, but prefer API data for station info
-  const currentUser = {
-    ...user,
-    stationId: staffProfile?.stationId?.toString() || user?.stationId
-  };
+  // Use provided user
+  const currentUser = user;
 
   // Use API data for station information, fallback to mock data
-  // Get station name from vehicles location instead of stationInfo
-  const stationName = apiVehicles && apiVehicles.length > 0 ? apiVehicles[0].location : (stationInfo?.name || "");
-  
-  const stationData = {
-    name: stationName,
+  const stationData = stationInfo ? {
+    name: stationInfo.name,
     vehicles: {
       available: apiVehicles?.filter(v => v.status === 'available').length || 0,
       rented: apiVehicles?.filter(v => v.status === 'rented').length || 0,
@@ -257,6 +241,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       checkins: 12, // TODO: Get from API
       revenue: 2340, // TODO: Get from API
       newCustomers: 3, // TODO: Get from API
+    },
+  } : {
+    name: "Loading Station...",
+    vehicles: {
+      available: 0,
+      rented: 0,
+      maintenance: 0,
+      total: 0,
+    },
+    todayStats: {
+      checkouts: 0,
+      checkins: 0,
+      revenue: 0,
+      newCustomers: 0,
     },
   };
 
@@ -515,100 +513,67 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     });
   };
 
-  const handleAddVehicle = async () => {
-    if (!newVehicleData.mileage || newVehicleData.mileage === "0") {
+  const handleAddVehicle = () => {
+    if (!selectedModelToAdd) {
       toast({
         title: "Error",
-        description: "Please select a vehicle to assign",
+        description: "Please select a vehicle model",
         variant: "destructive",
       });
       return;
     }
 
-    if (!staffProfile?.stationId) {
-      toast({
-        title: "Error",
-        description: "No station assigned to current user",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Get the selected model details
+    const availableModels = getVehicleModels();
+    const selectedModel = availableModels.find(
+      (m) => m.modelId === selectedModelToAdd
+    );
 
-    try {
-      const vehicleId = parseInt(newVehicleData.mileage);
-      const stationId = staffProfile.stationId;
-      // Get station name from multiple sources
-      // Map database station_id to static data id
-      const stationMap: { [key: number]: string } = {
-        1: "st1", // District 1 Station
-        2: "st2", // District 7 Station  
-        3: "st3", // Airport Station
-        4: "st4", // District 3 Station
-        5: "st5", // District 5 Station
-        6: "st6", // District 2 Station
-        7: "st7", // Thu Duc Station
-        8: "st8", // District 4 Station
-      };
-      
-      const stationName = stationInfo?.name || 
-                         stations.find(s => s.id === stationMap[stationId])?.name || 
-                         `Station ${stationId}`;
-      const location = stationName;
+    if (!selectedModel) return;
 
-      console.log('Debug assign vehicle:', {
-        vehicleId,
-        stationId,
-        stationInfo: stationInfo?.name,
-        mappedStationId: stationMap[stationId],
-        stationFromArray: stations.find(s => s.id === stationMap[stationId])?.name,
-        finalLocation: location
-      });
+    // Generate unique vehicle ID
+    const station = stations.find((s) => s.id === currentUser.stationId);
+    const existingVehiclesOfModel = vehicles.filter(
+      (v) =>
+        v.modelId === selectedModelToAdd &&
+        v.stationId === currentUser.stationId
+    );
+    const nextNumber = existingVehiclesOfModel.length + 1;
+    const stationCode = station?.name.split(" ")[1] || "ST";
+    const vehicleId = `${selectedModelToAdd}-${stationCode}-${String(
+      nextNumber
+    ).padStart(3, "0")}`;
 
-      await apiService.assignVehicleToStation(vehicleId, stationId, location);
+    // Generate unique VIN-style ID
+    const timestamp = Date.now().toString().slice(-6);
+    const uniqueVehicleId = `VN1${selectedModelToAdd}${timestamp}${nextNumber}`;
 
-      toast({
-        title: "Vehicle Assigned Successfully!",
-        description: `Vehicle has been assigned to ${location}`,
-        duration: 3000,
-      });
+    toast({
+      title: "Vehicle Added Successfully!",
+      description: `${selectedModel.name} (ID: ${vehicleId}) has been added to your station`,
+      duration: 3000,
+    });
 
-      // Refresh the vehicle list
-      refetchVehicles();
-      
-      // Refresh unassigned vehicles
-      loadUnassignedVehicles();
-
-      // Notify other pages that vehicles were updated
-      localStorage.setItem('vehiclesUpdated', 'true');
-
-      // Reset form and close dialog
-      setIsAddVehicleDialogOpen(false);
-      setSelectedModelToAdd("");
-      setNewVehicleData({
-        batteryLevel: "100",
-        condition: "excellent",
-        mileage: "0",
-      });
-    } catch (error) {
-      console.error('Error assigning vehicle:', error);
-      toast({
-        title: "Error",
-        description: "Failed to assign vehicle to station",
-        variant: "destructive",
-      });
-    }
+    // Reset form
+    setIsAddVehicleDialogOpen(false);
+    setSelectedModelToAdd("");
+    setNewVehicleData({
+      batteryLevel: "100",
+      condition: "excellent",
+      mileage: "0",
+    });
   };
 
   // Vehicle Inspection Handlers
   const handleStartPreRentalInspection = (vehicleId: string) => {
     console.log("Pre-Rental Inspection clicked for vehicle:", vehicleId);
-    const vehicle = vehicleList.find((v: any) => v.id === vehicleId);
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
     if (vehicle) {
       console.log("Vehicle found:", vehicle);
       setInspectingVehicleId(vehicleId);
       setInspectionData({
-        batteryLevel: (vehicle as any).battery?.toString() || "100",
-        mileage: (vehicle as any).mileage?.toString() || "0",
+        batteryLevel: vehicle.batteryLevel?.toString() || "100",
+        mileage: vehicle.mileage?.toString() || "0",
         condition: "excellent",
         exteriorCondition: "good",
         interiorCondition: "good",
@@ -659,7 +624,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
   const handleStartPostRentalInspection = (vehicleId: string) => {
     console.log("Post-Rental Inspection clicked for vehicle:", vehicleId);
-    const vehicle = vehicleList.find((v: any) => v.id === vehicleId);
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
     if (vehicle) {
       console.log("Vehicle found:", vehicle);
       setInspectingVehicleId(vehicleId);
@@ -834,7 +799,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               </Button>
               <Button
                 size="sm"
-                onClick={() => setIsAddVehicleDialogOpen(true)}
+                onClick={handleOpenAddVehicleDialog}
                 className="bg-primary"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -1000,7 +965,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             <p className="text-base text-muted-foreground mt-2">
               Select a registered vehicle from the system to assign to{" "}
               <strong className="text-primary">
-                {stationInfo?.name || stations.find((s) => s.id === staffProfile?.stationId?.toString())?.name}
+                {stations.find((s) => s.id === currentUser.stationId)?.name}
               </strong>
             </p>
           </DialogHeader>
@@ -1013,8 +978,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 <Input
                   placeholder="Search by VIN, License Plate, or Model..."
                   className="pl-10"
-                  value={selectedModelToAdd}
-                  onChange={(e) => setSelectedModelToAdd(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
             </div>
@@ -1037,41 +1002,112 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 ) : unassignedVehiclesError ? (
                   <div className="text-center py-8 text-red-500">
                     <p>Error loading vehicles: {unassignedVehiclesError}</p>
-                    <Button 
-                      onClick={loadUnassignedVehicles} 
-                      variant="outline" 
-                      className="mt-2"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Retry
-                    </Button>
                   </div>
-                ) : unassignedVehicles
-                  .filter((vehicle) =>
-                    selectedModelToAdd
-                      ? vehicle.modelId
-                          .toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase()) ||
-                        vehicle.uniqueVehicleId
-                          ?.toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase()) ||
-                        vehicle.licensePlate
-                          ?.toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase())
-                      : true
-                  )
+                ) : unassignedVehicles.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No unassigned vehicles found</p>
+                  </div>
+                ) : (
+                  unassignedVehicles
+                    .filter((vehicle) =>
+                      searchQuery
+                        ? vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          vehicle.licensePlate?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          vehicle.uniqueVehicleId?.toLowerCase().includes(searchQuery.toLowerCase())
+                        : true
+                    )
+                    .map((vehicle) => (
+                      <Card
+                        key={vehicle.id}
+                        className="cursor-pointer transition-all duration-200 hover:shadow-md border-2 hover:border-primary/20"
+                        onClick={() => handleAssignVehicle(vehicle.id)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                                <Car className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                              <div className="space-y-1">
+                                <h4 className="font-semibold">{vehicle.name}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {vehicle.type} • {vehicle.year}
+                                </p>
+                                <p className="text-sm font-medium text-primary">
+                                  License: {vehicle.licensePlate}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right space-y-2">
+                              <div className="flex items-center gap-4 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">VIN</span>
+                                  <p className="font-mono text-xs">{vehicle.uniqueVehicleId}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Range</span>
+                                  <p className="flex items-center gap-1">
+                                    <Zap className="h-3 w-3" />
+                                    {vehicle.maxRangeKm} km
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Battery</span>
+                                  <p className="flex items-center gap-1">
+                                    <Battery className="h-3 w-3" />
+                                    {vehicle.batteryLevel}%
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Seats</span>
+                                  <p className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {vehicle.seats}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Badge
+                                  variant={
+                                    vehicle.condition === "excellent"
+                                      ? "default"
+                                      : vehicle.condition === "good"
+                                      ? "secondary"
+                                      : "destructive"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {vehicle.condition}
+                                </Badge>
+                                <div className="text-right">
+                                  <p className="text-sm font-semibold">
+                                    ₫{vehicle.pricePerHour.toLocaleString()}/hr
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    ₫{vehicle.pricePerDay.toLocaleString()}/day
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                )}
+              </div>
                   .map((vehicle) => (
                     <Card
-                      key={vehicle.vehicleId}
+                      key={vehicle.id}
                       className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${
-                        newVehicleData.mileage === vehicle.vehicleId.toString()
+                        newVehicleData.mileage === vehicle.id
                           ? "ring-2 ring-primary bg-primary/5 shadow-md"
                           : "hover:border-primary/50"
                       }`}
                       onClick={() => {
                         setNewVehicleData({
                           ...newVehicleData,
-                          mileage: vehicle.vehicleId.toString(), // Using mileage field to store selected vehicle ID temporarily
+                          mileage: vehicle.id, // Using mileage field to store selected vehicle ID temporarily
                         });
                       }}
                     >
@@ -1080,8 +1116,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                           {/* Vehicle Image */}
                           <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
                             <img
-                              src={vehicle.image || "/placeholder.svg"}
-                              alt={vehicle.modelId}
+                              src={vehicle.image}
+                              alt={vehicle.name}
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -1091,10 +1127,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             <div className="flex items-start justify-between">
                               <div>
                                 <h4 className="font-bold text-lg text-foreground">
-                                  {vehicle.modelId}
+                                  {vehicle.name}
                                 </h4>
                                 <p className="text-sm text-muted-foreground mt-1">
-                                  SUV • 2024
+                                  {vehicle.type} • {vehicle.year}
                                 </p>
                                 {vehicle.licensePlate && (
                                   <p className="text-sm font-semibold text-primary mt-1">
@@ -1102,7 +1138,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                   </p>
                                 )}
                               </div>
-                              {newVehicleData.mileage === vehicle.vehicleId.toString() && (
+                              {newVehicleData.mileage === vehicle.id && (
                                 <Badge className="bg-primary text-white text-base px-3 py-1.5 shadow-md">
                                   ✓ Selected
                                 </Badge>
@@ -1117,7 +1153,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     VIN
                                   </span>
                                   <span className="font-mono text-xs truncate">
-                                    {vehicle.uniqueVehicleId || vehicle.vehicleId.toString()}
+                                    {vehicle.uniqueVehicleId || vehicle.id}
                                   </span>
                                 </div>
                               </div>
@@ -1139,7 +1175,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     Range
                                   </span>
                                   <span className="font-semibold">
-                                    {vehicle.maxRangeKm} km
+                                    {vehicle.range} km
                                   </span>
                                 </div>
                               </div>
@@ -1150,7 +1186,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     Seats
                                   </span>
                                   <span className="font-semibold">
-                                    5
+                                    {vehicle.seats}
                                   </span>
                                 </div>
                               </div>
@@ -1190,7 +1226,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </Card>
                   ))}
 
-                {unassignedVehicles.length === 0 && !unassignedVehiclesLoading && !unassignedVehiclesError && (
+                {vehicles.filter((v) => !v.stationId || v.stationId === "")
+                  .length === 0 && (
                   <div className="text-center py-12 text-muted-foreground">
                     <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="font-medium">
@@ -1220,7 +1257,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       Selected vehicle will be assigned to:{" "}
                       <strong>
                         {
-                          stationInfo?.name || stations.find((s) => s.id === staffProfile?.stationId?.toString())
+                          stations.find((s) => s.id === currentUser.stationId)
                             ?.name
                         }
                       </strong>

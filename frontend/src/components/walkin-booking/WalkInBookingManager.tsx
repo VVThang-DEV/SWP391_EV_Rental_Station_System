@@ -13,19 +13,16 @@ import WalkInCustomerManager from "./WalkInCustomerManager";
 import WalkInBookingCreation from "./WalkInBookingCreation";
 import WalkInBookingList from "./WalkInBookingList";
 import WalkInVehicleSelector from "./WalkInVehicleSelector";
-import { useChargingContext } from "@/contexts/ChargingContext";
-import { BATTERY_THRESHOLDS } from "@/lib/vehicle-constants";
 
 
 const WalkInBookingManager: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState("new-booking");
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
-  const { chargingVehicles } = useChargingContext();
 
-  // Convert vehicles to WalkInVehicle format, excluding charging vehicles and low battery vehicles
+  // Convert vehicles to WalkInVehicle format
   const availableVehicles: WalkInVehicle[] = vehicles
-    .filter(v => v.status === "available" && !chargingVehicles.has(v.id) && v.batteryLevel > BATTERY_THRESHOLDS.LOW_BATTERY)
+    .filter(v => v.status === "available")
     .map(v => ({
       id: v.id,
       name: v.name,

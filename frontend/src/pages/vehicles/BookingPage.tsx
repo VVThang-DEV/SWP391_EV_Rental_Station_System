@@ -54,14 +54,12 @@ import {
   Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useChargingContext } from "@/contexts/ChargingContext";
-import { isLowBattery } from "@/lib/vehicle-constants";
+import { QRCodeSVG } from "qrcode.react";
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { chargingVehicles } = useChargingContext();
   
   // Use API data with fallback to static data
   const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
@@ -102,31 +100,6 @@ const BookingPage = () => {
     createdAt: apiVehicle.createdAt,
     updatedAt: apiVehicle.updatedAt
   } : staticVehicle;
-
-  // Check if vehicle is currently charging
-  const isCharging = vehicle && (chargingVehicles.has(vehicle.id) || chargingVehicles.has(vehicle.uniqueVehicleId || ''));
-  
-  // Check if vehicle has low battery
-  const hasLowBattery = vehicle && isLowBattery(vehicle.batteryLevel);
-  
-  // Redirect if vehicle is charging or has low battery
-  useEffect(() => {
-    if (isCharging) {
-      toast({
-        title: "Xe không khả dụng",
-        description: "Xe này đang được sạc pin và không thể đặt ngay bây giờ.",
-        variant: "destructive",
-      });
-      navigate("/vehicles");
-    } else if (hasLowBattery) {
-      toast({
-        title: "Xe không khả dụng",
-        description: "Xe này có pin yếu và cần được sạc trước khi có thể đặt.",
-        variant: "destructive",
-      });
-      navigate("/vehicles");
-    }
-  }, [isCharging, hasLowBattery, navigate, toast]);
 
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, "0");

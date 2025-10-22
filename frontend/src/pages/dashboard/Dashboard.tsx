@@ -12,7 +12,6 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { bookingStorage } from "@/lib/booking-storage";
 import { useEffect, useState } from "react";
-import { Wallet } from "@/components/Wallet";
 import {
   Car,
   Clock,
@@ -25,6 +24,7 @@ import {
   History,
   Settings,
   ChevronRight,
+  Wallet,
 } from "lucide-react";
 
 interface DashboardProps {
@@ -277,10 +277,19 @@ const Dashboard = ({ user }: DashboardProps) => {
               <CardDescription>Common tasks and shortcuts</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Wallet Button */}
-              <div className="w-full">
-                <Wallet userId={user.id} userName={user.name} />
-              </div>
+              <Button
+                variant="outline"
+                className="w-full justify-between"
+                asChild
+              >
+                <Link to="/wallet">
+                  <div className="flex items-center">
+                    <Wallet className="h-4 w-4 mr-2" />
+                    My Wallet
+                  </div>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
 
               <Button
                 variant="outline"
