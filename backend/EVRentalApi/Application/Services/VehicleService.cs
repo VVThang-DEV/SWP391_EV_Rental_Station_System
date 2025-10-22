@@ -42,6 +42,48 @@ namespace EVRentalApi.Application.Services
             return vehicles.Select(MapToDto);
         }
 
+        public async Task<IEnumerable<VehicleDto>> GetUnassignedVehiclesAsync()
+        {
+            var vehicles = await _vehicleRepository.GetUnassignedVehiclesAsync();
+            return vehicles.Select(MapToDto);
+        }
+
+        public async Task<bool> AssignVehicleToStationAsync(int vehicleId, int stationId, string location)
+        {
+            return await _vehicleRepository.AssignVehicleToStationAsync(vehicleId, stationId, location);
+        }
+
+        public async Task<AdminCreateVehicleResponse> CreateVehicleAsync(AdminCreateVehicleRequest request)
+        {
+            try
+            {
+                var newVehicle = await _vehicleRepository.CreateVehicleAsync(request);
+                if (newVehicle == null)
+                {
+                    return new AdminCreateVehicleResponse
+                    {
+                        Success = false,
+                        Message = "Failed to create vehicle"
+                    };
+                }
+
+                return new AdminCreateVehicleResponse
+                {
+                    Success = true,
+                    Message = "Vehicle created successfully",
+                    Vehicle = MapToDto(newVehicle)
+                };
+            }
+            catch (Exception ex)
+            {
+                return new AdminCreateVehicleResponse
+                {
+                    Success = false,
+                    Message = $"Error creating vehicle: {ex.Message}"
+                };
+            }
+        }
+
         private static VehicleDto MapToDto(dynamic vehicle)
         {
             return new VehicleDto

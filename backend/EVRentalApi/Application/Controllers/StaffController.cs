@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using EVRentalApi.Application.Services;
 using EVRentalApi.Models;
 
@@ -6,6 +7,7 @@ namespace EVRentalApi.Application.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class StaffController : ControllerBase
 {
     private readonly IStaffService _staffService;
@@ -337,8 +339,18 @@ public class StaffController : ControllerBase
     /// </summary>
     private int? GetStaffIdFromToken()
     {
-        // This is a placeholder - you'll need to implement JWT token parsing
-        // For now, return a hardcoded staff ID for testing
-        return 2; // staff@ev.local user_id
+        // Get user ID from JWT token
+        var userIdClaim = HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null)
+        {
+            return null;
+        }
+
+        if (!int.TryParse(userIdClaim.Value, out int userId))
+        {
+            return null;
+        }
+
+        return userId;
     }
 }

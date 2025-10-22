@@ -49,6 +49,13 @@ public class AddVehicleRequest
     public string? Notes { get; set; }
 }
 
+public class AssignVehicleToStationRequest
+{
+    public int VehicleId { get; set; }
+    public int StationId { get; set; }
+    public string Location { get; set; } = string.Empty;
+}
+
 public class MaintenanceRecordRequest
 {
     public string MaintenanceType { get; set; } = string.Empty;
@@ -193,4 +200,35 @@ public class HandoverResponse
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
     public HandoverDto? Handover { get; set; }
+}
+
+// Admin models
+public class AdminCreateVehicleRequest
+{
+    public string ModelId { get; set; } = string.Empty;
+    public string? UniqueVehicleId { get; set; }
+    public int BatteryLevel { get; set; } = 100;
+    public string Condition { get; set; } = "excellent";
+    public int Mileage { get; set; } = 0;
+    public string? LicensePlate { get; set; }
+    public DateTime? LastMaintenance { get; set; }
+    public DateTime? InspectionDate { get; set; }
+    public DateTime? InsuranceExpiry { get; set; }
+    public string? Location { get; set; }
+    // Các trường mới từ form
+    public string? Color { get; set; }
+    public int? Year { get; set; }
+    public decimal? BatteryCapacity { get; set; }
+    public DateTime? PurchaseDate { get; set; }
+    public DateTime? WarrantyExpiry { get; set; }
+    public DateTime? NextMaintenanceDate { get; set; }
+    public decimal? FuelEfficiency { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class AdminCreateVehicleResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public VehicleDto? Vehicle { get; set; }
 }
