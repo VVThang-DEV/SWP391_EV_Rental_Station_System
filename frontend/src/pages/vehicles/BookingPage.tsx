@@ -57,6 +57,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useChargingContext } from "@/contexts/ChargingContext";
 import { isLowBattery } from "@/lib/vehicle-constants";
 import { QRCodeSVG } from "qrcode.react";
+import { apiService } from "@/services/api";
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -248,13 +249,59 @@ const BookingPage = () => {
     });
   };
 
-  const currentUserData = {
-    fullName: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+84 901 234 567",
-    driverLicense: "B123456789",
+  // State for user data
+  const [userData, setUserData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    licenseNumber: "",
+  });
+  const [isLoadingUserData, setIsLoadingUserData] = useState(true);
 
-  };
+  // Fetch user data on component mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        setIsLoadingUserData(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          // If not logged in, use default values
+          setUserData({
+            fullName: "",
+            email: "",
+            phone: "",
+            licenseNumber: "",
+          });
+          setIsLoadingUserData(false);
+          return;
+        }
+
+        const response = await apiService.getCurrentUser();
+        if (response.success && response.user) {
+          const user = response.user;
+          setUserData({
+            fullName: user.fullName || "",
+            email: user.email || "",
+            phone: user.phone || "",
+            licenseNumber: user.licenseNumber || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        // If error, use empty values
+        setUserData({
+          fullName: "",
+          email: "",
+          phone: "",
+          licenseNumber: "",
+        });
+      } finally {
+        setIsLoadingUserData(false);
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   // ✅ FIX: Auto-select slot cho daily rental
   // Helper function để tạo best slot
@@ -290,14 +337,29 @@ const BookingPage = () => {
     endTime: getTimeStr(),
     rentalDuration: "daily",
     customerInfo: {
-      fullName: currentUserData.fullName, //  Auto-filled từ profile
-      email: currentUserData.email, // Auto-filled từ profile  
-      phone: currentUserData.phone, // Auto-filled từ profile
-      driverLicense: currentUserData.driverLicense, // Auto-filled từ profile
+      fullName: "", // Will be auto-filled from API
+      email: "", // Will be auto-filled from API
+      phone: "", // Will be auto-filled from API
+      driverLicense: "", // Will be auto-filled from API
     },
     paymentMethod: "qr_code",
 
   });
+
+  // Update bookingData when userData is loaded
+  useEffect(() => {
+    if (!isLoadingUserData && userData.fullName) {
+      setBookingData(prev => ({
+        ...prev,
+        customerInfo: {
+          fullName: userData.fullName,
+          email: userData.email,
+          phone: userData.phone,
+          driverLicense: userData.licenseNumber,
+        },
+      }));
+    }
+  }, [isLoadingUserData, userData]);
 
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
 
@@ -823,10 +885,22 @@ const BookingPage = () => {
             Customer Information
           </CardTitle>
           {/* THÊM: Thông báo thông tin auto-fill */}
-          <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
-            <CheckCircle className="h-4 w-4" />
-            <span>Information automatically filled from your profile. You can edit if needed.</span>
-          </div>
+          {isLoadingUserData ? (
+            <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+              <Clock className="h-4 w-4 animate-spin" />
+              <span>Loading your profile information...</span>
+            </div>
+          ) : userData.fullName ? (
+            <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+              <CheckCircle className="h-4 w-4" />
+              <span>Information automatically filled from your profile. You can edit if needed.</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
+              <Clock className="h-4 w-4" />
+              <span>Please fill in your information to complete the booking.</span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
