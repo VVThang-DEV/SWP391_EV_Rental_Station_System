@@ -114,13 +114,22 @@ const Bookings = () => {
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
-              <div className="text-sm font-medium">Pickup Slot</div>
-                         <div className="text-sm text-muted-foreground">
-                           {booking.rentalDuration === 'hourly' 
-                             ? `${booking.startTime}-${booking.endTime}`
-                             : `${booking.startDate} ${booking.startTime || ''}`
-                           }
+                          <div className="text-sm font-medium">Pickup Slot</div>
+                          <div className="text-sm text-muted-foreground">
+                           <div>{booking.startDate}</div>
+                           {booking.rentalDuration === 'hourly' ? (
+                             <span className="block text-xs">
+                               {booking.startTime}-{booking.endTime}
+                             </span>
+                           ) : (
+                             booking.startTime && (
+                               <span className="block text-xs">
+                                 {booking.startTime}
+                               </span>
+                             )
+                           )}
                          </div>
+                            
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -128,11 +137,13 @@ const Bookings = () => {
                         <div>
                           <div className="text-sm font-medium">Return Date</div>
                           <div className="text-sm text-muted-foreground">
-                            {booking.rentalDuration === 'hourly' 
-                              ? booking.endDate
-                              : `${booking.endDate} ${booking.endTime || ''}`
-                            }
-                          </div>
+                           <div>{booking.endDate}</div>
+                           {booking.endTime && (
+                             <span className="block text-xs">
+                               {booking.endTime}
+                             </span>
+                           )}
+                         </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
