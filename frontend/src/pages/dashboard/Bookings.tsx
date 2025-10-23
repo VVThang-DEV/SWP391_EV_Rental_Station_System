@@ -114,28 +114,24 @@ const Bookings = () => {
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
-                          <div className="text-sm font-medium">Start Date</div>
-                          <div className="text-sm text-muted-foreground">
-                            {booking.startDate}
-                            {booking.startTime && (
-                              <span className="block text-xs">
-                                {booking.startTime}
-                              </span>
-                            )}
-                          </div>
+              <div className="text-sm font-medium">Pickup Slot</div>
+                         <div className="text-sm text-muted-foreground">
+                           {booking.rentalDuration === 'hourly' 
+                             ? `${booking.startTime}-${booking.endTime}`
+                             : `${booking.startDate} ${booking.startTime || ''}`
+                           }
+                         </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
-                          <div className="text-sm font-medium">End Date</div>
+                          <div className="text-sm font-medium">Return Date</div>
                           <div className="text-sm text-muted-foreground">
-                            {booking.endDate}
-                            {booking.endTime && (
-                              <span className="block text-xs">
-                                {booking.endTime}
-                              </span>
-                            )}
+                            {booking.rentalDuration === 'hourly' 
+                              ? booking.endDate
+                              : `${booking.endDate} ${booking.endTime || ''}`
+                            }
                           </div>
                         </div>
                       </div>
