@@ -79,22 +79,17 @@ class ApiService {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
+        ...(token && { "Authorization": `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
     };
-
-    // Add auth token if available
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
 
     try {
       const response = await fetch(url, config);
@@ -290,6 +285,168 @@ class ApiService {
   // Health check
   async healthCheck() {
     return this.request<{ status: string }>("/health");
+  }
+
+  // Reservations
+  async createReservation(data: {
+    vehicleId: number;
+    stationId: number;
+    startTime: string;
+    endTime: string;
+  }) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      reservation: {
+        reservationId: number;
+        userId: number;
+        vehicleId: number;
+        stationId: number;
+        startTime: string;
+        endTime: string;
+        status: string;
+        createdAt: string;
+      };
+    }>("/api/reservations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getReservations() {
+    return this.request<{
+      success: boolean;
+      reservations: Array<{
+        reservationId: number;
+        userId: number;
+        vehicleId: number;
+        stationId: number;
+        startTime: string;
+        endTime: string;
+        status: string;
+        createdAt: string;
+      }>;
+    }>("/api/reservations", {
+      method: "GET",
+    });
+  }
+
+  async getReservationById(id: number) {
+    return this.request<{
+      success: boolean;
+      reservation: {
+        reservationId: number;
+        userId: number;
+        vehicleId: number;
+        stationId: number;
+        startTime: string;
+        endTime: string;
+        status: string;
+        createdAt: string;
+      };
+    }>(`/api/reservations/${id}`, {
+      method: "GET",
+    });
+  }
+
+  async cancelReservation(id: number) {
+    return this.request<{
+      success: boolean;
+      message: string;
+    }>(`/api/reservations/${id}/cancel`, {
+      method: "POST",
+    });
+  }
+
+  // Payments
+  async createPayment(data: {
+    reservationId?: number;
+    rentalId?: number;
+    methodType: string;
+    amount: number;
+    status: string;
+    transactionId?: string;
+    isDeposit?: boolean;
+  }) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      payment: {
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      };
+    }>("/api/payments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPaymentsByReservation(reservationId: number) {
+    return this.request<{
+      success: boolean;
+      payments: Array<{
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>(`/api/payments/reservation/${reservationId}`, {
+      method: "GET",
+    });
+  }
+
+  async getUserPayments() {
+    return this.request<{
+      success: boolean;
+      payments: Array<{
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>("/api/payments/user", {
+      method: "GET",
+    });
+  }
+
+  async getPaymentById(id: number) {
+    return this.request<{
+      success: boolean;
+      payment: {
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      };
+    }>(`/api/payments/${id}`, {
+      method: "GET",
+    });
   }
 }
 

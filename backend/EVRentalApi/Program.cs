@@ -54,6 +54,14 @@ builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
 builder.Services.AddScoped<IStaffRepository, StaffRepository>();
 builder.Services.AddScoped<IStaffService, StaffService>();
 
+// DI: Reservation management
+builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+
+// DI: Payment management
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+
 // Add controllers
 builder.Services.AddControllers();
 
@@ -325,6 +333,161 @@ app.MapPost("/auth/debug-update", (UpdatePersonalInfoRequest req) =>
     Console.WriteLine($"  Phone: {req.Phone}");
     
     return Results.Ok(new { success = true, message = "Debug data received", data = req });
+});
+
+// Reservation endpoints
+app.MapPost("/api/reservations", [Microsoft.AspNetCore.Authorization.Authorize] async (CreateReservationRequest req, IReservationService reservationService, HttpContext context) =>
+{
+    Console.WriteLine($"[API] Received reservation request: VehicleId={req.VehicleId}, StationId={req.StationId}");
+    
+    // Get user ID from JWT token
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null)
+    {
+        Console.WriteLine("[API] No user ID claim found in token");
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"[API] User ID claim value: {userIdClaim.Value}");
+
+    if (!int.TryParse(userIdClaim.Value, out int userId))
+    {
+        Console.WriteLine($"[API] Invalid user ID format: {userIdClaim.Value}");
+        return Results.BadRequest(new { success = false, message = "Invalid user ID" });
+    }
+
+    Console.WriteLine($"[API] Parsed user ID: {userId}");
+
+    // Set user ID from token
+    req.UserId = userId;
+
+    var result = await reservationService.CreateReservationAsync(req);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[API] Reservation created successfully: {result.Reservation?.ReservationId}");
+        return Results.Ok(new { 
+            success = true, 
+            message = result.Message,
+            reservation = result.Reservation 
+        });
+    }
+    
+    Console.WriteLine($"[API] Failed to create reservation: {result.Message}");
+    return Results.BadRequest(new { success = false, message = result.Message });
+});
+
+app.MapGet("/api/reservations", [Microsoft.AspNetCore.Authorization.Authorize] async (IReservationService reservationService, HttpContext context) =>
+{
+    // Get user ID from JWT token
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.BadRequest(new { success = false, message = "Invalid user ID" });
+    }
+
+    var reservations = await reservationService.GetUserReservationsAsync(userId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        reservations = reservations 
+    });
+});
+
+app.MapGet("/api/reservations/{id}", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, IReservationService reservationService) =>
+{
+    var reservation = await reservationService.GetReservationByIdAsync(id);
+    
+    if (reservation == null)
+    {
+        return Results.NotFound(new { success = false, message = "Reservation not found" });
+    }
+    
+    return Results.Ok(new { 
+        success = true, 
+        reservation = reservation 
+    });
+});
+
+app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, IReservationService reservationService) =>
+{
+    var success = await reservationService.CancelReservationAsync(id);
+    
+    if (success)
+    {
+        return Results.Ok(new { success = true, message = "Reservation cancelled successfully" });
+    }
+    
+    return Results.BadRequest(new { success = false, message = "Failed to cancel reservation" });
+});
+
+// Payment endpoints
+app.MapPost("/api/payments", [Microsoft.AspNetCore.Authorization.Authorize] async (CreatePaymentRequest req, IPaymentService paymentService) =>
+{
+    var result = await paymentService.CreatePaymentAsync(req);
+    
+    if (result.Success)
+    {
+        return Results.Ok(new { 
+            success = true, 
+            message = result.Message,
+            payment = result.Payment 
+        });
+    }
+    
+    return Results.BadRequest(new { success = false, message = result.Message });
+});
+
+app.MapGet("/api/payments/reservation/{reservationId}", [Microsoft.AspNetCore.Authorization.Authorize] async (int reservationId, IPaymentService paymentService) =>
+{
+    var payments = await paymentService.GetReservationPaymentsAsync(reservationId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        payments = payments 
+    });
+});
+
+app.MapGet("/api/payments/user", [Microsoft.AspNetCore.Authorization.Authorize] async (IPaymentService paymentService, HttpContext context) =>
+{
+    // Get user ID from JWT token
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.BadRequest(new { success = false, message = "Invalid user ID" });
+    }
+
+    var payments = await paymentService.GetUserPaymentsAsync(userId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        payments = payments 
+    });
+});
+
+app.MapGet("/api/payments/{id}", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, IPaymentService paymentService) =>
+{
+    var payment = await paymentService.GetPaymentByIdAsync(id);
+    
+    if (payment == null)
+    {
+        return Results.NotFound(new { success = false, message = "Payment not found" });
+    }
+    
+    return Results.Ok(new { 
+        success = true, 
+        payment = payment 
+    });
 });
 
 app.Run("http://localhost:5000");

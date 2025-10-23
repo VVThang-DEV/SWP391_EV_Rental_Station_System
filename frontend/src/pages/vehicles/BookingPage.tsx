@@ -70,7 +70,20 @@ const BookingPage = () => {
   const staticVehicle = id ? getVehicleById(id) : null;
   
   // Find vehicle from API data or fallback to static
-  const apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === id);
+  console.log("[BookingPage] Looking for vehicle with id:", id);
+  console.log("[BookingPage] Available apiVehicles:", apiVehicles?.map(v => ({ vehicleId: v.vehicleId, uniqueVehicleId: v.uniqueVehicleId })));
+  
+  // First try to find by uniqueVehicleId matching the id
+  let apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === id);
+  
+  // If not found, try to find by matching with static data
+  if (!apiVehicle && staticVehicle) {
+    console.log("[BookingPage] Not found by uniqueVehicleId, trying to match with static data");
+    console.log("[BookingPage] Static vehicle uniqueVehicleId:", staticVehicle.uniqueVehicleId);
+    apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === staticVehicle.uniqueVehicleId);
+  }
+  
+  console.log("[BookingPage] Found apiVehicle:", apiVehicle);
   const vehicle = apiVehicle ? {
     // Map API data to expected format
     id: apiVehicle.uniqueVehicleId,
@@ -343,7 +356,7 @@ const BookingPage = () => {
       driverLicense: "", // Will be auto-filled from API
     },
     paymentMethod: "qr_code",
-
+    reservationId: null as number | null, // Add reservationId field
   });
 
   // Update bookingData when userData is loaded
@@ -998,15 +1011,110 @@ const BookingPage = () => {
         vehicleId={vehicle.id}
         vehicleName={vehicle.name}
         customerInfo={bookingData.customerInfo}
-        onPaymentComplete={(paymentData) => {
+        onPaymentComplete={async (paymentData) => {
 
-          // ✅ LƯU BOOKING KHI PAYMENT THÀNH CÔNG
+          // ✅ TẠO RESERVATION ID VÀ LƯU VÀO SQL DATABASE
           try {
-            // Logic xác định status dựa trên thời gian
-            const now = new Date();
+            // Gọi API để tạo reservation trong database
             const startDateTime = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
             const endDateTime = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
 
+            // Use the actual vehicleId from API data
+            let vehicleId: number;
+            
+            if (apiVehicle && apiVehicle.vehicleId) {
+              // Use the actual vehicleId from API
+              vehicleId = apiVehicle.vehicleId;
+              console.log("[Booking] Using API vehicleId:", vehicleId);
+            } else {
+              // No API data available - this should not happen
+              console.error("[Booking] No API vehicle data available for vehicle.id:", vehicle.id);
+              toast({
+                title: "Error",
+                description: "Vehicle data not found. Please refresh the page and try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            // Validate vehicle ID
+            if (isNaN(vehicleId) || vehicleId <= 0) {
+              console.error("[Booking] Invalid vehicle ID:", vehicle.id, "->", vehicleId);
+              toast({
+                title: "Error",
+                description: "Invalid vehicle ID. Please try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            const reservationData = {
+              vehicleId: vehicleId,
+              stationId: parseInt(vehicle.stationId || '1'),
+              startTime: startDateTime.toISOString(),
+              endTime: endDateTime.toISOString(),
+            };
+
+            console.log("[Booking] Raw Vehicle ID:", vehicle.id);
+            console.log("[Booking] Parsed Vehicle ID:", vehicleId);
+            console.log("[Booking] Station ID:", vehicle.stationId);
+            console.log("[Booking] Creating reservation with data:", reservationData);
+            console.log("[Booking] Start Time:", startDateTime.toISOString());
+            console.log("[Booking] End Time:", endDateTime.toISOString());
+
+            let reservationId: number | null = null;
+            try {
+              const reservationResponse = await apiService.createReservation(reservationData);
+              if (reservationResponse.success && reservationResponse.reservation) {
+                reservationId = reservationResponse.reservation.reservationId;
+                console.log("Reservation created in database:", reservationResponse.reservation);
+                console.log("[Booking] Saved Start Time:", reservationResponse.reservation.startTime);
+                console.log("[Booking] Saved End Time:", reservationResponse.reservation.endTime);
+                
+                // Store reservationId in bookingData
+                setBookingData(prev => ({
+                  ...prev,
+                  reservationId: reservationId
+                }));
+
+                // ✅ LƯU PAYMENT VÀO DATABASE
+                if (reservationId) {
+                  try {
+                    // Map payment method from frontend to database format
+                    const methodMap: { [key: string]: string } = {
+                      'qr_code': 'bank_transfer',
+                      'cash': 'cash'
+                    };
+                    const dbMethod = methodMap[bookingData.paymentMethod] || 'bank_transfer';
+
+                    const paymentDataToSave = {
+                      reservationId: reservationId,
+                      methodType: dbMethod,
+                      amount: totalCost,
+                      status: 'success',
+                      transactionId: paymentData.paymentId,
+                      isDeposit: false
+                    };
+
+                    console.log("[Payment] Creating payment in database:", paymentDataToSave);
+                    
+                    const paymentResponse = await apiService.createPayment(paymentDataToSave);
+                    if (paymentResponse.success && paymentResponse.payment) {
+                      console.log("[Payment] Payment saved successfully:", paymentResponse.payment);
+                    }
+                  } catch (paymentError) {
+                    console.error("Error creating payment in database:", paymentError);
+                    // Continue even if payment save fails
+                  }
+                }
+              }
+            } catch (apiError) {
+              console.error("Error creating reservation in database:", apiError);
+              // Continue with local storage even if API fails
+            }
+
+            // Logic xác định status dựa trên thời gian
+            const now = new Date();
             let status: "active" | "upcoming" | "completed";
 
             if (now >= startDateTime && now <= endDateTime) {
@@ -1051,6 +1159,22 @@ const BookingPage = () => {
             });
 
             console.log("Booking saved successfully:", newBooking);
+            
+            // Show success message with reservation ID if available
+            if (reservationId) {
+              toast({
+                title: "Payment Successful!",
+                description: `Your booking has been confirmed. Reservation ID: ${reservationId}`,
+              });
+            } else {
+              toast({
+                title: "Payment Successful!",
+                description: "Your booking has been confirmed.",
+              });
+            }
+
+            // Move to confirmation step
+            setStep(3);
           } catch (error) {
             console.error("Error saving booking:", error);
             toast({
@@ -1060,13 +1184,6 @@ const BookingPage = () => {
             });
             return;
           }
-
-
-          toast({
-            title: "Payment Successful!",
-            description: "Your booking has been confirmed.",
-          });
-          setStep(3);
         }}
         paymentMethod={bookingData.paymentMethod as "qr_code" | "cash"}
         onBack={() => setStep(1)}
@@ -1092,6 +1209,13 @@ const BookingPage = () => {
             Booking ID: <strong>#EV-{Date.now().toString().slice(-6)}</strong>
           </span>
         </div>
+        {bookingData.reservationId && (
+          <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-full mt-2">
+            <span className="text-sm font-medium text-blue-800">
+              Reservation ID: <strong>{bookingData.reservationId}</strong>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Booking Summary */}
