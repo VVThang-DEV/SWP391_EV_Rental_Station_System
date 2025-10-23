@@ -933,9 +933,27 @@ const BookingPage = () => {
               deposit: 0,
               duration: bookingData.rentalDuration === "hourly"
                 ? (() => {
-                  const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
-                  const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
-                  const hours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                   // Tính duration từ khi kết thúc pickup slot đến return time
+                 const [startHour, startMinute] = bookingData.startTime.split(':').map(Number);
+               const [endHour, endMinute] = bookingData.endTime.split(':').map(Number);
+                 
+                 // Tính thời gian kết thúc pickup slot
+                 let pickupEndHour = startHour;
+                 let pickupEndMinute = 0;
+                 if (startMinute === 0) {
+                   pickupEndHour = startHour;
+                   pickupEndMinute = 30;
+                 } else {
+                   pickupEndHour = startHour + 1;
+                   pickupEndMinute = 0;
+                 }
+                 
+                 const pickupEndTime = pickupEndHour * 60 + pickupEndMinute;
+                 let returnTime = endHour * 60 + endMinute;
+                 if (endHour === 0 && endMinute === 0) returnTime = 24 * 60;
+                 
+                 const diffMinutes = returnTime - pickupEndTime;
+                 const hours = Math.ceil(diffMinutes / 60);
                   return `${hours} hour${hours !== 1 ? 's' : ''}`;
                 })()
                 : (() => {

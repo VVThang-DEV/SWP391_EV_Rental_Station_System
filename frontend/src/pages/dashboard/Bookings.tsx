@@ -116,17 +116,17 @@ const Bookings = () => {
                         <div>
                           <div className="text-sm font-medium">Pickup Slot</div>
                           <div className="text-sm text-muted-foreground">
-                           <div>{booking.startDate}</div>
-                           {booking.rentalDuration === 'hourly' ? (
+                            <div>{booking.startDate}</div>
+                            {(booking.rentalDuration === "hourly" || booking.rentalDuration === "daily") && booking.startTime && (
                              <span className="block text-xs">
-                               {booking.startTime}-{booking.endTime}
-                             </span>
-                           ) : (
-                             booking.startTime && (
-                               <span className="block text-xs">
-                                 {booking.startTime}
-                               </span>
-                             )
+                               {booking.startTime}-{(() => {
+                                const [hours, minutes] = booking.startTime.split(':').map(Number);
+                                // Pickup slot: thời gian có thể đến lấy xe (30 phút)
+                                const endHour = minutes === 30 ? hours + 1 : hours;
+                                const endMinute = minutes === 30 ? 0 : 30;
+                                return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                              })()}
+                             </span> 
                            )}
                          </div>
                             
@@ -138,18 +138,20 @@ const Bookings = () => {
                           <div className="text-sm font-medium">Return Date</div>
                           <div className="text-sm text-muted-foreground">
                           <div>{booking.endDate}</div>
-                           {booking.rentalDuration === 'daily' ? (
-                             booking.startTime && (
-                               <span className="block text-xs">
-                                 {booking.startTime}
-                               </span>
-                             )
-                           ) : (
-                             booking.endTime && (
-                               <span className="block text-xs">
-                                 {booking.endTime}
-                               </span>
-                             )
+                          {booking.rentalDuration === "hourly" && booking.endTime && (
+                             <span className="block text-xs">
+                                at {booking.endTime}
+                             </span>
+                           )}
+                           {booking.rentalDuration === "daily" && booking.endTime && (
+                             <span className="block text-xs">
+                               at {booking.endTime}-{(() => {
+                                const [hours, minutes] = booking.endTime.split(':').map(Number);
+                                const endHour = minutes === 30 ? hours + 1 : hours;
+                                const endMinute = minutes === 30 ? 0 : 30;
+                                return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                              })()}
+                             </span>
                            )}
                          </div>
                         </div>
