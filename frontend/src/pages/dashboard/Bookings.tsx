@@ -137,11 +137,19 @@ const Bookings = () => {
                         <div>
                           <div className="text-sm font-medium">Return Date</div>
                           <div className="text-sm text-muted-foreground">
-                           <div>{booking.endDate}</div>
-                           {booking.endTime && (
-                             <span className="block text-xs">
-                               {booking.endTime}
-                             </span>
+                          <div>{booking.endDate}</div>
+                           {booking.rentalDuration === 'daily' ? (
+                             booking.startTime && (
+                               <span className="block text-xs">
+                                 {booking.startTime}
+                               </span>
+                             )
+                           ) : (
+                             booking.endTime && (
+                               <span className="block text-xs">
+                                 {booking.endTime}
+                               </span>
+                             )
                            )}
                          </div>
                         </div>
