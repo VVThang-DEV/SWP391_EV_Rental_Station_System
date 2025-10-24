@@ -114,7 +114,7 @@ const Bookings = () => {
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
-                          <div className="text-sm font-medium">Pickup Slot</div>
+                          <div className="text-sm font-medium">Start Date</div>
                           <div className="text-sm text-muted-foreground">
                             <div>{booking.startDate}</div>
                             {(booking.rentalDuration === "hourly" || booking.rentalDuration === "daily") && booking.startTime && (
@@ -135,7 +135,7 @@ const Bookings = () => {
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
-                          <div className="text-sm font-medium">Return Date</div>
+                          <div className="text-sm font-medium">End Date</div>
                           <div className="text-sm text-muted-foreground">
                           <div>{booking.endDate}</div>
                           {booking.rentalDuration === "hourly" && booking.endTime && (
@@ -381,7 +381,7 @@ const Bookings = () => {
                     : `No ${activeTab} bookings found.`}
                 </p>
                 <Button asChild>
-                  <a href="/vehicles">Browse Vehicles</a>
+                  <a href="/vehicles">Book Vehicles</a>
                 </Button>
               </div>
             )}
@@ -450,14 +450,43 @@ const Bookings = () => {
                         <div className="text-sm font-medium">Start Date</div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          {selectedBookingForDetails.startDate}
+                         <div>
+                            <div>{selectedBookingForDetails.startDate}</div>
+                            {(selectedBookingForDetails.rentalDuration === "hourly" || selectedBookingForDetails.rentalDuration === "daily") && selectedBookingForDetails.startTime && (
+                              <span className="block text-xs text-muted-foreground">
+                                {selectedBookingForDetails.startTime}-{(() => {
+                                  const [hours, minutes] = selectedBookingForDetails.startTime.split(':').map(Number);
+                                  const endHour = minutes === 30 ? hours + 1 : hours;
+                                  const endMinute = minutes === 30 ? 0 : 30;
+                                  return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                                })()}
+                             </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div>
                         <div className="text-sm font-medium">End Date</div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          {selectedBookingForDetails.endDate}
+                          <div>
+                            <div>{selectedBookingForDetails.endDate}</div>
+                            {selectedBookingForDetails.rentalDuration === "hourly" && selectedBookingForDetails.endTime && (
+                              <span className="block text-xs text-muted-foreground">
+                                at {selectedBookingForDetails.endTime}
+                              </span>
+                            )}
+                            {selectedBookingForDetails.rentalDuration === "daily" && selectedBookingForDetails.endTime && (
+                              <span className="block text-xs text-muted-foreground">
+                                at {selectedBookingForDetails.endTime}-{(() => {
+                                  const [hours, minutes] = selectedBookingForDetails.endTime.split(':').map(Number);
+                                  const endHour = minutes === 30 ? hours + 1 : hours;
+                                  const endMinute = minutes === 30 ? 0 : 30;
+                                  return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                                })()}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div>
