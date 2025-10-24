@@ -8,6 +8,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+ import {
+   Dialog,
+   DialogContent,
+   DialogDescription,
+   DialogFooter,
+   DialogHeader,
+   DialogTitle,
+ } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { bookingStorage } from "@/lib/booking-storage";
@@ -38,6 +46,8 @@ interface DashboardProps {
 
 const Dashboard = ({ user }: DashboardProps) => {
   const { t } = useTranslation();
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<any>(null);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       totalRentals: 0,
@@ -212,8 +222,15 @@ const Dashboard = ({ user }: DashboardProps) => {
                       </p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="/bookings">View Details</Link>
+                                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedBookingForDetails(dashboardData.currentRental);
+                      setDetailsDialogOpen(true);
+                    }}
+                  >
+                    View Details
                   </Button>
                 </div>
 
@@ -245,13 +262,7 @@ const Dashboard = ({ user }: DashboardProps) => {
                   </div>
                 </div>
 
-                <div className="flex space-x-2 pt-2">
-                  <Button className="flex-1 btn-success" size="sm">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Track Vehicle
-                  </Button>
-                  
-                </div>
+                
               </CardContent>
             </Card>
           ) : (
@@ -418,6 +429,143 @@ const Dashboard = ({ user }: DashboardProps) => {
           </CardContent>
         </Card>
       </div>
+
+             {/* Booking Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Booking Details - {selectedBookingForDetails?.id}
+            </DialogTitle>
+            <DialogDescription>
+              Complete information about your rental booking and receipt
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedBookingForDetails && (
+            <div className="space-y-6">
+              {/* Vehicle Information */}
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3">Vehicle Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Vehicle</div>
+                    <div className="text-lg font-semibold">{selectedBookingForDetails.vehicle}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Vehicle ID</div>
+                    <div className="font-mono">{selectedBookingForDetails.vehicleId}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Pickup Location</div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      {selectedBookingForDetails.pickupLocation}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Status</div>
+                    {getStatusBadge(selectedBookingForDetails.status)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Rental Period */}
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3">Rental Period</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Start Date</div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <div>
+                        <div>{selectedBookingForDetails.startDate}</div>
+                        {(selectedBookingForDetails.rentalDuration === "hourly" || selectedBookingForDetails.rentalDuration === "daily") && selectedBookingForDetails.startTime && (
+                          <span className="block text-xs text-muted-foreground">
+                            {selectedBookingForDetails.startTime}-{(() => {
+                              const [hours, minutes] = selectedBookingForDetails.startTime.split(':').map(Number);
+                              const endHour = minutes === 30 ? hours + 1 : hours;
+                              const endMinute = minutes === 30 ? 0 : 30;
+                              return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                            })()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">End Date</div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <div>
+                        <div>{selectedBookingForDetails.endDate}</div>
+                        {selectedBookingForDetails.rentalDuration === "hourly" && selectedBookingForDetails.endTime && (
+                          <span className="block text-xs text-muted-foreground">
+                            at {selectedBookingForDetails.endTime}
+                          </span>
+                        )}
+                        {selectedBookingForDetails.rentalDuration === "daily" && selectedBookingForDetails.endTime && (
+                          <span className="block text-xs text-muted-foreground">
+                            at {selectedBookingForDetails.endTime}-{(() => {
+                              const [hours, minutes] = selectedBookingForDetails.endTime.split(':').map(Number);
+                              const endHour = minutes === 30 ? hours + 1 : hours;
+                              const endMinute = minutes === 30 ? 0 : 30;
+                              return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                            })()}
+                          </span>
+                       )}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Duration</div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      {selectedBookingForDetails.duration}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Receipt */}
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3">Receipt</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span>Base Rental Rate (per day)</span>
+                    <span>${(selectedBookingForDetails.totalCost * 0.7).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Duration Cost</span>
+                    <span>${(selectedBookingForDetails.totalCost * 0.2).toFixed(2)}</span>
+                  </div>
+                 <div className="flex justify-between">
+                    <span>Service Fee</span>
+                    <span>${(selectedBookingForDetails.totalCost * 0.05).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tax (10%)</span>
+                    <span>${(selectedBookingForDetails.totalCost * 0.1).toFixed(2)}</span>
+                  </div>
+                  <hr className="my-2" />
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Total Amount</span>
+                    <span>${selectedBookingForDetails.totalCost.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+       </DialogContent>
+      </Dialog>
+
+
     </div>
   );
 };
