@@ -1304,6 +1304,23 @@ const validateHourlyRental = (startTime: string, endTime: string) => {
                           <Button
                             className="w-full mt-4 btn-hero"
                             onClick={() => {
+                               // ✅ THÊM: Check xem đã có booking active/upcoming chưa
+                             const existingBookings = bookingStorage.getAllBookings();
+                             const activeOrUpcomingBookings = existingBookings.filter(
+                               booking => booking.status === "active" || booking.status === "upcoming"
+                             );
+
+                             if (activeOrUpcomingBookings.length > 0) {
+                               const existingBooking = activeOrUpcomingBookings[0];
+                               toast({
+                                 title: "Booking Not Allowed",
+                                 description: `You already have an active booking (${existingBooking.id}) for ${existingBooking.vehicle}. Please complete or cancel it before making a new booking.`,
+                                 variant: "destructive",
+                               });
+                               return;
+                             }
+
+
                               // Validate và chuyển sang payment
                               if (
                                 !bookingData.startDate ||
