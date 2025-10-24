@@ -354,11 +354,14 @@ const Bookings = () => {
                           </>
                         )}
                         {booking.status === "completed" && (
-                          <Button size="sm" asChild>
-                            <Link to={`/vehicles/${booking.vehicleId}/book`}>
-                              <RotateCcw className="h-4 w-4 mr-1" />
-                              Book Again
-                            </Link>
+                          <Button 
+                            size="sm" 
+                            onClick={() => {
+                              window.location.href = `/vehicles/${booking.vehicleId}`;
+                            }}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-1" />
+                            Book Again
                           </Button>
                         )}
                       </div>
