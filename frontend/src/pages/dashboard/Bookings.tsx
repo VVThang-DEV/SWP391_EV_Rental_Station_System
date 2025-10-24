@@ -515,25 +515,7 @@ const Bookings = () => {
                   </div>
                 </div>
 
-                {/* QR Code */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-3">
-                    Booking QR Code
-                  </h3>
-                  <div className="flex justify-center">
-                    <QRCodeGenerator
-                      bookingId={selectedBookingForDetails.id}
-                      vehicleId={selectedBookingForDetails.vehicleId}
-                      customerName="John Doe" // This would come from user context
-                      pickupLocation={selectedBookingForDetails.pickupLocation}
-                      size={150}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground text-center mt-2">
-                    This QR code contains your booking information for
-                    verification
-                  </p>
-                </div>
+                
               </div>
             )}
 
@@ -544,7 +526,7 @@ const Bookings = () => {
               >
                 Close
               </Button>
-              <Button>Download Receipt</Button>
+              
             </DialogFooter>
           </DialogContent>
         </Dialog>
