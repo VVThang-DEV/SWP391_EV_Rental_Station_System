@@ -190,9 +190,13 @@ const Bookings = () => {
                       <div className="flex space-x-2">
                         {booking.status === "active" && (
                           <>
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => window.open('tel:0912481269')}
+                            >
                               <Phone className="h-4 w-4 mr-2" />
-                              Contact Support
+                              0912481269
                             </Button>
                             <Button
                               size="sm"
