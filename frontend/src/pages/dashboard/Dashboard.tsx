@@ -250,10 +250,7 @@ const Dashboard = ({ user }: DashboardProps) => {
                     <MapPin className="h-4 w-4 mr-2" />
                     Track Vehicle
                   </Button>
-                  <Button variant="outline" className="flex-1" size="sm">
-                    <Clock className="h-4 w-4 mr-2" />
-                    Extend Rental
-                  </Button>
+                  
                 </div>
               </CardContent>
             </Card>
@@ -320,22 +317,9 @@ const Dashboard = ({ user }: DashboardProps) => {
                     Account Settings
                   </div>
                   <ChevronRight className="h-4 w-4" />
-                </Link>
+                </Link>  
               </Button>
-
-              <Button
-                variant="outline"
-                className="w-full justify-between"
-                disabled
-              >
-                <div className="flex items-center">
-                  <Award className="h-4 w-4 mr-2" />
-                  Rewards Program
-                </div>
-                <Badge variant="secondary" className="text-xs">
-                  Coming Soon
-                </Badge>
-              </Button>
+              
             </CardContent>
           </Card>
         </div>
