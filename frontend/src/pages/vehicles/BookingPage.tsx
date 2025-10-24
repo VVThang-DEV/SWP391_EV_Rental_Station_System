@@ -126,15 +126,33 @@ const BookingPage = () => {
 
     return `${endHours}:${endMinutes}`;
   };
+  
   // THÊM MỚI: Validate thời gian thuê tối thiểu cho hourly
-  const validateHourlyRental = (startTime: string, endTime: string) => {
-    const start = new Date(`2000-01-01T${startTime}`);
-    const end = new Date(`2000-01-01T${endTime}`);
-    const diffMs = end.getTime() - start.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
+const validateHourlyRental = (startTime: string, endTime: string) => {
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const [endHour, endMinute] = endTime.split(':').map(Number);
 
-    return diffHours >= 1; // Tối thiểu 1 giờ
-  };
+  // Tính thời gian kết thúc của pickup slot
+  let pickupEndHour = startHour;
+  let pickupEndMinute = 0;
+
+  if (startMinute === 0) {
+    pickupEndHour = startHour;
+    pickupEndMinute = 30;
+  } else {
+    pickupEndHour = startHour + 1;
+    pickupEndMinute = 0;
+  }
+
+  const pickupEndTime = pickupEndHour * 60 + pickupEndMinute;
+  let returnTime = endHour * 60 + endMinute;
+  if (endHour === 0 && endMinute === 0) {
+    returnTime = 24 * 60;
+  }
+
+  const diffMinutes = returnTime - pickupEndTime;
+  return diffMinutes >= 60; // Tối thiểu 1 giờ từ khi pickup slot kết thúc
+};
 
   // THÊM MỚI: Function tính thời gian còn lại để pickup
   const calculateTimeToPickup = (selectedDate: string, selectedTime: string) => {
