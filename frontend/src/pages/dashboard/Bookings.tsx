@@ -354,17 +354,12 @@ const Bookings = () => {
                           </>
                         )}
                         {booking.status === "completed" && (
-                          <>
-                            <Button variant="outline" size="sm">
-                              Download Receipt
-                            </Button>
-                            <Button size="sm" asChild>
-                              <Link to={`/vehicles/${booking.vehicleId}/book`}>
-                                <RotateCcw className="h-4 w-4 mr-1" />
-                                Book Again
-                              </Link>
-                            </Button>
-                          </>
+                          <Button size="sm" asChild>
+                            <Link to={`/vehicles/${booking.vehicleId}/book`}>
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Book Again
+                            </Link>
+                          </Button>
                         )}
                       </div>
                     </div>
