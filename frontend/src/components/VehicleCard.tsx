@@ -132,10 +132,13 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
       poor: { class: "bg-red-100 text-red-800 border-red-200", icon: "!" },
     };
 
-    const condition = conditions[vehicle.condition];
+    // ✅ Thêm fallback cho condition
+    const vehicleCondition = vehicle.condition || "good";
+    const condition = conditions[vehicleCondition as keyof typeof conditions] || conditions.good;
+    
     return (
       <Badge className={`text-xs border ${condition.class}`}>
-        {condition.icon} {t(`vehicle.condition.${vehicle.condition}`)}
+        {condition.icon} {t(`vehicle.condition.${vehicleCondition}`)}
       </Badge>
     );
   };
@@ -218,7 +221,7 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
             </h3>
             <p className="text-sm text-muted-foreground">
               {vehicle.year} • {vehicle.brand} •{" "}
-              {t(`vehicleTypes.${vehicle.type}`)}
+              {t(`vehicleTypes.${vehicle.type || 'sedan'}`)}
             </p>
           </div>
         </div>

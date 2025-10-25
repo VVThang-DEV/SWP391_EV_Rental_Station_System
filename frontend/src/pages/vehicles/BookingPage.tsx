@@ -1019,6 +1019,25 @@ const BookingPage = () => {
             const startDateTime = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
             const endDateTime = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
 
+            // ✅ FIX: Ensure start time is in the future (with 15 min buffer)
+            const now = new Date();
+            const minAllowedTime = new Date(now.getTime() - 15 * 60 * 1000); // 15 minutes in the past
+            
+            console.log("[Booking] Current time:", now.toISOString());
+            console.log("[Booking] Start time:", startDateTime.toISOString());
+            console.log("[Booking] Min allowed time:", minAllowedTime.toISOString());
+            
+            if (startDateTime < minAllowedTime) {
+              console.warn("[Booking] Start time is too far in the past, adjusting to future time");
+              // Add 2 hours to current time to ensure it's in the future
+              const adjustedStart = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+              const duration = endDateTime.getTime() - startDateTime.getTime();
+              startDateTime.setTime(adjustedStart.getTime());
+              endDateTime.setTime(adjustedStart.getTime() + duration);
+              console.log("[Booking] Adjusted start time:", startDateTime.toISOString());
+              console.log("[Booking] Adjusted end time:", endDateTime.toISOString());
+            }
+
             // Use the actual vehicleId from API data
             let vehicleId: number;
             
@@ -1064,10 +1083,16 @@ const BookingPage = () => {
 
             let reservationId: number | null = null;
             try {
+              console.log("[Booking] Calling API to create reservation...");
+              console.log("[Booking] Reservation data:", JSON.stringify(reservationData, null, 2));
+              
               const reservationResponse = await apiService.createReservation(reservationData);
+              
+              console.log("[Booking] API Response:", reservationResponse);
+              
               if (reservationResponse.success && reservationResponse.reservation) {
                 reservationId = reservationResponse.reservation.reservationId;
-                console.log("Reservation created in database:", reservationResponse.reservation);
+                console.log("✅ Reservation created in database:", reservationResponse.reservation);
                 console.log("[Booking] Saved Start Time:", reservationResponse.reservation.startTime);
                 console.log("[Booking] Saved End Time:", reservationResponse.reservation.endTime);
                 
@@ -1109,17 +1134,18 @@ const BookingPage = () => {
                 }
               }
             } catch (apiError) {
-              console.error("Error creating reservation in database:", apiError);
+              console.error("❌ Error creating reservation in database:", apiError);
+              console.error("Error details:", JSON.stringify(apiError, null, 2));
               // Continue with local storage even if API fails
             }
 
             // Logic xác định status dựa trên thời gian
-            const now = new Date();
+            const currentTime = new Date();
             let status: "active" | "upcoming" | "completed";
 
-            if (now >= startDateTime && now <= endDateTime) {
+            if (currentTime >= startDateTime && currentTime <= endDateTime) {
               status = "active"; // Đang trong thời gian thuê
-            } else if (now < startDateTime) {
+            } else if (currentTime < startDateTime) {
               status = "upcoming"; // Chưa đến thời gian thuê
             } else {
               status = "completed"; // Đã kết thúc (trường hợp ít xảy ra)

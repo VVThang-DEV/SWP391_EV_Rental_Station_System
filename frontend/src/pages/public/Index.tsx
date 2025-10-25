@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/popover";
 import VehicleCard from "@/components/VehicleCard";
 import { GoogleMaps } from "@/components/GoogleMaps";
-import { getAvailableVehicles } from "@/data/vehicles";
+import { useVehicles, useStations, useVehicleModels } from "@/hooks/useApi"; // ✅ Thêm API hooks
 import { stations } from "@/data/stations";
 import { useTranslation } from "@/contexts/TranslationContext";
 import {
@@ -79,7 +79,57 @@ const Index = ({ user }: IndexProps) => {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const availableVehicles = getAvailableVehicles();
+  
+  // ✅ Sử dụng API data giống như trang Vehicles
+  const { data: apiVehicles, loading: vehiclesLoading, error: vehiclesError } = useVehicles();
+  const { data: apiStations } = useStations();
+  const { data: apiVehicleModels } = useVehicleModels();
+  
+  // ✅ Map API data giống như trang Vehicles
+  const mapApiToUI = (apiVehicle: any) => {
+    const model = apiVehicleModels?.find(m => m.modelId === apiVehicle.modelId);
+    const station = apiStations?.find(s => s.station_id === apiVehicle.stationId);
+    
+    return {
+      id: apiVehicle.uniqueVehicleId,
+      vehicleId: apiVehicle.vehicleId,
+      modelId: apiVehicle.modelId,
+      uniqueVehicleId: apiVehicle.uniqueVehicleId,
+      licensePlate: apiVehicle.licensePlate || '',
+      name: model ? `${model.brand} ${model.modelName}` : `${apiVehicle.modelId} Vehicle`,
+      year: model ? model.year : 2024,
+      brand: model ? model.brand : 'VinFast',
+      model: model ? model.modelName : apiVehicle.modelId,
+      type: model ? model.type as any : 'Scooter',
+      seats: model ? model.seats : 2,
+      range: apiVehicle.maxRangeKm,
+      batteryLevel: apiVehicle.batteryLevel,
+      pricePerHour: apiVehicle.pricePerHour,
+      pricePerDay: apiVehicle.pricePerDay,
+      rating: apiVehicle.rating,
+      reviewCount: apiVehicle.reviewCount,
+      trips: apiVehicle.trips,
+      mileage: apiVehicle.mileage,
+      availability: apiVehicle.status as any,
+      condition: apiVehicle.condition as any,
+      image: apiVehicle.image || (model ? model.image : ''),
+      location: apiVehicle.location || station?.city || 'Unknown Location',
+      stationId: apiVehicle.stationId?.toString() || '1',
+      stationName: station ? station.name : 'Unknown Station',
+      stationAddress: station ? station.address : '',
+      features: model ? model.featuresList : [],
+      description: model ? model.description : '',
+      fuelEfficiency: apiVehicle.fuelEfficiency,
+      lastMaintenance: apiVehicle.lastMaintenance,
+      inspectionDate: apiVehicle.inspectionDate,
+      insuranceExpiry: apiVehicle.insuranceExpiry,
+      createdAt: apiVehicle.createdAt,
+      updatedAt: apiVehicle.updatedAt
+    };
+  };
+  
+  // ✅ Tạo availableVehicles từ API data với mapping giống Vehicles page
+  const availableVehicles = apiVehicles ? apiVehicles.map(mapApiToUI) : [];
 
   // Create location suggestions from stations
   const locationSuggestions = stations.map((station) => ({
@@ -90,6 +140,9 @@ const Index = ({ user }: IndexProps) => {
 
   // Filter vehicles based on user selections
   const filteredVehicles = availableVehicles.filter((vehicle) => {
+    // ✅ Trang Home chỉ hiển thị xe có availability 'available'
+    if (vehicle.availability !== 'available') return false;
+    
     if (priceRange !== "all") {
       const price = vehicle.pricePerHour;
       switch (priceRange) {
@@ -460,94 +513,127 @@ const Index = ({ user }: IndexProps) => {
             </div>
           </div>
 
-          {/* Vehicle Grid/List/Map View */}
-          {viewMode === "map" ? (
-            <div className="mb-6">
-              <GoogleMaps
-                selectedStation={selectedStation}
-                onStationSelect={setSelectedStation}
-              />
+          {/* ✅ Loading State */}
+          {vehiclesLoading && (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading vehicles...</p>
             </div>
-          ) : viewMode === "list" ? (
-            <div className="space-y-4">
-              {filteredVehicles.map((vehicle) => (
-                <Card
-                  key={vehicle.id}
-                  className="hover:shadow-md transition-shadow"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-6">
-                      <img
-                        src={vehicle.image}
-                        alt={vehicle.name}
-                        className="w-32 h-24 object-cover rounded-lg"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                              {vehicle.name}
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                              <span className="flex items-center gap-1">
-                                <Users className="h-4 w-4" />
-                                {vehicle.seats} {t("common.seatsLabel")}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Battery className="h-4 w-4" />
-                                {vehicle.range}
-                                {t("common.kmRangeLabel")}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {vehicle.location}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1">
-                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                <span className="font-medium">
-                                  {vehicle.rating}
-                                </span>
-                                <span className="text-gray-500">
-                                  ({vehicle.trips} {t("common.tripsLabel")})
-                                </span>
+          )}
+
+          {/* ✅ Error State */}
+          {vehiclesError && (
+            <div className="text-center py-12">
+              <div className="text-red-600 mb-4">
+                <p>Failed to load vehicles. Please try again later.</p>
+              </div>
+              <Button onClick={() => window.location.reload()}>
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {/* ✅ No Vehicles State */}
+          {!vehiclesLoading && !vehiclesError && filteredVehicles.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-600 mb-4">
+                <p>No available vehicles found.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Vehicle Grid/List/Map View */}
+          {!vehiclesLoading && !vehiclesError && filteredVehicles.length > 0 && (
+            <>
+              {viewMode === "map" ? (
+                <div className="mb-6">
+                  <GoogleMaps
+                    selectedStation={selectedStation}
+                    onStationSelect={setSelectedStation}
+                  />
+                </div>
+              ) : viewMode === "list" ? (
+                <div className="space-y-4">
+                  {filteredVehicles.map((vehicle) => (
+                    <Card
+                      key={vehicle.id}
+                      className="hover:shadow-md transition-shadow"
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-6">
+                          <img
+                            src={vehicle.image}
+                            alt={vehicle.name}
+                            className="w-32 h-24 object-cover rounded-lg"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                  {vehicle.name}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-4 w-4" />
+                                    {vehicle.seats} {t("common.seatsLabel")}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Battery className="h-4 w-4" />
+                                    {vehicle.range}
+                                    {t("common.kmRangeLabel")}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-4 w-4" />
+                                    {vehicle.location}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1">
+                                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                    <span className="font-medium">
+                                      {vehicle.rating}
+                                    </span>
+                                    <span className="text-gray-500">
+                                      ({vehicle.trips} {t("common.tripsLabel")})
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-green-600">
+                                  ${vehicle.pricePerHour}
+                                  <span className="text-sm font-normal text-gray-500">
+                                    {t("common.perHour")}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-gray-500 mb-3">
+                                  ${vehicle.pricePerDay}
+                                  {t("common.perDay")}
+                                </div>
+                                <Button
+                                  asChild
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Link to={`/book/${vehicle.id}`}>
+                                    {t("common.bookNow")}
+                                  </Link>
+                                </Button>
                               </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-green-600">
-                              ${vehicle.pricePerHour}
-                              <span className="text-sm font-normal text-gray-500">
-                                {t("common.perHour")}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-500 mb-3">
-                              ${vehicle.pricePerDay}
-                              {t("common.perDay")}
-                            </div>
-                            <Button
-                              asChild
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Link to={`/book/${vehicle.id}`}>
-                                {t("common.bookNow")}
-                              </Link>
-                            </Button>
-                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVehicles.map((vehicle) => (
-                <VehicleCard key={vehicle.id} vehicle={vehicle} />
-              ))}
-            </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredVehicles.map((vehicle) => (
+                    <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -662,11 +748,40 @@ const Index = ({ user }: IndexProps) => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {availableVehicles.map((vehicle) => (
-                  <VehicleCard key={vehicle.id} vehicle={vehicle} />
-                ))}
-              </div>
+              {/* ✅ Loading State for Featured Vehicles */}
+              {vehiclesLoading && (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading featured vehicles...</p>
+                </div>
+              )}
+
+              {/* ✅ Error State for Featured Vehicles */}
+              {vehiclesError && (
+                <div className="text-center py-12">
+                  <div className="text-red-600 mb-4">
+                    <p>Failed to load featured vehicles.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ✅ Featured Vehicles Grid */}
+              {!vehiclesLoading && !vehiclesError && availableVehicles.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {availableVehicles.slice(0, 6).map((vehicle) => (
+                    <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                  ))}
+                </div>
+              )}
+
+              {/* ✅ No Vehicles State */}
+              {!vehiclesLoading && !vehiclesError && availableVehicles.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="text-gray-600 mb-4">
+                    <p>No featured vehicles available.</p>
+                  </div>
+                </div>
+              )}
 
               <div className="text-center">
                 <Button size="lg" variant="outline" asChild>

@@ -334,6 +334,7 @@ export interface Translations {
     Bus: string;
     Van: string;
     Truck: string;
+    Unknown: string; // ✅ Thêm Unknown type
   };
 
   // Settings
@@ -789,6 +790,7 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         Bus: "Bus",
         Van: "Van",
         Truck: "Truck",
+        Unknown: "Unknown", // ✅ Thêm Unknown
       },
       settings: {
         title: "Account Settings",
@@ -1201,6 +1203,7 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         Bus: "Xe buýt",
         Van: "Xe van",
         Truck: "Xe tải",
+        Unknown: "Không xác định", // ✅ Thêm Unknown tiếng Việt
       },
       settings: {
         title: "Cài đặt tài khoản",
