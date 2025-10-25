@@ -490,8 +490,175 @@ app.MapGet("/api/payments/{id}", [Microsoft.AspNetCore.Authorization.Authorize] 
     });
 });
 
+// Wallet endpoints
+app.MapGet("/api/wallet/balance", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    using var conn = getConnection();
+    var cmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn);
+    cmd.Parameters.AddWithValue("@userId", userId);
+    
+    await conn.OpenAsync();
+    var balanceResult = await cmd.ExecuteScalarAsync();
+    await conn.CloseAsync();
+
+    var balance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+    return Results.Ok(new { userId, balance });
+});
+
+app.MapPost("/api/wallet/deposit", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection, DepositRequest req) =>
+{
+    Console.WriteLine($"Deposit request received: Amount={req.Amount}, MethodType={req.MethodType}, TransactionId={req.TransactionId}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        Console.WriteLine("Unauthorized: No valid user ID");
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"User ID: {userId}");
+
+    if (req.Amount < 10000)
+    {
+        Console.WriteLine($"Amount too low: {req.Amount}");
+        return Results.BadRequest(new { success = false, message = "Minimum deposit is 10,000 VND" });
+    }
+
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    
+    var trans = conn.BeginTransaction();
+    try
+    {
+        // Insert payment record
+        var cmd1 = new SqlCommand(@"
+            INSERT INTO dbo.payments (user_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
+            VALUES (@userId, @methodType, @amount, 'success', 'deposit', @transactionId, GETDATE(), GETDATE());
+            SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
+        cmd1.Parameters.AddWithValue("@userId", userId);
+        cmd1.Parameters.AddWithValue("@methodType", req.MethodType);
+        cmd1.Parameters.AddWithValue("@amount", req.Amount);
+        cmd1.Parameters.AddWithValue("@transactionId", req.TransactionId ?? $"TXN{DateTime.Now.Ticks}");
+        
+        var paymentId = (int)await cmd1.ExecuteScalarAsync();
+
+        // Update wallet balance
+        var cmd2 = new SqlCommand("UPDATE dbo.users SET wallet_balance = ISNULL(wallet_balance, 0) + @amount WHERE user_id = @userId", conn, trans);
+        cmd2.Parameters.AddWithValue("@userId", userId);
+        cmd2.Parameters.AddWithValue("@amount", req.Amount);
+        await cmd2.ExecuteNonQueryAsync();
+
+        // Get new balance
+        var cmd3 = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+        cmd3.Parameters.AddWithValue("@userId", userId);
+        var balanceResult = await cmd3.ExecuteScalarAsync();
+        var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+
+        trans.Commit();
+        
+        Console.WriteLine($"Deposit successful: paymentId={paymentId}, newBalance={newBalance}");
+        return Results.Ok(new { success = true, message = "Deposit successful", paymentId, newBalance });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Deposit failed: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        trans.Rollback();
+        return Results.BadRequest(new { success = false, message = $"Deposit failed: {ex.Message}" });
+    }
+    finally
+    {
+        await conn.CloseAsync();
+    }
+});
+
+app.MapGet("/api/wallet/stats", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    using var conn = getConnection();
+    var cmd = new SqlCommand(@"
+        SELECT 
+            SUM(CASE WHEN transaction_type = 'deposit' THEN amount ELSE 0 END) AS TotalDeposits,
+            SUM(CASE WHEN transaction_type = 'payment' THEN amount ELSE 0 END) AS TotalSpent,
+            SUM(CASE WHEN transaction_type = 'refund' THEN amount ELSE 0 END) AS TotalRefunds,
+            COUNT(*) AS TransactionCount
+        FROM dbo.payments
+        WHERE user_id = @userId AND status = 'success'", conn);
+    cmd.Parameters.AddWithValue("@userId", userId);
+    
+    await conn.OpenAsync();
+    using var reader = await cmd.ExecuteReaderAsync();
+    if (await reader.ReadAsync())
+    {
+        var stats = new
+        {
+            totalDeposits = reader.GetDecimal(0),
+            totalSpent = reader.GetDecimal(1),
+            totalRefunds = reader.GetDecimal(2),
+            transactionCount = reader.GetInt32(3)
+        };
+        await conn.CloseAsync();
+        return Results.Ok(stats);
+    }
+    await conn.CloseAsync();
+    return Results.Ok(new { totalDeposits = 0m, totalSpent = 0m, totalRefunds = 0m, transactionCount = 0 });
+});
+
+app.MapGet("/api/wallet/transactions", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    using var conn = getConnection();
+    var cmd = new SqlCommand(@"
+        SELECT payment_id, user_id, reservation_id, rental_id, method_type, amount, status, transaction_id, transaction_type, created_at, updated_at
+        FROM dbo.payments
+        WHERE user_id = @userId
+        ORDER BY created_at DESC", conn);
+    cmd.Parameters.AddWithValue("@userId", userId);
+    
+    await conn.OpenAsync();
+    using var reader = await cmd.ExecuteReaderAsync();
+    var transactions = new List<object>();
+    while (await reader.ReadAsync())
+    {
+        transactions.Add(new
+        {
+            paymentId = reader.GetInt32(0),
+            userId = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1),
+            reservationId = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2),
+            rentalId = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
+            methodType = reader.GetString(4),
+            amount = reader.GetDecimal(5),
+            status = reader.GetString(6),
+            transactionId = reader.IsDBNull(7) ? null : reader.GetString(7),
+            transactionType = reader.GetString(8),
+            createdAt = reader.GetDateTime(9),
+            updatedAt = reader.GetDateTime(10)
+        });
+    }
+    await conn.CloseAsync();
+    
+    return Results.Ok(transactions);
+});
+
 app.Run("http://localhost:5000");
 
 record LoginRequest(string Email, string Password);
+record DepositRequest(decimal Amount, string MethodType, string? TransactionId);
 
 

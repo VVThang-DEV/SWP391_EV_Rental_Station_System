@@ -70,62 +70,67 @@ interface Transaction {
 }
 
 const Wallet = ({ user }: WalletProps) => {
-  const [balance, setBalance] = useState(1500000); // Mock balance in VND
+  const [balance, setBalance] = useState(0);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [lastDepositAmount, setLastDepositAmount] = useState(0);
   const [lastTransactionId, setLastTransactionId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Mock transaction history
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: "TXN001",
-      type: "deposit",
-      amount: 500000,
-      description: "Wallet Top-up via Credit Card",
-      date: "2024-01-15T10:30:00",
-      status: "completed",
-      paymentMethod: "Credit Card",
-    },
-    {
-      id: "TXN002",
-      type: "payment",
-      amount: -200000,
-      description: "Payment for Booking #B123",
-      date: "2024-01-14T15:20:00",
-      status: "completed",
-    },
-    {
-      id: "TXN003",
-      type: "refund",
-      amount: 150000,
-      description: "Refund for Cancelled Booking #B120",
-      date: "2024-01-13T09:15:00",
-      status: "completed",
-    },
-    {
-      id: "TXN004",
-      type: "deposit",
-      amount: 1000000,
-      description: "Wallet Top-up via MoMo",
-      date: "2024-01-12T14:45:00",
-      status: "completed",
-      paymentMethod: "MoMo",
-    },
-    {
-      id: "TXN005",
-      type: "payment",
-      amount: -350000,
-      description: "Payment for Booking #B118",
-      date: "2024-01-10T11:20:00",
-      status: "completed",
-    },
-  ]);
+  // Fetch wallet balance and transactions
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        
+        // Fetch balance
+        const balanceResponse = await fetch('http://localhost:5000/api/wallet/balance', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (balanceResponse.ok) {
+          const balanceData = await balanceResponse.json();
+          setBalance(balanceData.balance);
+        }
+        
+        // Fetch transactions
+        const transactionsResponse = await fetch('http://localhost:5000/api/wallet/transactions', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (transactionsResponse.ok) {
+          const transactionsData = await transactionsResponse.json();
+          // Map API data to Transaction type
+          const mappedTransactions = transactionsData.map((t: any) => ({
+            id: t.paymentId.toString(),
+            type: t.transactionType === 'deposit' ? 'deposit' : t.transactionType === 'payment' ? 'payment' : 'refund',
+            amount: t.transactionType === 'deposit' || t.transactionType === 'refund' ? t.amount : -t.amount,
+            description: t.transactionType === 'deposit' ? `Wallet Top-up via ${t.methodType}` : 
+                         t.transactionType === 'payment' ? `Payment for Booking #${t.reservationId || t.rentalId}` :
+                         `Refund for Booking #${t.reservationId || t.rentalId}`,
+            date: t.createdAt,
+            status: t.status,
+            paymentMethod: t.methodType,
+          }));
+          setTransactions(mappedTransactions);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -134,7 +139,12 @@ const Wallet = ({ user }: WalletProps) => {
     }).format(amount);
   };
 
-  const handleDeposit = () => {
+  const handleViewDetail = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setIsDetailOpen(true);
+  };
+
+  const handleDeposit = async () => {
     const amount = parseFloat(depositAmount);
 
     if (!amount || amount <= 0) {
@@ -155,49 +165,51 @@ const Wallet = ({ user }: WalletProps) => {
       return;
     }
 
-    // Generate transaction ID
-    const transactionId = `TXN${String(transactions.length + 1).padStart(
-      3,
-      "0"
-    )}`;
-    const paymentMethodName =
-      paymentMethod === "card"
-        ? "Credit Card"
-        : paymentMethod === "bank"
-        ? "Bank Transfer"
-        : paymentMethod === "momo"
-        ? "MoMo"
-        : paymentMethod === "zalopay"
-        ? "ZaloPay"
-        : "VNPay";
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/wallet/deposit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          Amount: amount,
+          MethodType: paymentMethod,
+          TransactionId: `TXN${Date.now()}`,
+        }),
+      });
 
-    // Create new transaction
-    const newTransaction: Transaction = {
-      id: transactionId,
-      type: "deposit",
-      amount: amount,
-      description: `Wallet Top-up via ${paymentMethodName}`,
-      date: new Date().toISOString(),
-      status: "completed",
-      paymentMethod: paymentMethodName,
-    };
-
-    // Update balance and add transaction
-    setBalance((prev) => prev + amount);
-    setTransactions((prev) => [newTransaction, ...prev]);
-    setLastDepositAmount(amount);
-    setLastTransactionId(transactionId);
-
-    // Close deposit dialog and open success dialog
-    setIsDepositOpen(false);
-    setIsSuccessOpen(true);
-    setDepositAmount("");
-
-    // Toast notification
-    toast({
-      title: "✨ Deposit Successful!",
-      description: `${formatCurrency(amount)} has been added to your wallet`,
-    });
+      if (response.ok) {
+        const data = await response.json();
+        setBalance(data.newBalance);
+        setLastDepositAmount(amount);
+        setLastTransactionId(`TXN${data.paymentId}`);
+        setIsDepositOpen(false);
+        setIsSuccessOpen(true);
+        setDepositAmount("");
+        toast({
+          title: "✨ Deposit Successful!",
+          description: `${formatCurrency(amount)} has been added to your wallet`,
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.message || "Failed to deposit",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to deposit money",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const quickAmounts = [50000, 100000, 200000, 500000, 1000000];
@@ -519,6 +531,14 @@ const Wallet = ({ user }: WalletProps) => {
                                 >
                                   {transaction.status}
                                 </Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-2"
+                                  onClick={() => handleViewDetail(transaction)}
+                                >
+                                  View Details
+                                </Button>
                               </div>
                             </div>
                           </CardContent>
@@ -687,13 +707,7 @@ const Wallet = ({ user }: WalletProps) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="card">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      <span>Credit/Debit Card</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="bank">
+                  <SelectItem value="bank_transfer">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       <span>Bank Transfer</span>
@@ -703,12 +717,6 @@ const Wallet = ({ user }: WalletProps) => {
                     <div className="flex items-center gap-2">
                       <Smartphone className="h-4 w-4" />
                       <span>MoMo Wallet</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="zalopay">
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="h-4 w-4" />
-                      <span>ZaloPay</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="vnpay">
@@ -844,6 +852,98 @@ const Wallet = ({ user }: WalletProps) => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transaction Detail Modal */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transaction Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedTransaction && (
+            <div className="space-y-4">
+              {/* Transaction Info */}
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Transaction ID:</span>
+                  <span className="font-medium">{selectedTransaction.id}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Type:</span>
+                  <span className="font-medium capitalize">{selectedTransaction.type}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Description:</span>
+                  <span className="font-medium">{selectedTransaction.description}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className={`font-semibold ${
+                    selectedTransaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {selectedTransaction.amount > 0 ? "+" : ""}
+                    {formatCurrency(selectedTransaction.amount)}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment Method:</span>
+                  <span className="font-medium">{selectedTransaction.paymentMethod || "N/A"}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <Badge
+                    variant={
+                      selectedTransaction.status === "completed"
+                        ? "default"
+                        : selectedTransaction.status === "pending"
+                        ? "secondary"
+                        : "destructive"
+                    }
+                  >
+                    {selectedTransaction.status}
+                  </Badge>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date & Time:</span>
+                  <span className="font-medium">
+                    {new Date(selectedTransaction.date).toLocaleString("vi-VN")}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsDetailOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    // TODO: Add download receipt functionality
+                    toast({
+                      title: "Receipt Download",
+                      description: "Receipt download feature coming soon!",
+                    });
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Receipt
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
