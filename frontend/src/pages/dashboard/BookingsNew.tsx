@@ -37,37 +37,12 @@ interface Reservation {
   stationName?: string;
 }
 
-interface VehicleDetails {
-  vehicleId: number;
-  modelId: string;
-  stationId: number;
-  uniqueVehicleId: string;
-  status: string;
-  pricePerHour: number;
-  pricePerDay: number;
-  batteryLevel: number;
-  maxRangeKm: number;
-  image: string;
-  vehicleModel?: {
-    modelId: string;
-    brand: string;
-    modelName: string;
-    type: string;
-    year: number;
-    seats: number;
-  };
-  name?: string;
-  brand?: string;
-  model?: string;
-}
-
 const Bookings = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Reservation | null>(null);
-  const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(null);
 
   useEffect(() => {
     fetchReservations();
@@ -94,44 +69,6 @@ const Bookings = () => {
       console.error('Error fetching reservations:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const cancelReservation = async (reservationId: number) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/reservations/${reservationId}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Check if refund was processed
-        if (result.refundAmount && result.refundAmount > 0) {
-          const vndAmount = result.refundAmount.toLocaleString('vi-VN');
-          const newBalance = result.newBalance?.toLocaleString('vi-VN') || '';
-          alert(`Booking cancelled successfully!\n\n💰 Refund Information:\nRefund Amount: ${vndAmount} VND\nNew Wallet Balance: ${newBalance} VND\n\nThe refund has been processed to your wallet.`);
-        } else {
-          alert('Booking cancelled successfully!');
-        }
-        
-        // Refresh reservations list
-        fetchReservations();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Failed to cancel booking');
-      }
-    } catch (error) {
-      console.error('Error cancelling reservation:', error);
-      alert('An error occurred while cancelling the booking');
     }
   };
 
@@ -165,28 +102,6 @@ const Bookings = () => {
       return `${diffDays} day(s) ${diffHours % 24} hour(s)`;
     }
     return `${diffHours} hour(s)`;
-  };
-
-  const fetchVehicleDetails = async (vehicleId: number) => {
-    try {
-      console.log('Fetching vehicle details for ID:', vehicleId);
-      const response = await fetch(`http://localhost:5000/api/vehicles/${vehicleId}`);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Vehicle details received:', data);
-        setVehicleDetails(data);
-      } else {
-        console.error('Failed to fetch vehicle details:', response.status);
-      }
-    } catch (error) {
-      console.error('Error fetching vehicle details:', error);
-    }
-  };
-
-  const handleViewDetails = (reservation: Reservation) => {
-    setSelectedBooking(reservation);
-    fetchVehicleDetails(reservation.vehicleId);
-    setDetailsDialogOpen(true);
   };
 
   const filteredReservations =
@@ -289,17 +204,16 @@ const Bookings = () => {
                       <div className="flex space-x-2">
                         <Button
                           size="sm"
-                          onClick={() => handleViewDetails(reservation)}
+                          onClick={() => {
+                            setSelectedBooking(reservation);
+                            setDetailsDialogOpen(true);
+                          }}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View Details
                         </Button>
                         {reservation.status?.toLowerCase() === "pending" && (
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => cancelReservation(reservation.reservationId)}
-                          >
+                          <Button variant="destructive" size="sm">
                             Cancel Booking
                           </Button>
                         )}
@@ -340,43 +254,6 @@ const Bookings = () => {
 
             {selectedBooking && (
               <div className="space-y-6">
-                {/* Vehicle Image */}
-                {vehicleDetails && (
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <h3 className="text-lg font-semibold mb-3">Vehicle</h3>
-                    <div className="flex items-center gap-4">
-                      <div className="w-32 h-32 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
-                        {vehicleDetails.image ? (
-                          <img 
-                            src={vehicleDetails.image} 
-                            alt={vehicleDetails.vehicleModel?.modelName || vehicleDetails.modelId}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              // Fallback nếu ảnh lỗi
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              target.parentElement!.innerHTML = '';
-                            }}
-                          />
-                        ) : (
-                          <Car className="h-16 w-16 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-2xl font-bold mb-2">
-                          {vehicleDetails.vehicleModel?.modelName || vehicleDetails.modelId}
-                        </div>
-                        <div className="text-sm text-muted-foreground mb-1">
-                          {vehicleDetails.vehicleModel?.brand || 'VinFast'} • {vehicleDetails.vehicleModel?.modelName || vehicleDetails.modelId}
-                        </div>
-                        <div className="text-sm font-semibold text-primary">
-                          {vehicleDetails.pricePerHour.toLocaleString('vi-VN')} VND/hour
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Status */}
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold mb-3">Status</h3>

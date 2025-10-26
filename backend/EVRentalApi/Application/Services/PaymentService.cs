@@ -23,7 +23,7 @@ public class PaymentService : IPaymentService
     public async Task<PaymentResponse> CreatePaymentAsync(CreatePaymentRequest request)
     {
         // Validate payment method
-        var validMethods = new[] { "cash", "momo", "vnpay", "bank_transfer" };
+        var validMethods = new[] { "cash", "wallet", "momo", "vnpay", "bank_transfer" };
         if (!validMethods.Contains(request.MethodType.ToLower()))
         {
             return new PaymentResponse

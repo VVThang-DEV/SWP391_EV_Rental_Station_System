@@ -64,10 +64,44 @@ const BookingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { chargingVehicles } = useChargingContext();
+  const [isCheckingActiveBooking, setIsCheckingActiveBooking] = useState(true);
   
   // Use API data with fallback to static data
   const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
   const staticVehicle = id ? getVehicleById(id) : null;
+  
+  // ⚠️ VALIDATION: Check if user has active booking before allowing new booking
+  useEffect(() => {
+    const checkActiveBooking = async () => {
+      try {
+        const reservations = await apiService.getReservations();
+        const activeReservations = reservations.reservations?.filter(r => 
+          !['completed', 'cancelled', 'finished'].includes(r.status?.toLowerCase() || '')
+        ) || [];
+        
+        if (activeReservations.length > 0) {
+          console.log("[BookingPage] ❌ User has active booking:", activeReservations);
+          toast({
+            title: "Cannot Book",
+            description: "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+            variant: "destructive",
+          });
+          
+          // Navigate back to vehicles page immediately
+          navigate('/vehicles');
+        } else {
+          console.log("[BookingPage] ✅ No active bookings - allowing booking");
+        }
+      } catch (error) {
+        console.error("[BookingPage] Error checking active bookings:", error);
+        // If error, still allow booking (graceful degradation)
+      } finally {
+        setIsCheckingActiveBooking(false);
+      }
+    };
+    
+    checkActiveBooking();
+  }, [toast, navigate]);
   
   // Find vehicle from API data or fallback to static
   console.log("[BookingPage] Looking for vehicle with id:", id);
@@ -355,7 +389,7 @@ const BookingPage = () => {
       phone: "", // Will be auto-filled from API
       driverLicense: "", // Will be auto-filled from API
     },
-    paymentMethod: "qr_code",
+    paymentMethod: "wallet",
     reservationId: null as number | null, // Add reservationId field
   });
 
@@ -1102,41 +1136,51 @@ const BookingPage = () => {
                   reservationId: reservationId
                 }));
 
-                // ✅ LƯU PAYMENT VÀO DATABASE
-                if (reservationId) {
+                // ✅ UPDATE PAYMENT VỚI RESERVATION_ID
+                if (reservationId && bookingData.paymentMethod === 'wallet') {
                   try {
-                    // Map payment method from frontend to database format
-                    const methodMap: { [key: string]: string } = {
-                      'qr_code': 'bank_transfer',
-                      'cash': 'cash'
-                    };
-                    const dbMethod = methodMap[bookingData.paymentMethod] || 'bank_transfer';
-
-                    const paymentDataToSave = {
-                      reservationId: reservationId,
-                      methodType: dbMethod,
-                      amount: totalCost,
-                      status: 'success',
-                      transactionId: paymentData.paymentId,
-                      isDeposit: false
-                    };
-
-                    console.log("[Payment] Creating payment in database:", paymentDataToSave);
+                    console.log("[Payment] Updating payment with reservation_id:", reservationId);
                     
-                    const paymentResponse = await apiService.createPayment(paymentDataToSave);
-                    if (paymentResponse.success && paymentResponse.payment) {
-                      console.log("[Payment] Payment saved successfully:", paymentResponse.payment);
+                    // Update payment record that doesn't have reservation_id yet
+                    const token = localStorage.getItem('token');
+                    const updateResponse = await fetch('http://localhost:5000/api/wallet/update-payment', {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        reservationId: reservationId,
+                        amount: totalCost,
+                      }),
+                    });
+
+                    if (updateResponse.ok) {
+                      console.log("[Payment] Payment updated successfully with reservation_id");
+                    } else {
+                      console.log("[Payment] Update failed, but continuing...");
                     }
                   } catch (paymentError) {
-                    console.error("Error creating payment in database:", paymentError);
-                    // Continue even if payment save fails
+                    console.error("Error updating payment in database:", paymentError);
+                    // Continue even if payment update fails
                   }
                 }
+              } else {
+                // API returned success=false
+                throw new Error(reservationResponse.message || "Failed to create reservation");
               }
-            } catch (apiError) {
+            } catch (apiError: any) {
               console.error("❌ Error creating reservation in database:", apiError);
-              console.error("Error details:", JSON.stringify(apiError, null, 2));
-              // Continue with local storage even if API fails
+              
+              // Show error message to user and stop booking process
+              toast({
+                title: "Booking Failed",
+                description: apiError.message || "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+                variant: "destructive",
+              });
+              
+              // Stop here - don't continue with local storage
+              return;
             }
 
             // Logic xác định status dựa trên thời gian
@@ -1211,7 +1255,7 @@ const BookingPage = () => {
             return;
           }
         }}
-        paymentMethod={bookingData.paymentMethod as "qr_code" | "cash"}
+        paymentMethod={bookingData.paymentMethod as "wallet" | "cash"}
         onBack={() => setStep(1)}
       />
     </div>
@@ -1426,6 +1470,20 @@ const BookingPage = () => {
       </div>
     </div>
   );
+
+  // Show loading while checking for active bookings
+  if (isCheckingActiveBooking) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-lg text-muted-foreground">Checking availability...</p>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
 
   return (
     <PageTransition>

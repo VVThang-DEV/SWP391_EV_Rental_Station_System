@@ -32,14 +32,21 @@ public class ReservationService : IReservationService
             };
         }
 
-        // Allow booking up to 15 minutes in the past (for timezone issues)
-        if (request.StartTime < DateTime.Now.AddMinutes(-15))
+        // SANDBOX MODE: Allow any start time for testing
+        // In production, you might want to re-enable this validation:
+        // if (request.StartTime < DateTime.Now.AddMinutes(-15))
+        // {
+        //     return new ReservationResponse
+        //     {
+        //         Success = false,
+        //         Message = "Start time cannot be more than 15 minutes in the past"
+        //     };
+        // }
+        
+        // Check if start time is in the future for better UX
+        if (request.StartTime < DateTime.Now.AddHours(-1))
         {
-            return new ReservationResponse
-            {
-                Success = false,
-                Message = "Start time cannot be more than 15 minutes in the past"
-            };
+            Console.WriteLine($"[Reservation] Warning: Start time is more than 1 hour in the past. Allowing in SANDBOX mode.");
         }
 
         var result = await _reservationRepository.CreateReservationAsync(request);

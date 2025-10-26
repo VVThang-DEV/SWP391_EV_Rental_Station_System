@@ -307,6 +307,11 @@ const Vehicles = () => {
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
     const filtered = vehicles.filter((vehicle) => {
+      // ✅ Filter out pending vehicles
+      if (vehicle.availability?.toLowerCase() === 'pending') {
+        return false;
+      }
+
       // Comprehensive search across multiple fields
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =

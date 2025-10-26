@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import PaymentCheckout from "@/components/PaymentCheckout";
 import { useToast } from "@/hooks/use-toast";
 import {
   Wallet as WalletIcon,
@@ -48,6 +49,7 @@ import {
   ChevronLeft,
   Smartphone,
   Building2,
+  Loader2,
 } from "lucide-react";
 
 interface WalletProps {
@@ -72,6 +74,10 @@ interface Transaction {
 const Wallet = ({ user }: WalletProps) => {
   const [balance, setBalance] = useState(0);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isGatewayOpen, setIsGatewayOpen] = useState(false);
+  const [gatewayIntentId, setGatewayIntentId] = useState("");
+  const [gatewayAmount, setGatewayAmount] = useState(0);
+  const [gatewayMethod, setGatewayMethod] = useState("bank_transfer");
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -110,17 +116,48 @@ const Wallet = ({ user }: WalletProps) => {
         if (transactionsResponse.ok) {
           const transactionsData = await transactionsResponse.json();
           // Map API data to Transaction type
-          const mappedTransactions = transactionsData.map((t: any) => ({
-            id: t.paymentId.toString(),
-            type: t.transactionType === 'deposit' ? 'deposit' : t.transactionType === 'payment' ? 'payment' : 'refund',
-            amount: t.transactionType === 'deposit' || t.transactionType === 'refund' ? t.amount : -t.amount,
-            description: t.transactionType === 'deposit' ? `Wallet Top-up via ${t.methodType}` : 
-                         t.transactionType === 'payment' ? `Payment for Booking #${t.reservationId || t.rentalId}` :
-                         `Refund for Booking #${t.reservationId || t.rentalId}`,
-            date: t.createdAt,
-            status: t.status,
-            paymentMethod: t.methodType,
-          }));
+          const mappedTransactions = transactionsData.map((t: any) => {
+            let type: "deposit" | "withdrawal" | "payment" | "refund";
+            let amount: number;
+            let description: string;
+            
+            switch (t.transactionType) {
+              case 'deposit':
+                type = 'deposit';
+                amount = t.amount;
+                description = `Wallet Top-up via ${t.methodType}`;
+                break;
+              case 'payment':
+                type = 'payment';
+                amount = -t.amount;
+                description = `Payment for Booking #${t.reservationId || t.rentalId}`;
+                break;
+              case 'refund':
+                type = 'refund';
+                amount = t.amount;
+                description = `Refund for Booking #${t.reservationId || t.rentalId}`;
+                break;
+              case 'withdrawal':
+                type = 'withdrawal';
+                amount = -t.amount;
+                description = `Withdrawal to ${t.methodType || 'wallet'}`;
+                break;
+              default:
+                type = 'payment';
+                amount = -t.amount;
+                description = 'Transaction';
+            }
+            
+            return {
+              id: t.paymentId.toString(),
+              type,
+              amount,
+              description,
+              date: t.createdAt,
+              status: t.status,
+              paymentMethod: t.methodType,
+            };
+          });
           setTransactions(mappedTransactions);
         }
       } catch (error) {
@@ -168,7 +205,10 @@ const Wallet = ({ user }: WalletProps) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/wallet/deposit', {
+      
+      // Step 1: Create payment intent with gateway
+      console.log('Creating payment intent...', { amount, paymentMethod });
+      const intentResponse = await fetch('http://localhost:5000/api/wallet/payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,40 +216,99 @@ const Wallet = ({ user }: WalletProps) => {
         },
         body: JSON.stringify({
           Amount: amount,
-          MethodType: paymentMethod,
-          TransactionId: `TXN${Date.now()}`,
+          Currency: 'VND',
+          Method: paymentMethod,
+          Metadata: {}
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setBalance(data.newBalance);
-        setLastDepositAmount(amount);
-        setLastTransactionId(`TXN${data.paymentId}`);
-        setIsDepositOpen(false);
-        setIsSuccessOpen(true);
-        setDepositAmount("");
-        toast({
-          title: "✨ Deposit Successful!",
-          description: `${formatCurrency(amount)} has been added to your wallet`,
-        });
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Failed to deposit",
-          variant: "destructive",
-        });
+      console.log('Intent response status:', intentResponse.status);
+      
+      if (!intentResponse.ok) {
+        const errorData = await intentResponse.json();
+        console.error('Error creating intent:', errorData);
+        throw new Error(errorData.message || 'Failed to create payment intent');
       }
+
+      const intentData = await intentResponse.json();
+      console.log('Intent data received (full):', intentData);
+      console.log('intentData.data:', intentData.data);
+      
+      // Check if response has the expected structure
+      if (!intentData.data) {
+        console.error('No data in response:', intentData);
+        throw new Error('Invalid response from server');
+      }
+      
+      // Backend might return different property names (camelCase vs PascalCase)
+      const IntentId = intentData.data.IntentId || intentData.data.intentId || intentData.data.intent_id;
+      const CheckoutUrl = intentData.data.CheckoutUrl || intentData.data.checkoutUrl || intentData.data.checkout_url;
+      const PaymentData = intentData.data.PaymentData || intentData.data.paymentData || intentData.data.payment_data;
+      
+      console.log('Extracted IntentId:', IntentId);
+      console.log('CheckoutUrl:', CheckoutUrl);
+      console.log('PaymentData:', PaymentData);
+
+      // Store intent data for confirmation
+      localStorage.setItem('pendingPaymentIntent', JSON.stringify({
+        intentId: IntentId,
+        amount,
+        method: paymentMethod
+      }));
+
+      // Step 2: Open payment checkout
+      setIsDepositOpen(false);
+      setIsGatewayOpen(true);
+      setGatewayIntentId(IntentId);
+      setGatewayAmount(amount);
+      setGatewayMethod(paymentMethod);
+      
+      toast({
+        title: "Payment Gateway",
+        description: "Redirecting to payment gateway...",
+      });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to deposit money",
+        description: "Failed to initiate payment",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handleGatewayComplete = async () => {
+    // After payment is confirmed, update balance and show success
+    setIsGatewayOpen(false);
+    
+    // Refresh balance
+    const token = localStorage.getItem('token');
+    const balanceResponse = await fetch('http://localhost:5000/api/wallet/balance', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (balanceResponse.ok) {
+      const balanceData = await balanceResponse.json();
+      setBalance(balanceData.balance);
+    }
+    
+    // Show success dialog
+    setLastDepositAmount(gatewayAmount);
+    setLastTransactionId(localStorage.getItem('pendingPaymentIntent') ? JSON.parse(localStorage.getItem('pendingPaymentIntent')!).intentId : '');
+    setIsSuccessOpen(true);
+    setIsDepositOpen(false);
+    
+    // Clear pending intent
+    localStorage.removeItem('pendingPaymentIntent');
+    setLoading(false);
+  };
+
+  const handleGatewayCancel = () => {
+    setIsGatewayOpen(false);
+    setDepositAmount("");
+    localStorage.removeItem('pendingPaymentIntent');
+    setLoading(false);
   };
 
   const quickAmounts = [50000, 100000, 200000, 500000, 1000000];
@@ -941,6 +1040,38 @@ const Wallet = ({ user }: WalletProps) => {
                   <Download className="h-4 w-4 mr-2" />
                   Download Receipt
                 </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Gateway Dialog */}
+      <Dialog open={isGatewayOpen} onOpenChange={setIsGatewayOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {gatewayIntentId ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Payment Gateway</DialogTitle>
+                <DialogDescription>
+                  Complete your payment to add funds to your wallet
+                </DialogDescription>
+              </DialogHeader>
+              <PaymentCheckout
+                intentId={gatewayIntentId}
+                method={gatewayMethod}
+                amount={gatewayAmount}
+                onComplete={handleGatewayComplete}
+                onCancel={handleGatewayCancel}
+              />
+            </>
+          ) : (
+            <div className="flex items-center justify-center min-h-[200px]">
+              <div className="text-center">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Loading payment gateway...
+                </p>
               </div>
             </div>
           )}

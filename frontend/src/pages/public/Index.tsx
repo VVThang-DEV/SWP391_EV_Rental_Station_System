@@ -140,6 +140,9 @@ const Index = ({ user }: IndexProps) => {
 
   // Filter vehicles based on user selections
   const filteredVehicles = availableVehicles.filter((vehicle) => {
+    // ✅ Loại bỏ xe có trạng thái 'pending'
+    if (vehicle.availability?.toLowerCase() === 'pending') return false;
+    
     // ✅ Trang Home chỉ hiển thị xe có availability 'available'
     if (vehicle.availability !== 'available') return false;
     

@@ -9,6 +9,7 @@ using EVRentalApi.Application.Services;
 using EVRentalApi.Infrastructure.Repositories;
 using EVRentalApi.Infrastructure.Email;
 using EVRentalApi.Models;
+using System.Collections.Generic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +62,7 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 // DI: Payment management
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
 
 // Add controllers
 builder.Services.AddControllers();
@@ -414,25 +416,211 @@ app.MapGet("/api/reservations/{id}", [Microsoft.AspNetCore.Authorization.Authori
     });
 });
 
-app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, IReservationService reservationService) =>
+app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, IReservationService reservationService, Func<SqlConnection> getConnection, HttpContext context) =>
 {
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"[Cancel Booking] Processing cancellation for reservation {id} by user {userId}");
+
+    // Cancel the reservation
     var success = await reservationService.CancelReservationAsync(id);
     
-    if (success)
+    if (!success)
     {
+        return Results.BadRequest(new { success = false, message = "Failed to cancel reservation" });
+    }
+
+    Console.WriteLine($"[Cancel Booking] Reservation {id} cancelled successfully. Checking for wallet refund...");
+
+    // Check if this reservation was paid by wallet and process refund
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    var trans = conn.BeginTransaction();
+    
+    try
+    {
+        // Get payment information for this reservation
+        Console.WriteLine($"[Cancel Booking] Checking payments for reservation {id} and user {userId}");
+        
+        // Query payments: check for wallet payments with flexible conditions
+        var getPaymentCmd = new SqlCommand(@"
+            SELECT payment_id, amount, method_type, transaction_id, user_id, transaction_type, status
+            FROM dbo.payments 
+            WHERE reservation_id = @ReservationId AND status = 'success' AND method_type = 'wallet'
+            ORDER BY created_at DESC", conn, trans);
+        getPaymentCmd.Parameters.AddWithValue("@ReservationId", id);
+        
+        using var paymentReader = await getPaymentCmd.ExecuteReaderAsync();
+        decimal refundAmount = 0m;
+        int paymentId = 0;
+        string methodType = "";
+        string transactionId = "";
+        int paymentUserId = 0;
+        
+        while (await paymentReader.ReadAsync())
+        {
+            paymentId = paymentReader.GetInt32(0);
+            var amount = paymentReader.GetDecimal(1);
+            methodType = paymentReader.GetString(2);
+            transactionId = paymentReader.IsDBNull(3) ? "" : paymentReader.GetString(3);
+            paymentUserId = paymentReader.IsDBNull(4) ? 0 : paymentReader.GetInt32(4);
+            var transactionType = paymentReader.IsDBNull(5) ? "NULL" : paymentReader.GetString(5);
+            var status = paymentReader.GetString(6);
+            
+            Console.WriteLine($"[Cancel Booking] Found payment: id={paymentId}, amount={amount}, method={methodType}, user_id={paymentUserId}, transaction_type={transactionType}, status={status}");
+            
+            // Only refund if paid by wallet
+            if (methodType == "wallet" && status == "success")
+            {
+                refundAmount += amount;
+                Console.WriteLine($"[Cancel Booking] Found wallet payment: {amount} VND");
+            }
+        }
+        await paymentReader.CloseAsync();
+        
+        Console.WriteLine($"[Cancel Booking] Total refund amount calculated: {refundAmount} VND");
+        
+        if (refundAmount > 0)
+        {
+            Console.WriteLine($"[Cancel Booking] Processing refund of {refundAmount} VND to wallet");
+            
+            // Update payment status to refunded
+            var updatePaymentCmd = new SqlCommand(@"
+                UPDATE dbo.payments 
+                SET status = 'refunded'
+                WHERE reservation_id = @ReservationId AND method_type = 'wallet' AND status = 'success'", conn, trans);
+            updatePaymentCmd.Parameters.AddWithValue("@ReservationId", id);
+            var updateCount = await updatePaymentCmd.ExecuteNonQueryAsync();
+            Console.WriteLine($"[Cancel Booking] Updated {updateCount} payment records to refunded status");
+            
+            // Verify the update
+            Console.WriteLine($"[Cancel Booking] Verification: reservation_id={id}, userId={userId}, refundAmount={refundAmount}");
+            
+            // Insert refund transaction
+            var refundTransactionId = $"RFND_{DateTime.UtcNow.Ticks}_{userId}";
+            var insertRefundCmd = new SqlCommand(@"
+                INSERT INTO dbo.payments (user_id, reservation_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
+                VALUES (@userId, @ReservationId, 'wallet', @amount, 'success', 'refund', @transactionId, GETDATE(), GETDATE());
+                SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
+            insertRefundCmd.Parameters.AddWithValue("@userId", userId);
+            insertRefundCmd.Parameters.AddWithValue("@ReservationId", id);
+            insertRefundCmd.Parameters.AddWithValue("@amount", refundAmount);
+            insertRefundCmd.Parameters.AddWithValue("@transactionId", refundTransactionId);
+            var refundPaymentId = await insertRefundCmd.ExecuteScalarAsync();
+            Console.WriteLine($"[Cancel Booking] Created refund transaction with payment_id: {refundPaymentId}");
+            
+            // Get current balance before refund
+            var checkBalanceBeforeCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+            checkBalanceBeforeCmd.Parameters.AddWithValue("@userId", userId);
+            var balanceBeforeResult = await checkBalanceBeforeCmd.ExecuteScalarAsync();
+            var balanceBefore = balanceBeforeResult == DBNull.Value ? 0m : (decimal)balanceBeforeResult;
+            Console.WriteLine($"[Cancel Booking] Balance BEFORE refund: {balanceBefore} VND");
+            
+            // Update wallet balance
+            var updateWalletCmd = new SqlCommand(@"
+                UPDATE dbo.users 
+                SET wallet_balance = ISNULL(wallet_balance, 0) + @amount 
+                WHERE user_id = @userId", conn, trans);
+            updateWalletCmd.Parameters.AddWithValue("@userId", userId);
+            updateWalletCmd.Parameters.AddWithValue("@amount", refundAmount);
+            await updateWalletCmd.ExecuteNonQueryAsync();
+            Console.WriteLine($"[Cancel Booking] Updated wallet balance +{refundAmount}");
+            
+            // Get new balance
+            var getBalanceCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+            getBalanceCmd.Parameters.AddWithValue("@userId", userId);
+            var balanceResult = await getBalanceCmd.ExecuteScalarAsync();
+            var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+            
+            trans.Commit();
+            await conn.CloseAsync();
+            
+            Console.WriteLine($"[Cancel Booking] Refund successful. New wallet balance: {newBalance} VND");
+            
+            return Results.Ok(new 
+            { 
+                success = true, 
+                message = "Reservation cancelled successfully. Refund processed.",
+                refundAmount,
+                newBalance 
+            });
+        }
+        
+        // No wallet payment found, just cancel the reservation
+        trans.Commit();
+        await conn.CloseAsync();
+        
+        Console.WriteLine($"[Cancel Booking] No wallet payment found. Reservation cancelled only.");
+        
         return Results.Ok(new { success = true, message = "Reservation cancelled successfully" });
     }
-    
-    return Results.BadRequest(new { success = false, message = "Failed to cancel reservation" });
+    catch (Exception ex)
+    {
+        trans.Rollback();
+        await conn.CloseAsync();
+        Console.WriteLine($"[Cancel Booking] Error processing refund: {ex.Message}");
+        
+        // Still return success for cancellation even if refund fails
+        return Results.Ok(new 
+        { 
+            success = true, 
+            message = "Reservation cancelled successfully, but refund processing failed. Please contact support.",
+            refundAmount = 0,
+            newBalance = (decimal?)null
+        });
+    }
 });
 
 // Payment endpoints
-app.MapPost("/api/payments", [Microsoft.AspNetCore.Authorization.Authorize] async (CreatePaymentRequest req, IPaymentService paymentService) =>
+app.MapPost("/api/payments", [Microsoft.AspNetCore.Authorization.Authorize] async (CreatePaymentRequest req, IPaymentService paymentService, HttpContext context, Func<SqlConnection> getConnection) =>
 {
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"[CreatePayment] User {userId} creating payment for reservation {req.ReservationId}, amount: {req.Amount}, method: {req.MethodType}");
+    
     var result = await paymentService.CreatePaymentAsync(req);
     
     if (result.Success)
     {
+        // If payment is successful AND paid by wallet, update the payment record with user_id and transaction_type
+        if (req.MethodType == "wallet" && req.ReservationId.HasValue)
+        {
+            using var conn = getConnection();
+            await conn.OpenAsync();
+            
+            try
+            {
+                var updateCmd = new SqlCommand(@"
+                    UPDATE dbo.payments 
+                    SET user_id = @userId, transaction_type = 'payment'
+                    WHERE reservation_id = @reservationId AND payment_id = (
+                        SELECT TOP 1 payment_id FROM dbo.payments 
+                        WHERE reservation_id = @reservationId 
+                        ORDER BY created_at DESC
+                    )", conn);
+                updateCmd.Parameters.AddWithValue("@userId", userId);
+                updateCmd.Parameters.AddWithValue("@reservationId", req.ReservationId.Value);
+                await updateCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[CreatePayment] Updated payment with user_id {userId} and transaction_type 'payment'");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CreatePayment] Error updating payment: {ex.Message}");
+            }
+            finally
+            {
+                await conn.CloseAsync();
+            }
+        }
+        
         return Results.Ok(new { 
             success = true, 
             message = result.Message,
@@ -578,6 +766,129 @@ app.MapPost("/api/wallet/deposit", [Microsoft.AspNetCore.Authorization.Authorize
     }
 });
 
+// ✅ Wallet withdrawal endpoint for payment
+app.MapPost("/api/wallet/withdraw", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection, WithdrawRequest req) =>
+{
+    Console.WriteLine($"Withdraw request received: Amount={req.Amount}, Reason={req.Reason}, ReservationId={req.ReservationId}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        Console.WriteLine("Unauthorized: No valid user ID");
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"User ID: {userId}, Amount: {req.Amount}");
+
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    
+    var trans = conn.BeginTransaction();
+    try
+    {
+        // Check current balance
+        var checkBalanceCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+        checkBalanceCmd.Parameters.AddWithValue("@userId", userId);
+        var currentBalanceResult = await checkBalanceCmd.ExecuteScalarAsync();
+        var currentBalance = currentBalanceResult == DBNull.Value ? 0m : (decimal)currentBalanceResult;
+        
+        Console.WriteLine($"Current balance: {currentBalance}");
+        
+        if (currentBalance < req.Amount)
+        {
+            await conn.CloseAsync();
+            return Results.BadRequest(new { success = false, message = "Insufficient balance", currentBalance });
+        }
+
+        // Insert payment record with reservation_id
+        var cmd1 = new SqlCommand(@"
+            INSERT INTO dbo.payments (user_id, reservation_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
+            VALUES (@userId, @reservationId, 'wallet', @amount, 'success', 'payment', @transactionId, GETDATE(), GETDATE());
+            SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
+        cmd1.Parameters.AddWithValue("@userId", userId);
+        cmd1.Parameters.AddWithValue("@reservationId", (object?)req.ReservationId ?? DBNull.Value);
+        cmd1.Parameters.AddWithValue("@amount", req.Amount);
+        cmd1.Parameters.AddWithValue("@transactionId", req.TransactionId ?? $"TXN{DateTime.Now.Ticks}");
+        
+        var paymentId = (int)await cmd1.ExecuteScalarAsync();
+
+        // Update wallet balance (subtract)
+        var cmd2 = new SqlCommand("UPDATE dbo.users SET wallet_balance = ISNULL(wallet_balance, 0) - @amount WHERE user_id = @userId", conn, trans);
+        cmd2.Parameters.AddWithValue("@userId", userId);
+        cmd2.Parameters.AddWithValue("@amount", req.Amount);
+        await cmd2.ExecuteNonQueryAsync();
+
+        // Get new balance
+        var cmd3 = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+        cmd3.Parameters.AddWithValue("@userId", userId);
+        var balanceResult = await cmd3.ExecuteScalarAsync();
+        var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+
+        trans.Commit();
+        
+        Console.WriteLine($"Withdraw successful: paymentId={paymentId}, newBalance={newBalance}");
+        return Results.Ok(new { success = true, message = "Payment successful", paymentId, newBalance, amount = req.Amount });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Withdraw failed: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        trans.Rollback();
+        return Results.BadRequest(new { success = false, message = $"Payment failed: {ex.Message}" });
+    }
+    finally
+    {
+        await conn.CloseAsync();
+    }
+});
+
+// Update payment with reservation_id (for wallet payments)
+app.MapPut("/api/wallet/update-payment", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection, UpdatePaymentRequest req) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"[UpdatePayment] Updating payment with reservation_id={req.ReservationId}, amount={req.Amount}");
+    
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    
+    try
+    {
+        // Update the most recent payment record for this user that has method_type = 'wallet' and no reservation_id
+        var updateCmd = new SqlCommand(@"
+            UPDATE dbo.payments 
+            SET reservation_id = @ReservationId
+            WHERE payment_id = (
+                SELECT TOP 1 payment_id 
+                FROM dbo.payments 
+                WHERE user_id = @UserId 
+                  AND method_type = 'wallet' 
+                  AND transaction_type = 'payment'
+                  AND reservation_id IS NULL
+                ORDER BY created_at DESC
+            )", conn);
+        updateCmd.Parameters.AddWithValue("@UserId", userId);
+        updateCmd.Parameters.AddWithValue("@ReservationId", req.ReservationId);
+        
+        var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
+        Console.WriteLine($"[UpdatePayment] Updated {rowsAffected} payment records");
+        
+        await conn.CloseAsync();
+        
+        return Results.Ok(new { success = true, message = "Payment updated successfully", rowsAffected });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[UpdatePayment] Error: {ex.Message}");
+        await conn.CloseAsync();
+        return Results.BadRequest(new { success = false, message = "Failed to update payment" });
+    }
+});
+
 app.MapGet("/api/wallet/stats", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection) =>
 {
     var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
@@ -656,9 +967,110 @@ app.MapGet("/api/wallet/transactions", [Microsoft.AspNetCore.Authorization.Autho
     return Results.Ok(transactions);
 });
 
+// Payment Gateway Endpoints
+app.MapPost("/api/wallet/payment-intent", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, IPaymentGatewayService gatewayService, PaymentIntentRequest request) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    var response = await gatewayService.CreatePaymentIntentAsync(request, userId);
+    return Results.Ok(new { success = true, data = response });
+});
+
+app.MapPost("/api/wallet/confirm-payment", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, IPaymentGatewayService gatewayService, Func<SqlConnection> getConnection, ConfirmPaymentRequest request) =>
+{
+    Console.WriteLine($"[Confirm Payment] IntentId: {request.IntentId}, PaymentMethod: {request.PaymentMethod}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    // Confirm with gateway service
+    var confirmResponse = await gatewayService.ConfirmPaymentAsync(request, userId);
+    Console.WriteLine($"[Confirm Payment] Gateway response: Success={confirmResponse.Success}, Message={confirmResponse.Message}");
+    
+    if (!confirmResponse.Success)
+    {
+        return Results.BadRequest(new { success = false, message = confirmResponse.Message });
+    }
+
+    // Get intent details from storage
+    var (amount, methodType) = await gatewayService.GetIntentDetailsAsync(request.IntentId);
+    
+    // SANDBOX MODE: If intent not found, use amount from request
+    if (amount == 0)
+    {
+        Console.WriteLine("[Confirm Payment] Intent not in storage (SANDBOX MODE), using amount from request");
+        // Get amount from request (sent from frontend)
+        amount = request.Amount ?? 0;
+        methodType = request.PaymentMethod ?? "bank_transfer";
+        
+        if (amount == 0)
+        {
+            return Results.BadRequest(new { success = false, message = "Amount is required for payment confirmation" });
+        }
+    }
+
+    // Get intent details to process wallet deposit
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    var trans = conn.BeginTransaction();
+    
+    try
+    {
+        // Insert payment record
+        var cmd1 = new SqlCommand(@"
+            INSERT INTO dbo.payments (user_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
+            VALUES (@userId, @methodType, @amount, 'success', 'deposit', @transactionId, GETDATE(), GETDATE());
+            SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
+        cmd1.Parameters.AddWithValue("@userId", userId);
+        cmd1.Parameters.AddWithValue("@methodType", methodType);
+        cmd1.Parameters.AddWithValue("@amount", amount);
+        cmd1.Parameters.AddWithValue("@transactionId", confirmResponse.TransactionId);
+        
+        var paymentId = (int)await cmd1.ExecuteScalarAsync();
+
+        // Update wallet balance
+        var cmd2 = new SqlCommand("UPDATE dbo.users SET wallet_balance = ISNULL(wallet_balance, 0) + @amount WHERE user_id = @userId", conn, trans);
+        cmd2.Parameters.AddWithValue("@userId", userId);
+        cmd2.Parameters.AddWithValue("@amount", amount);
+        await cmd2.ExecuteNonQueryAsync();
+
+        // Get new balance
+        var cmd3 = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+        cmd3.Parameters.AddWithValue("@userId", userId);
+        var balanceResult = await cmd3.ExecuteScalarAsync();
+        var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+
+        trans.Commit();
+        await conn.CloseAsync();
+        
+        return Results.Ok(new 
+        { 
+            success = true, 
+            message = confirmResponse.Message,
+            transactionId = confirmResponse.TransactionId,
+            newBalance 
+        });
+    }
+    catch (Exception ex)
+    {
+        trans.Rollback();
+        await conn.CloseAsync();
+        return Results.BadRequest(new { success = false, message = $"Payment processing failed: {ex.Message}" });
+    }
+});
+
 app.Run("http://localhost:5000");
 
 record LoginRequest(string Email, string Password);
 record DepositRequest(decimal Amount, string MethodType, string? TransactionId);
+record WithdrawRequest(decimal Amount, string? Reason, string? TransactionId, int? ReservationId);
+record UpdatePaymentRequest(int ReservationId, decimal Amount);
 
 

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,9 @@ import { useTranslation } from "@/contexts/TranslationContext";
 import { useCurrency } from "@/lib/currency";
 import { useChargingContext } from "@/contexts/ChargingContext";
 import { isLowBattery, isAvailableForBooking } from "@/lib/vehicle-constants";
+import { apiService } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export interface Vehicle {
   id: string; // Unique vehicle instance ID (e.g., "VF8-D1-001")
@@ -72,6 +75,9 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
   const { t } = useTranslation();
   const { formatPrice } = useCurrency();
   const { chargingVehicles } = useChargingContext();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isCheckingBooking, setIsCheckingBooking] = useState(false);
   
   // Check if vehicle is currently charging
   const isCharging = chargingVehicles.has(vehicle.id) || chargingVehicles.has(vehicle.uniqueVehicleId || '');
@@ -85,6 +91,37 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
     vehicle.batteryLevel,
     isCharging
   );
+  
+  // Handle book button click with active booking check
+  const handleBookClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    try {
+      setIsCheckingBooking(true);
+      const reservations = await apiService.getReservations();
+      const activeReservations = reservations.reservations?.filter(r => 
+        !['completed', 'cancelled', 'finished'].includes(r.status?.toLowerCase() || '')
+      ) || [];
+      
+      if (activeReservations.length > 0) {
+        toast({
+          title: "Cannot Book",
+          description: "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // No active booking, proceed to booking page
+      navigate(`/book/${vehicle.id}`);
+    } catch (error) {
+      console.error("[VehicleCard] Error checking active bookings:", error);
+      // If error, still allow booking (graceful degradation)
+      navigate(`/book/${vehicle.id}`);
+    } finally {
+      setIsCheckingBooking(false);
+    }
+  };
   const getStatusBadge = () => {
     if (isCharging) {
       return (
@@ -280,11 +317,14 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
               </Link>
             </Button>
             {canBookVehicle && (
-              <Button size="sm" className="btn-success w-full" asChild>
-                <Link to={`/book/${vehicle.id}`}>
-                  <Clock className="h-3 w-3 mr-1" />
-                  {t("common.bookNow")}
-                </Link>
+              <Button 
+                size="sm" 
+                className="btn-success w-full" 
+                onClick={handleBookClick}
+                disabled={isCheckingBooking}
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                {isCheckingBooking ? t("common.loading") : t("common.bookNow")}
               </Button>
             )}
             

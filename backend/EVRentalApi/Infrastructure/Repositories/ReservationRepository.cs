@@ -22,6 +22,45 @@ public class ReservationRepository : IReservationRepository
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
+            // ⚠️ BUSINESS RULE: Check if user already has an active/pending reservation
+            Console.WriteLine($"[Reservation] ⚠️ Checking if user {request.UserId} already has active bookings...");
+            
+            // Check for ALL non-completed reservations (case-insensitive)
+            var checkExistingSql = @"
+                SELECT reservation_id, status 
+                FROM reservations 
+                WHERE user_id = @UserId 
+                AND LOWER(status) NOT IN ('completed', 'cancelled', 'finished')
+                ORDER BY created_at DESC";
+            
+            using var checkExistingCmd = new SqlCommand(checkExistingSql, connection);
+            checkExistingCmd.Parameters.AddWithValue("@UserId", request.UserId);
+            
+            var existingReservations = new List<(int id, string status)>();
+            using (var existingReader = await checkExistingCmd.ExecuteReaderAsync())
+            {
+                while (await existingReader.ReadAsync())
+                {
+                    var id = existingReader.GetInt32("reservation_id");
+                    var status = existingReader.GetString("status");
+                    existingReservations.Add((id, status));
+                }
+            }
+            
+            Console.WriteLine($"[Reservation] ⚠️ User {request.UserId} has {existingReservations.Count} active/pending reservation(s): {string.Join(", ", existingReservations.Select(r => $"#{r.id} ({r.status})"))}");
+            
+            if (existingReservations.Count > 0)
+            {
+                Console.WriteLine($"[Reservation] ❌ BLOCKED: User {request.UserId} already has an active booking");
+                return new ReservationResponse
+                {
+                    Success = false,
+                    Message = "You already have an active booking. Please complete or cancel your existing booking before making a new one."
+                };
+            }
+            
+            Console.WriteLine($"[Reservation] ✅ User {request.UserId} has no active bookings - allowing new reservation");
+
             // Check if vehicle is available
             var checkAvailabilitySql = @"
                 SELECT status FROM vehicles WHERE vehicle_id = @VehicleId";
