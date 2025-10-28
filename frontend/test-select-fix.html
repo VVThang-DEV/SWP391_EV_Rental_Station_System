@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Component Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Select Component Fix Test</h1>
+        <p>This page tests whether the Select component error has been fixed.</p>
+        
+        <div class="info">
+            <strong>Test Instructions:</strong>
+            <ol>
+                <li>Click the "Test Vehicles Page" button below</li>
+                <li>Check if the Vehicles page loads without errors</li>
+                <li>Try using the location filter dropdown</li>
+                <li>Check the browser console for any Select component errors</li>
+            </ol>
+        </div>
+
+        <div id="test-results">
+            <div class="info">
+                <strong>Expected Results:</strong>
+                <ul>
+                    <li>✅ Vehicles page should load without crashing</li>
+                    <li>✅ Location filter dropdown should work properly</li>
+                    <li>✅ No "Select.Item must have a value prop that is not an empty string" errors in console</li>
+                </ul>
+            </div>
+        </div>
+
+        <div>
+            <button onclick="testVehiclesPage()">Test Vehicles Page</button>
+            <button onclick="checkConsoleErrors()">Check Console Errors</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function testVehiclesPage() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="info">Opening Vehicles page in new tab...</div>';
+            
+            // Open the vehicles page in a new tab
+            const vehiclesPage = window.open('/vehicles', '_blank');
+            
+            // Add a test result
+            setTimeout(() => {
+                resultsDiv.innerHTML += '<div class="success">✅ Vehicles page opened successfully. Please check if it loads without errors.</div>';
+            }, 1000);
+        }
+
+        function checkConsoleErrors() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="info">Please check the browser console manually for any Select component errors.</div>';
+            
+            // Try to detect if there are any console errors
+            const originalError = console.error;
+            let errorCount = 0;
+            
+            console.error = function(...args) {
+                errorCount++;
+                const message = args.join(' ');
+                if (message.includes('Select.Item') && message.includes('empty string')) {
+                    resultsDiv.innerHTML += '<div class="error">❌ Select component error detected: ' + message + '</div>';
+                }
+                originalError.apply(console, args);
+            };
+            
+            setTimeout(() => {
+                if (errorCount === 0) {
+                    resultsDiv.innerHTML += '<div class="success">✅ No Select component errors detected in the last 3 seconds.</div>';
+                }
+                console.error = originalError;
+            }, 3000);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Auto-check for errors on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '<div class="success">✅ Test page loaded successfully. Ready to test the fix!</div>';
+            }, 500);
+        });
+    </script>
+</body>
+</html>

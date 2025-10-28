@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Car, User, Menu, X, LogOut, Settings, History } from "lucide-react";
+import {
+  Car,
+  User,
+  Menu,
+  X,
+  LogOut,
+  Settings,
+  History,
+  Wallet,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,11 +19,14 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
+import BatteryAlertBell from "@/components/BatteryAlertBell";
 
 interface NavbarProps {
   user?: {
+    id?: string;
     name: string;
     email: string;
+    role?: string;
   } | null;
   onLogout?: () => void;
 }
@@ -88,54 +100,72 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
           {/* User Menu / Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center space-x-2"
-                  >
-                    <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-white" />
+              <>
+                {/* Battery Alert Bell - only show for staff */}
+                {user.role === "staff" && (
+                  <BatteryAlertBell />
+                )}
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="flex items-center space-x-2"
+                    >
+                      <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium">{user.name}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1.5">
+                      <p className="text-sm font-medium">{user.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
                     </div>
-                    <span className="text-sm font-medium">{user.name}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      {t("nav.dashboard")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/bookings" className="flex items-center">
-                      <History className="mr-2 h-4 w-4" />
-                      {t("nav.bookings")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      {t("nav.settings")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => { onLogout?.(); navigate("/"); }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t("nav.logout")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        {t("nav.dashboard")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/bookings" className="flex items-center">
+                        <History className="mr-2 h-4 w-4" />
+                        {t("nav.bookings")}
+                      </Link>
+                    </DropdownMenuItem>
+                    {user.role !== "staff" && user.role !== "admin" && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/wallet" className="flex items-center">
+                          <Wallet className="mr-2 h-4 w-4" />
+                          My Wallet
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        {t("nav.settings")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onLogout?.();
+                        navigate("/");
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      {t("nav.logout")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Button variant="ghost" asChild>
@@ -223,6 +253,7 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                         {user.email}
                       </p>
                     </div>
+
                     <Link
                       to="/dashboard"
                       className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -237,6 +268,15 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                     >
                       {t("nav.bookings")}
                     </Link>
+                    {user.role !== "staff" && user.role !== "admin" && (
+                      <Link
+                        to="/wallet"
+                        className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        My Wallet
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         onLogout?.();

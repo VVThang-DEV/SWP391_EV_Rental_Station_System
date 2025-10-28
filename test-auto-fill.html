@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Auto Fill API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚗 EV Rental System - Auto Fill Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Login Test</h2>
+        <input type="email" id="loginEmail" placeholder="Email" value="customer@demo.com">
+        <input type="password" id="loginPassword" placeholder="Password" value="demo123">
+        <button onclick="testLogin()">Login</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Get Current User Info Test</h2>
+        <button onclick="testGetCurrentUser()">Get Current User</button>
+        <div id="userResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Update Personal Info Test</h2>
+        <input type="text" id="updatePhone" placeholder="Phone" value="0399106850">
+        <input type="text" id="updateAddress" placeholder="Address" value="123 Test Street">
+        <input type="text" id="updateCccd" placeholder="CCCD" value="079201012345">
+        <input type="text" id="updateLicense" placeholder="License Number" value="B1234567890">
+        <input type="date" id="updateDob" placeholder="Date of Birth">
+        <select id="updateGender">
+            <option value="">Select Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+        </select>
+        <button onclick="testUpdatePersonalInfo()">Update Personal Info</button>
+        <div id="updateResult" class="result"></div>
+    </div>
+
+    <script>
+        let authToken = '';
+
+        async function testLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const resultDiv = document.getElementById('loginResult');
+
+            try {
+                const response = await fetch('http://localhost:5000/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    authToken = result.token;
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `Login successful!\nToken: ${authToken.substring(0, 50)}...\nUser: ${result.fullName} (${result.role})`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Login failed: ${result.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testGetCurrentUser() {
+            const resultDiv = document.getElementById('userResult');
+
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please login first!';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/auth/current-user', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `User Info Retrieved Successfully!\n\n${JSON.stringify(result.user, null, 2)}`;
+                    
+                    // Auto-fill update form
+                    if (result.user) {
+                        document.getElementById('updatePhone').value = result.user.phone || '';
+                        document.getElementById('updateAddress').value = result.user.address || '';
+                        document.getElementById('updateCccd').value = result.user.cccd || '';
+                        document.getElementById('updateLicense').value = result.user.licenseNumber || '';
+                        document.getElementById('updateDob').value = result.user.dateOfBirth || '';
+                        document.getElementById('updateGender').value = result.user.gender || '';
+                    }
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Failed to get user info: ${result.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testUpdatePersonalInfo() {
+            const resultDiv = document.getElementById('updateResult');
+
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please login first!';
+                return;
+            }
+
+            const updateData = {
+                email: document.getElementById('loginEmail').value,
+                phone: document.getElementById('updatePhone').value,
+                address: document.getElementById('updateAddress').value,
+                cccd: document.getElementById('updateCccd').value,
+                licenseNumber: document.getElementById('updateLicense').value,
+                dateOfBirth: document.getElementById('updateDob').value,
+                gender: document.getElementById('updateGender').value,
+            };
+
+            try {
+                const response = await fetch('http://localhost:5000/auth/update-personal-info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `Personal info updated successfully!\nMessage: ${result.message}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Update failed: ${result.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Auto-login on page load
+        window.onload = function() {
+            testLogin();
+        };
+    </script>
+</body>
+</html>

@@ -9,6 +9,7 @@ export { default as StaffDashboard } from "./dashboard/StaffDashboard";
 export { default as AdminDashboard } from "./dashboard/AdminDashboard";
 export { default as Bookings } from "./dashboard/Bookings";
 export { default as Settings } from "./dashboard/Settings";
+export { default as Wallet } from "./dashboard/Wallet";
 
 export { default as Vehicles } from "./vehicles/Vehicles";
 export { default as VehicleDetails } from "./vehicles/VehicleDetails";

@@ -90,10 +90,8 @@ CREATE TABLE dbo.reservations (
   station_id INT NOT NULL,
   start_time DATETIME NOT NULL,
   end_time DATETIME NOT NULL,
-  booking_channel VARCHAR(20) DEFAULT 'app', -- app, staff, kiosk
   status VARCHAR(20) DEFAULT 'pending', -- pending, confirmed, cancelled, expired
   created_at DATETIME DEFAULT GETDATE(),
-  updated_at DATETIME DEFAULT GETDATE(),
   CONSTRAINT fk_reservations_user FOREIGN KEY (user_id) REFERENCES dbo.users(user_id),
   CONSTRAINT fk_reservations_vehicle FOREIGN KEY (vehicle_id) REFERENCES dbo.vehicles(vehicle_id),
   CONSTRAINT fk_reservations_station FOREIGN KEY (station_id) REFERENCES dbo.stations(station_id),

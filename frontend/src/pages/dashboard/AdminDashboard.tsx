@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -80,14 +80,17 @@ import {
   Shield,
   Gauge,
   Fuel,
+  RefreshCw,
 } from "lucide-react";
 import { vehicles } from "@/data/vehicles";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { apiService, Station } from "@/services/api";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { adminApiService, AdminCreateVehicleRequest } from "../../services/api";
 
 interface AdminDashboardProps {
   user: {
@@ -101,9 +104,7 @@ interface AdminDashboardProps {
 const AdminDashboard = ({ user }: AdminDashboardProps) => {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStation, setSelectedStation] = useState<
-    (typeof systemData.stations)[0] | null
-  >(null);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [isStationDialogOpen, setIsStationDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<
     (typeof systemData.customers)[0] | null
@@ -132,25 +133,121 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
     warrantyExpiry: "",
     insuranceExpiry: "",
     lastMaintenanceDate: "",
+    inspectionDate: "",
     nextMaintenanceDate: "",
+    fuelEfficiency: "",
     notes: "",
+    location: "",
+  });
+
+  // API Data States
+  const [apiStations, setApiStations] = useState<Station[]>([]);
+  const [stationsLoading, setStationsLoading] = useState(false);
+  const [stationsError, setStationsError] = useState<string | null>(null);
+
+  // Edit Station Dialog States
+  const [isEditStationDialogOpen, setIsEditStationDialogOpen] = useState(false);
+  const [editingStation, setEditingStation] = useState<Station | null>(null);
+  const [stationEditData, setStationEditData] = useState({
+    name: "",
+    address: "",
+    city: "",
+    latitude: "",
+    longitude: "",
+    status: "active",
+    totalSlots: "",
+    amenities: "",
+    rating: "",
+    operatingHours: "",
+    fastCharging: false,
+    image: "",
   });
 
   const { toast } = useToast();
   const { t } = useTranslation();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleViewStation = (station: any) => {
+  // Load stations data on component mount
+  useEffect(() => {
+    const loadStations = async () => {
+      setStationsLoading(true);
+      setStationsError(null);
+      try {
+        const stations = await apiService.getStations();
+        setApiStations(stations);
+      } catch (error) {
+        setStationsError(error instanceof Error ? error.message : 'Failed to load stations');
+      } finally {
+        setStationsLoading(false);
+      }
+    };
+
+    loadStations();
+  }, []);
+
+  const handleViewStation = (station: Station) => {
     setSelectedStation(station);
     setIsStationDialogOpen(true);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleEditStation = (station: any) => {
-    toast({
-      title: "Edit Station",
-      description: `Editing ${station.name} - Feature in development`,
+  const handleEditStation = (station: Station) => {
+    setEditingStation(station);
+    setStationEditData({
+      name: station.name,
+      address: station.address,
+      city: station.city,
+      latitude: station.latitude.toString(),
+      longitude: station.longitude.toString(),
+      status: station.status,
+      totalSlots: station.totalSlots.toString(),
+      amenities: station.amenities,
+      rating: station.rating.toString(),
+      operatingHours: station.operatingHours,
+      fastCharging: station.fastCharging,
+      image: station.image,
     });
+    setIsEditStationDialogOpen(true);
+  };
+
+  const handleSaveStationEdit = async () => {
+    if (!editingStation) return;
+
+    try {
+      const updateData = {
+        name: stationEditData.name,
+        address: stationEditData.address,
+        city: stationEditData.city,
+        latitude: parseFloat(stationEditData.latitude),
+        longitude: parseFloat(stationEditData.longitude),
+        status: stationEditData.status,
+        totalSlots: parseInt(stationEditData.totalSlots),
+        amenities: stationEditData.amenities,
+        rating: parseFloat(stationEditData.rating),
+        operatingHours: stationEditData.operatingHours,
+        fastCharging: stationEditData.fastCharging,
+        image: stationEditData.image,
+      };
+
+      await apiService.updateStation(editingStation.stationId, updateData);
+      
+      // Refresh stations data
+      const stations = await apiService.getStations();
+      setApiStations(stations);
+
+      toast({
+        title: "Success",
+        description: "Station updated successfully",
+      });
+
+      setIsEditStationDialogOpen(false);
+      setEditingStation(null);
+    } catch (error) {
+      console.error('Error updating station:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update station",
+        variant: "destructive",
+      });
+    }
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -205,7 +302,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   };
 
   // Vehicle Management Handlers
-  const handleRegisterVehicle = () => {
+  const handleRegisterVehicle = async () => {
     if (
       !selectedModelForRegistration ||
       !vehicleRegistrationData.licensePlate ||
@@ -220,34 +317,66 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       return;
     }
 
-    const selectedModel = getVehicleModels().find(
-      (m) => m.modelId === selectedModelForRegistration
-    );
+    try {
+      const requestData: AdminCreateVehicleRequest = {
+        modelId: selectedModelForRegistration,
+        uniqueVehicleId: vehicleRegistrationData.vinNumber,
+        batteryLevel: parseInt(vehicleRegistrationData.batteryLevel),
+        condition: vehicleRegistrationData.condition,
+        mileage: parseInt(vehicleRegistrationData.mileage),
+        licensePlate: vehicleRegistrationData.licensePlate,
+        lastMaintenance: vehicleRegistrationData.lastMaintenanceDate || undefined,
+        inspectionDate: vehicleRegistrationData.inspectionDate || undefined,
+        insuranceExpiry: vehicleRegistrationData.insuranceExpiry || undefined,
+        location: vehicleRegistrationData.location || undefined,
+        // Các trường mới
+        color: vehicleRegistrationData.color || undefined,
+        year: vehicleRegistrationData.year ? parseInt(vehicleRegistrationData.year) : undefined,
+        batteryCapacity: vehicleRegistrationData.batteryCapacity ? parseFloat(vehicleRegistrationData.batteryCapacity) : undefined,
+        purchaseDate: vehicleRegistrationData.purchaseDate || undefined,
+        warrantyExpiry: vehicleRegistrationData.warrantyExpiry || undefined,
+        nextMaintenanceDate: vehicleRegistrationData.nextMaintenanceDate || undefined,
+        fuelEfficiency: vehicleRegistrationData.fuelEfficiency ? parseFloat(vehicleRegistrationData.fuelEfficiency) : undefined,
+        notes: vehicleRegistrationData.notes || undefined,
+      };
 
-    toast({
-      title: "Vehicle Registered Successfully",
-      description: `${selectedModel?.name} with license plate ${vehicleRegistrationData.licensePlate} has been registered to the system.`,
-    });
+      const result = await adminApiService.createVehicle(requestData);
+      
+      // Check if the request was successful (no error thrown)
+      toast({
+        title: "Vehicle Registered Successfully",
+        description: `Vehicle with license plate ${vehicleRegistrationData.licensePlate} has been registered to the system.`,
+      });
 
-    // Reset form
-    setIsRegisterVehicleDialogOpen(false);
-    setSelectedModelForRegistration("");
-    setVehicleRegistrationData({
-      licensePlate: "",
-      vinNumber: "",
-      color: "",
-      year: new Date().getFullYear().toString(),
-      batteryCapacity: "",
-      batteryLevel: "100",
-      mileage: "0",
-      condition: "excellent",
-      purchaseDate: "",
-      warrantyExpiry: "",
-      insuranceExpiry: "",
-      lastMaintenanceDate: "",
-      nextMaintenanceDate: "",
-      notes: "",
-    });
+        // Reset form
+        setIsRegisterVehicleDialogOpen(false);
+        setSelectedModelForRegistration("");
+        setVehicleRegistrationData({
+          licensePlate: "",
+          vinNumber: "",
+          color: "",
+          year: new Date().getFullYear().toString(),
+          batteryCapacity: "",
+          batteryLevel: "100",
+          mileage: "0",
+          condition: "excellent",
+          purchaseDate: "",
+          warrantyExpiry: "",
+          insuranceExpiry: "",
+          lastMaintenanceDate: "",
+          inspectionDate: "",
+          nextMaintenanceDate: "",
+          fuelEfficiency: "",
+          notes: "",
+          location: "",
+        });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to register vehicle",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteVehicle = (vehicleId: string) => {
@@ -589,62 +718,114 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Station</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Fleet Size</TableHead>
-                <TableHead>Staff</TableHead>
-                <TableHead>Utilization</TableHead>
-                <TableHead>Monthly Revenue</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {systemData.stations.map((station) => (
-                <TableRow key={station.id}>
-                  <TableCell className="font-medium">{station.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
-                      Ho Chi Minh City
-                    </div>
-                  </TableCell>
-                  <TableCell>{station.vehicles} vehicles</TableCell>
-                  <TableCell>{station.staff} members</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        station.utilization > 75 ? "default" : "secondary"
-                      }
-                    >
-                      {station.utilization}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell>${station.revenue.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewStation(station)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditStation(station)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {stationsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+              <span className="ml-2">Loading stations...</span>
+            </div>
+          ) : stationsError ? (
+            <div className="text-center py-8 text-red-600">
+              Error loading stations: {stationsError}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Station</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Available Vehicles</TableHead>
+                  <TableHead>Total Slots</TableHead>
+                  <TableHead>Utilization</TableHead>
+                  <TableHead>Rating</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {apiStations.map((station) => (
+                  <TableRow key={station.stationId}>
+                    <TableCell className="font-medium">{station.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
+                        {station.city}
+                      </div>
+                    </TableCell>
+                    <TableCell>{station.availableVehicles} vehicles</TableCell>
+                    <TableCell>{station.totalSlots} slots</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Progress 
+                          value={station.totalSlots > 0 ? (station.availableVehicles / station.totalSlots) * 100 : 0} 
+                          className="w-16" 
+                        />
+                        <span className="text-sm">
+                          {station.totalSlots > 0 ? Math.round((station.availableVehicles / station.totalSlots) * 100) : 0}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <Star className="h-4 w-4 mr-1 text-yellow-500" />
+                        {station.rating}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={station.status === 'active' ? "default" : "secondary"}
+                      >
+                        {station.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewStation(station)}
+                          title="View station details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditStation(station)}
+                          title="Edit station"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              await apiService.updateStationAvailableVehicles(station.stationId);
+                              const stations = await apiService.getStations();
+                              setApiStations(stations);
+                              toast({
+                                title: "Success",
+                                description: "Available vehicles count updated",
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Failed to update available vehicles count",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          title="Refresh available vehicles count"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -1294,19 +1475,19 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="text-sm">
-                <strong>Station ID:</strong> {selectedStation?.id}
-                <br />
-                <strong>Name:</strong> {selectedStation?.name}
-                <br />
-                <strong>Vehicles:</strong> {selectedStation?.vehicles}
-                <br />
-                <strong>Staff:</strong> {selectedStation?.staff}
-                <br />
-                <strong>Revenue:</strong> $
-                {selectedStation?.revenue?.toLocaleString()}
-                <br />
-                <strong>Utilization:</strong> {selectedStation?.utilization}%
+              <div className="text-sm space-y-2">
+                <div><strong>Station ID:</strong> {selectedStation?.stationId}</div>
+                <div><strong>Name:</strong> {selectedStation?.name}</div>
+                <div><strong>Address:</strong> {selectedStation?.address}</div>
+                <div><strong>City:</strong> {selectedStation?.city}</div>
+                <div><strong>Available Vehicles:</strong> {selectedStation?.availableVehicles}</div>
+                <div><strong>Total Slots:</strong> {selectedStation?.totalSlots}</div>
+                <div><strong>Utilization:</strong> {selectedStation?.totalSlots > 0 ? Math.round((selectedStation?.availableVehicles / selectedStation?.totalSlots) * 100) : 0}%</div>
+                <div><strong>Rating:</strong> {selectedStation?.rating}/5</div>
+                <div><strong>Status:</strong> {selectedStation?.status}</div>
+                <div><strong>Operating Hours:</strong> {selectedStation?.operatingHours}</div>
+                <div><strong>Fast Charging:</strong> {selectedStation?.fastCharging ? 'Yes' : 'No'}</div>
+                <div><strong>Amenities:</strong> {selectedStation?.amenities}</div>
               </div>
             </div>
             <DialogFooter>
@@ -1646,6 +1827,27 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                       className="mt-2 text-base"
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="fuelEfficiency" className="text-base">
+                      Fuel Efficiency (km/kWh)
+                    </Label>
+                    <Input
+                      id="fuelEfficiency"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="e.g., 5.2"
+                      value={vehicleRegistrationData.fuelEfficiency}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          fuelEfficiency: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1750,6 +1952,24 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                       className="mt-2 text-base"
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="inspectionDate" className="text-base">
+                      Inspection Date
+                    </Label>
+                    <Input
+                      id="inspectionDate"
+                      type="date"
+                      value={vehicleRegistrationData.inspectionDate}
+                      onChange={(e) =>
+                        setVehicleRegistrationData({
+                          ...vehicleRegistrationData,
+                          inspectionDate: e.target.value,
+                        })
+                      }
+                      className="mt-2 text-base"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1849,8 +2069,11 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
                     warrantyExpiry: "",
                     insuranceExpiry: "",
                     lastMaintenanceDate: "",
+                    inspectionDate: "",
                     nextMaintenanceDate: "",
+                    fuelEfficiency: "",
                     notes: "",
+                    location: "",
                   });
                 }}
               >
@@ -1867,6 +2090,223 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Register Vehicle
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Station Dialog */}
+        <Dialog
+          open={isEditStationDialogOpen}
+          onOpenChange={setIsEditStationDialogOpen}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Station</DialogTitle>
+              <DialogDescription>
+                Update station information for {editingStation?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-name">Station Name</Label>
+                  <Input
+                    id="edit-name"
+                    value={stationEditData.name}
+                    onChange={(e) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        name: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-city">City</Label>
+                  <Input
+                    id="edit-city"
+                    value={stationEditData.city}
+                    onChange={(e) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        city: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-address">Address</Label>
+                <Input
+                  id="edit-address"
+                  value={stationEditData.address}
+                  onChange={(e) =>
+                    setStationEditData({
+                      ...stationEditData,
+                      address: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-latitude">Latitude</Label>
+                  <Input
+                    id="edit-latitude"
+                    type="number"
+                    step="any"
+                    value={stationEditData.latitude}
+                    onChange={(e) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        latitude: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-longitude">Longitude</Label>
+                  <Input
+                    id="edit-longitude"
+                    type="number"
+                    step="any"
+                    value={stationEditData.longitude}
+                    onChange={(e) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        longitude: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select
+                    value={stationEditData.status}
+                    onValueChange={(value) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        status: value,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit-total-slots">Total Slots</Label>
+                  <Input
+                    id="edit-total-slots"
+                    type="number"
+                    value={stationEditData.totalSlots}
+                    onChange={(e) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        totalSlots: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-rating">Rating</Label>
+                  <Input
+                    id="edit-rating"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="5"
+                    value={stationEditData.rating}
+                    onChange={(e) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        rating: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-operating-hours">Operating Hours</Label>
+                  <Input
+                    id="edit-operating-hours"
+                    value={stationEditData.operatingHours}
+                    onChange={(e) =>
+                      setStationEditData({
+                        ...stationEditData,
+                        operatingHours: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-amenities">Amenities</Label>
+                <Textarea
+                  id="edit-amenities"
+                  value={stationEditData.amenities}
+                  onChange={(e) =>
+                    setStationEditData({
+                      ...stationEditData,
+                      amenities: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-image">Image URL</Label>
+                <Input
+                  id="edit-image"
+                  value={stationEditData.image}
+                  onChange={(e) =>
+                    setStationEditData({
+                      ...stationEditData,
+                      image: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit-fast-charging"
+                  checked={stationEditData.fastCharging}
+                  onChange={(e) =>
+                    setStationEditData({
+                      ...stationEditData,
+                      fastCharging: e.target.checked,
+                    })
+                  }
+                />
+                <Label htmlFor="edit-fast-charging">Fast Charging Available</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditStationDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveStationEdit}>
+                Save Changes
               </Button>
             </DialogFooter>
           </DialogContent>

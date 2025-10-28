@@ -51,6 +51,9 @@ export interface Translations {
     available: string;
     rented: string;
     maintenance: string;
+    charging: string;
+    notAvailable: string;
+    lowBattery: string;
     bookNow: string;
     viewDetails: string;
     save: string;
@@ -331,6 +334,7 @@ export interface Translations {
     Bus: string;
     Van: string;
     Truck: string;
+    Unknown: string; // ✅ Thêm Unknown type
   };
 
   // Settings
@@ -491,6 +495,9 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         available: "Available",
         rented: "Rented",
         maintenance: "Maintenance",
+        charging: "Charging",
+        notAvailable: "Not Available",
+        lowBattery: "Low Battery",
         bookNow: "Book Now",
         viewDetails: "View Details",
         save: "Save",
@@ -783,6 +790,7 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         Bus: "Bus",
         Van: "Van",
         Truck: "Truck",
+        Unknown: "Unknown", // ✅ Thêm Unknown
       },
       settings: {
         title: "Account Settings",
@@ -900,6 +908,9 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         available: "Có sẵn",
         rented: "Đã thuê",
         maintenance: "Bảo trì",
+        charging: "Đang sạc",
+        notAvailable: "Không khả dụng",
+        lowBattery: "Pin yếu",
         bookNow: "Đặt ngay",
         viewDetails: "Xem chi tiết",
         save: "Lưu",
@@ -1192,6 +1203,7 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
         Bus: "Xe buýt",
         Van: "Xe van",
         Truck: "Xe tải",
+        Unknown: "Không xác định", // ✅ Thêm Unknown tiếng Việt
       },
       settings: {
         title: "Cài đặt tài khoản",

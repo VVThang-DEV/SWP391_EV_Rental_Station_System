@@ -60,6 +60,42 @@ namespace EVRentalApi.Application.Controllers
                 return StatusCode(500, new { message = "Error retrieving station vehicles", error = ex.Message });
             }
         }
+
+        [HttpPut("{id}")]
+        public async Task<ActionResult<StationDto>> UpdateStation(int id, [FromBody] StationUpdateRequest request)
+        {
+            try
+            {
+                var updatedStation = await _stationService.UpdateStationAsync(id, request);
+                if (updatedStation == null)
+                {
+                    return NotFound(new { message = "Station not found" });
+                }
+                return Ok(updatedStation);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error updating station", error = ex.Message });
+            }
+        }
+
+        [HttpPut("{id}/update-available-vehicles")]
+        public async Task<ActionResult<StationDto>> UpdateAvailableVehicles(int id)
+        {
+            try
+            {
+                var updatedStation = await _stationService.UpdateAvailableVehiclesAsync(id);
+                if (updatedStation == null)
+                {
+                    return NotFound(new { message = "Station not found" });
+                }
+                return Ok(updatedStation);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error updating available vehicles", error = ex.Message });
+            }
+        }
     }
 }
 

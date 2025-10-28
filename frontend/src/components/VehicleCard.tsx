@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,6 +16,11 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { useCurrency } from "@/lib/currency";
+import { useChargingContext } from "@/contexts/ChargingContext";
+import { isLowBattery, isAvailableForBooking } from "@/lib/vehicle-constants";
+import { apiService } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export interface Vehicle {
   id: string; // Unique vehicle instance ID (e.g., "VF8-D1-001")
@@ -69,7 +74,71 @@ interface VehicleCardProps {
 const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
   const { t } = useTranslation();
   const { formatPrice } = useCurrency();
+  const { chargingVehicles } = useChargingContext();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isCheckingBooking, setIsCheckingBooking] = useState(false);
+  
+  // Check if vehicle is currently charging
+  const isCharging = chargingVehicles.has(vehicle.id) || chargingVehicles.has(vehicle.uniqueVehicleId || '');
+  
+  // Check if vehicle has low battery
+  const hasLowBattery = isLowBattery(vehicle.batteryLevel);
+  
+  // Determine if vehicle is available for booking
+  const canBookVehicle = isAvailableForBooking(
+    vehicle.availability,
+    vehicle.batteryLevel,
+    isCharging
+  );
+  
+  // Handle book button click with active booking check
+  const handleBookClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    try {
+      setIsCheckingBooking(true);
+      const reservations = await apiService.getReservations();
+      const activeReservations = reservations.reservations?.filter(r => 
+        !['completed', 'cancelled', 'finished'].includes(r.status?.toLowerCase() || '')
+      ) || [];
+      
+      if (activeReservations.length > 0) {
+        toast({
+          title: "Cannot Book",
+          description: "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // No active booking, proceed to booking page
+      navigate(`/book/${vehicle.id}`);
+    } catch (error) {
+      console.error("[VehicleCard] Error checking active bookings:", error);
+      // If error, still allow booking (graceful degradation)
+      navigate(`/book/${vehicle.id}`);
+    } finally {
+      setIsCheckingBooking(false);
+    }
+  };
   const getStatusBadge = () => {
+    if (isCharging) {
+      return (
+        <Badge className="badge-charging bg-blue-100 text-blue-800 border-blue-200">
+          🔌 {t("common.charging")}
+        </Badge>
+      );
+    }
+    
+    if (hasLowBattery) {
+      return (
+        <Badge className="badge-low-battery bg-orange-100 text-orange-800 border-orange-200">
+          ⚠️ {t("common.lowBattery")}
+        </Badge>
+      );
+    }
+    
     switch (vehicle.availability) {
       case "available":
         return (
@@ -100,10 +169,13 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
       poor: { class: "bg-red-100 text-red-800 border-red-200", icon: "!" },
     };
 
-    const condition = conditions[vehicle.condition];
+    // ✅ Thêm fallback cho condition
+    const vehicleCondition = vehicle.condition || "good";
+    const condition = conditions[vehicleCondition as keyof typeof conditions] || conditions.good;
+    
     return (
       <Badge className={`text-xs border ${condition.class}`}>
-        {condition.icon} {t(`vehicle.condition.${vehicle.condition}`)}
+        {condition.icon} {t(`vehicle.condition.${vehicleCondition}`)}
       </Badge>
     );
   };
@@ -186,7 +258,7 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
             </h3>
             <p className="text-sm text-muted-foreground">
               {vehicle.year} • {vehicle.brand} •{" "}
-              {t(`vehicleTypes.${vehicle.type}`)}
+              {t(`vehicleTypes.${vehicle.type || 'sedan'}`)}
             </p>
           </div>
         </div>
@@ -244,12 +316,27 @@ const VehicleCard = ({ vehicle, className = "" }: VehicleCardProps) => {
                 {t("common.viewDetails")}
               </Link>
             </Button>
-            {vehicle.availability === "available" && (
-              <Button size="sm" className="btn-success w-full" asChild>
-                <Link to={`/book/${vehicle.id}`}>
-                  <Clock className="h-3 w-3 mr-1" />
-                  {t("common.bookNow")}
-                </Link>
+            {canBookVehicle && (
+              <Button 
+                size="sm" 
+                className="btn-success w-full" 
+                onClick={handleBookClick}
+                disabled={isCheckingBooking}
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                {isCheckingBooking ? t("common.loading") : t("common.bookNow")}
+              </Button>
+            )}
+            
+            {isCharging && (
+              <Button size="sm" className="w-full" disabled>
+                🔌 {t("common.charging")} - {t("common.notAvailable")}
+              </Button>
+            )}
+            
+            {hasLowBattery && !isCharging && (
+              <Button size="sm" className="w-full" disabled>
+                ⚠️ {t("common.lowBattery")} - {t("common.notAvailable")}
               </Button>
             )}
           </div>

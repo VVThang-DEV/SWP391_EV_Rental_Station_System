@@ -88,6 +88,46 @@ namespace EVRentalApi.Application.Controllers
                 return StatusCode(500, new { message = "Error retrieving vehicles by station", error = ex.Message });
             }
         }
+
+        [HttpGet("unassigned")]
+        public async Task<ActionResult<IEnumerable<VehicleDto>>> GetUnassignedVehicles()
+        {
+            try
+            {
+                var vehicles = await _vehicleService.GetUnassignedVehiclesAsync();
+                return Ok(vehicles);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error retrieving unassigned vehicles", error = ex.Message });
+            }
+        }
+
+        [HttpPost("assign-to-station")]
+        public async Task<ActionResult> AssignVehicleToStation([FromBody] AssignVehicleToStationRequest request)
+        {
+            try
+            {
+                var success = await _vehicleService.AssignVehicleToStationAsync(
+                    request.VehicleId, 
+                    request.StationId, 
+                    request.Location
+                );
+                
+                if (success)
+                {
+                    return Ok(new { message = "Vehicle assigned to station successfully" });
+                }
+                else
+                {
+                    return BadRequest(new { message = "Failed to assign vehicle to station" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error assigning vehicle to station", error = ex.Message });
+            }
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,17 +23,119 @@ import {
   Globe,
   Upload,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 
 const Settings = () => {
   const { t, language, setLanguage } = useTranslation();
+  const { toast } = useToast();
+  
+  // User data state
+  const [userData, setUserData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    cccd: "",
+    licenseNumber: "",
+    address: "",
+    gender: "",
+  });
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [notifications, setNotifications] = useState({
     emailBooking: true,
     emailPromotions: false,
     smsReminders: true,
     pushNotifications: true,
   });
+
+  // Auto fill user data on component mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          toast({
+            title: "Error",
+            description: "Please login to access settings",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const response = await apiService.getCurrentUser();
+        if (response.success && response.user) {
+          const user = response.user;
+          setUserData({
+            fullName: user.fullName || "",
+            email: user.email || "",
+            phone: user.phone || "",
+            dateOfBirth: user.dateOfBirth || "",
+            cccd: user.cccd || "",
+            licenseNumber: user.licenseNumber || "",
+            address: user.address || "",
+            gender: user.gender || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load user data",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserData();
+  }, [toast]);
+
+  // Handle input changes
+  const handleInputChange = (field: keyof typeof userData, value: string) => {
+    setUserData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handle save changes
+  const handleSaveChanges = async () => {
+    try {
+      setIsSaving(true);
+      const response = await apiService.updatePersonalInfo({
+        email: userData.email,
+        cccd: userData.cccd,
+        licenseNumber: userData.licenseNumber,
+        address: userData.address,
+        gender: userData.gender,
+        dateOfBirth: userData.dateOfBirth,
+        phone: userData.phone,
+      });
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Personal information updated successfully",
+        });
+      } else {
+        throw new Error("Failed to update personal information");
+      }
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save changes",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,6 +151,7 @@ const Settings = () => {
         </div>
       </div>
 
+      {/* Settings Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Tabs defaultValue="profile" className="space-y-8">
           <TabsList className="grid w-full grid-cols-5">
@@ -71,249 +174,224 @@ const Settings = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">{t("settings.firstName")}</Label>
-                    <Input
-                      id="firstName"
-                      defaultValue="John"
-                      className="text-black"
-                    />
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="ml-2">Loading user data...</span>
                   </div>
-                  <div>
-                    <Label htmlFor="lastName">{t("settings.lastName")}</Label>
-                    <Input
-                      id="lastName"
-                      defaultValue="Doe"
-                      className="text-black"
-                    />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="fullName">{t("settings.firstName")}</Label>
+                        <Input
+                          id="fullName"
+                          value={userData.fullName}
+                          onChange={(e) => handleInputChange('fullName', e.target.value)}
+                          className="text-black"
+                          disabled
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="email">{t("settings.email")}</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={userData.email}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          className="text-black"
+                          disabled
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <Label htmlFor="email">{t("settings.email")}</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    defaultValue="john.doe@example.com"
-                    className="text-black"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="phone">{t("settings.phone")}</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    defaultValue="+84 901 234 567"
-                    className="text-black"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="dateOfBirth">
-                    {t("settings.dateOfBirth")}
-                  </Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    defaultValue="1990-01-01"
-                    className="text-black"
-                  />
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">
-                    {t("settings.driversLicense")}
-                  </h3>
-                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="licenseNumber">
-                        {t("settings.licenseNumber")}
-                      </Label>
+                      <Label htmlFor="phone">{t("settings.phone")}</Label>
                       <Input
-                        id="licenseNumber"
-                        defaultValue="B1234567890"
+                        id="phone"
+                        type="tel"
+                        value={userData.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
                         className="text-black"
+                        placeholder="Enter your phone number"
                       />
                     </div>
+
                     <div>
-                      <Label htmlFor="licenseExpiry">
-                        {t("settings.expiryDate")}
+                      <Label htmlFor="dateOfBirth">
+                        {t("settings.dateOfBirth")}
                       </Label>
                       <Input
-                        id="licenseExpiry"
+                        id="dateOfBirth"
                         type="date"
-                        defaultValue="2028-12-31"
-                        className="text-black"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">
-                    {language === "vi"
-                      ? "Căn Cước Công Dân (CCCD)"
-                      : "Identity Verification"}
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="cccdNumber">
-                        {language === "vi" ? "Số CCCD" : "ID Number"}
-                      </Label>
-                      <Input
-                        id="cccdNumber"
-                        defaultValue="079201012345"
-                        className="text-black"
-                        placeholder={
-                          language === "vi"
-                            ? "Nhập số CCCD 12 số"
-                            : "Enter 12-digit ID number"
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cccdIssueDate">
-                        {language === "vi" ? "Ngày cấp" : "Issue Date"}
-                      </Label>
-                      <Input
-                        id="cccdIssueDate"
-                        type="date"
-                        defaultValue="2021-01-15"
-                        className="text-black"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cccdExpiryDate">
-                        {language === "vi" ? "Ngày hết hạn" : "Expiry Date"}
-                      </Label>
-                      <Input
-                        id="cccdExpiryDate"
-                        type="date"
-                        defaultValue="2031-01-14"
-                        className="text-black"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cccdPlaceOfIssue">
-                        {language === "vi" ? "Nơi cấp" : "Place of Issue"}
-                      </Label>
-                      <Input
-                        id="cccdPlaceOfIssue"
-                        defaultValue={
-                          language === "vi"
-                            ? "Cục Cảnh sát ĐKQL cư trú và DLQG về dân cư"
-                            : "Police Department"
-                        }
+                        value={userData.dateOfBirth}
+                        onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                         className="text-black"
                       />
                     </div>
 
-                    {/* CCCD Document Upload */}
-                    <div className="space-y-4">
-                      <Label className="text-base font-medium">
+                    <div>
+                      <Label htmlFor="address">Address</Label>
+                      <Input
+                        id="address"
+                        value={userData.address}
+                        onChange={(e) => handleInputChange('address', e.target.value)}
+                        className="text-black"
+                        placeholder="Enter your address"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="gender">Gender</Label>
+                      <Select value={userData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                        <SelectTrigger className="text-black">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">
+                        {t("settings.driversLicense")}
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="licenseNumber">
+                            {t("settings.licenseNumber")}
+                          </Label>
+                          <Input
+                            id="licenseNumber"
+                            value={userData.licenseNumber}
+                            onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
+                            className="text-black"
+                            placeholder="Enter your license number"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">
                         {language === "vi"
-                          ? "Tải lên ảnh CCCD"
-                          : "Upload ID Documents"}
-                      </Label>
-
-                      {/* Front Side */}
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
-                        <div className="text-center">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="mt-4">
-                            <Label className="cursor-pointer">
-                              <span className="mt-2 block text-sm font-medium text-gray-900">
-                                {language === "vi"
-                                  ? "Mặt trước CCCD"
-                                  : "ID Card Front Side"}
-                              </span>
-                              <input
-                                type="file"
-                                className="sr-only"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  // Handle file upload logic here
-                                  console.log(
-                                    "Front side file:",
-                                    e.target.files?.[0]
-                                  );
-                                }}
-                              />
-                              <span className="mt-2 block text-xs text-gray-500">
-                                {language === "vi"
-                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
-                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
-                              </span>
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Back Side */}
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary/50 transition-colors">
-                        <div className="text-center">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="mt-4">
-                            <Label className="cursor-pointer">
-                              <span className="mt-2 block text-sm font-medium text-gray-900">
-                                {language === "vi"
-                                  ? "Mặt sau CCCD"
-                                  : "ID Card Back Side"}
-                              </span>
-                              <input
-                                type="file"
-                                className="sr-only"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  // Handle file upload logic here
-                                  console.log(
-                                    "Back side file:",
-                                    e.target.files?.[0]
-                                  );
-                                }}
-                              />
-                              <span className="mt-2 block text-xs text-gray-500">
-                                {language === "vi"
-                                  ? "Kéo thả hoặc click để tải lên • PNG, JPG tối đa 10MB"
-                                  : "Drag & drop or click to upload • PNG, JPG up to 10MB"}
-                              </span>
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Upload Status */}
-                      <div className="rounded-lg bg-green-50 p-4 border border-green-200">
-                        <div className="flex">
-                          <div className="flex-shrink-0">
-                            <CheckCircle className="h-5 w-5 text-green-400" />
-                          </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-green-800">
-                              {language === "vi"
-                                ? "Trạng thái xác minh"
-                                : "Verification Status"}
-                            </p>
-                            <p className="mt-1 text-sm text-green-700">
-                              {language === "vi"
-                                ? "✓ Đã xác minh thành công"
-                                : "✓ Successfully verified"}
-                            </p>
-                            <p className="mt-1 text-xs text-green-600">
-                              {language === "vi"
-                                ? "Cập nhật lần cuối: 15/01/2024"
-                                : "Last updated: Jan 15, 2024"}
-                            </p>
-                          </div>
+                          ? "Căn Cước Công Dân (CCCD)"
+                          : "Identity Verification"}
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="cccdNumber">
+                            {language === "vi" ? "Số CCCD" : "ID Number"}
+                          </Label>
+                          <Input
+                            id="cccdNumber"
+                            value={userData.cccd}
+                            onChange={(e) => handleInputChange('cccd', e.target.value)}
+                            className="text-black"
+                            placeholder={
+                              language === "vi"
+                                ? "Nhập số CCCD 12 số"
+                                : "Enter 12-digit ID number"
+                            }
+                          />
                         </div>
                       </div>
                     </div>
+
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={handleSaveChanges}
+                        disabled={isSaving}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            {t("settings.saveChanges")}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Security Tab */}
+          <TabsContent value="security">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="h-5 w-5 mr-2" />
+                  {t("settings.security")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    {t("settings.changePassword")}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="currentPassword">
+                        {t("settings.currentPassword")}
+                      </Label>
+                      <Input
+                        id="currentPassword"
+                        type="password"
+                        className="text-black"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="newPassword">
+                        {t("settings.newPassword")}
+                      </Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        className="text-black"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="confirmPassword">
+                        {t("settings.confirmPassword")}
+                      </Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        className="text-black"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    {t("settings.twoFactorAuth")}
+                  </h3>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{t("settings.enable2FA")}</p>
+                      <p className="text-sm text-gray-600">
+                        Add an extra layer of security to your account
+                      </p>
+                    </div>
+                    <Switch />
                   </div>
                 </div>
 
@@ -322,250 +400,151 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
-          {/* Security Tab */}
-          <TabsContent value="security">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Shield className="h-5 w-5 mr-2" />
-                    {t("common.passwordAndSecurity")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="currentPassword">
-                      {t("common.currentPassword")}
-                    </Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      className="text-black"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="newPassword">
-                      {t("common.newPassword")}
-                    </Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      className="text-black"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="confirmPassword">
-                      {t("common.confirmNewPassword")}
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      className="text-black"
-                    />
-                  </div>
-                  <Button>{t("common.updatePassword")}</Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t("common.twoFactorAuthentication")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">SMS Authentication</p>
-                      <p className="text-sm text-muted-foreground">
-                        Receive a verification code via SMS when signing in
-                      </p>
-                    </div>
-                    <Switch />
-                  </div>
-                  <Separator className="my-4" />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Email Authentication</p>
-                      <p className="text-sm text-muted-foreground">
-                        Receive a verification code via email when signing in
-                      </p>
-                    </div>
-                    <Switch />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
           {/* Notifications Tab */}
           <TabsContent value="notifications">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Bell className="h-5 w-5 mr-2" />
-                  Notification Preferences
+                  {t("settings.notifications")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Booking Confirmations</p>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when your booking is confirmed or modified
-                    </p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{t("settings.emailNotifications")}</p>
+                      <p className="text-sm text-gray-600">
+                        Receive notifications via email
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifications.emailBooking}
+                      onCheckedChange={(checked) =>
+                        setNotifications(prev => ({ ...prev, emailBooking: checked }))
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={notifications.emailBooking}
-                    onCheckedChange={(checked) =>
-                      setNotifications({
-                        ...notifications,
-                        emailBooking: checked,
-                      })
-                    }
-                  />
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{t("settings.smsNotifications")}</p>
+                      <p className="text-sm text-gray-600">
+                        Receive notifications via SMS
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifications.smsReminders}
+                      onCheckedChange={(checked) =>
+                        setNotifications(prev => ({ ...prev, smsReminders: checked }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{t("settings.pushNotifications")}</p>
+                      <p className="text-sm text-gray-600">
+                        Receive push notifications
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifications.pushNotifications}
+                      onCheckedChange={(checked) =>
+                        setNotifications(prev => ({ ...prev, pushNotifications: checked }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{t("settings.bookingConfirmations")}</p>
+                      <p className="text-sm text-gray-600">
+                        Get notified about booking confirmations
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifications.emailBooking}
+                      onCheckedChange={(checked) =>
+                        setNotifications(prev => ({ ...prev, emailBooking: checked }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{t("settings.promotionalEmails")}</p>
+                      <p className="text-sm text-gray-600">
+                        Receive promotional emails and offers
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifications.emailPromotions}
+                      onCheckedChange={(checked) =>
+                        setNotifications(prev => ({ ...prev, emailPromotions: checked }))
+                      }
+                    />
+                  </div>
                 </div>
 
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Promotional Emails</p>
-                    <p className="text-sm text-muted-foreground">
-                      Receive updates about new vehicles and special offers
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notifications.emailPromotions}
-                    onCheckedChange={(checked) =>
-                      setNotifications({
-                        ...notifications,
-                        emailPromotions: checked,
-                      })
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">SMS Reminders</p>
-                    <p className="text-sm text-muted-foreground">
-                      Get SMS reminders for upcoming bookings and returns
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notifications.smsReminders}
-                    onCheckedChange={(checked) =>
-                      setNotifications({
-                        ...notifications,
-                        smsReminders: checked,
-                      })
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-muted-foreground">
-                      Receive mobile app notifications on your device
-                    </p>
-                  </div>
-                  <Switch
-                    checked={notifications.pushNotifications}
-                    onCheckedChange={(checked) =>
-                      setNotifications({
-                        ...notifications,
-                        pushNotifications: checked,
-                      })
-                    }
-                  />
-                </div>
-
-                <Button>Save Preferences</Button>
+                <Button>{t("settings.saveChanges")}</Button>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Billing Tab */}
           <TabsContent value="billing">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    Payment Methods
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  {t("settings.billing")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    {t("settings.paymentMethods")}
+                  </h3>
                   <div className="space-y-4">
-                    <div className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">**** **** **** 1234</p>
-                          <p className="text-sm text-muted-foreground">
-                            Expires 12/26
-                          </p>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            Edit
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center">
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        <span>**** **** **** 1234</span>
                       </div>
+                      <Button variant="outline" size="sm">
+                        Remove
+                      </Button>
                     </div>
-                    <Button variant="outline">Add New Payment Method</Button>
+                    <Button variant="outline">
+                      {t("settings.addPaymentMethod")}
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <FileText className="h-5 w-5 mr-2" />
-                    Billing History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                <Separator />
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    {t("settings.billingHistory")}
+                  </h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2">
+                    <div className="flex items-center justify-between p-3 border rounded">
                       <div>
-                        <p className="font-medium">Invoice #BK002</p>
-                        <p className="text-sm text-muted-foreground">
-                          Jan 12, 2024
-                        </p>
+                        <p className="font-medium">Monthly Subscription</p>
+                        <p className="text-sm text-gray-600">Dec 1, 2023</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">$240.00</p>
-                        <Button variant="ghost" size="sm">
-                          Download
-                        </Button>
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between items-center py-2">
-                      <div>
-                        <p className="font-medium">Invoice #BK001</p>
-                        <p className="text-sm text-muted-foreground">
-                          Jan 08, 2024
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">$360.00</p>
-                        <Button variant="ghost" size="sm">
-                          Download
-                        </Button>
+                        <p className="font-medium">$29.99</p>
+                        <p className="text-sm text-green-600">Paid</p>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+
+                <Button>{t("settings.saveChanges")}</Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Language Tab */}
@@ -579,62 +558,16 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="language-select">
-                    {t("settings.selectLanguage")}
-                  </Label>
-                  <Select
-                    value={language}
-                    onValueChange={(value: "en" | "vi") => setLanguage(value)}
-                  >
-                    <SelectTrigger className="w-full mt-2">
-                      <SelectValue placeholder={t("settings.selectLanguage")} />
+                  <Label htmlFor="language">{t("settings.selectLanguage")}</Label>
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger className="text-black">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="en">
-                        {t("settings.english")}
-                      </SelectItem>
-                      <SelectItem value="vi">
-                        {t("settings.vietnamese")}
-                      </SelectItem>
+                      <SelectItem value="en">{t("settings.english")}</SelectItem>
+                      <SelectItem value="vi">{t("settings.vietnamese")}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {language === "en"
-                      ? "Choose your preferred language for the application interface."
-                      : "Chọn ngôn ngữ ưa thích cho giao diện ứng dụng."}
-                  </p>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">
-                    Language Preferences
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Currency Display</p>
-                        <p className="text-sm text-muted-foreground">
-                          {language === "en"
-                            ? "Show prices in Vietnamese Dong (VND)"
-                            : "Hiển thị giá bằng Đồng Việt Nam (VND)"}
-                        </p>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Date Format</p>
-                        <p className="text-sm text-muted-foreground">
-                          {language === "en"
-                            ? "Use local date format (DD/MM/YYYY)"
-                            : "Sử dụng định dạng ngày địa phương (DD/MM/YYYY)"}
-                        </p>
-                      </div>
-                      <Switch defaultChecked={language === "vi"} />
-                    </div>
-                  </div>
                 </div>
 
                 <Button>{t("settings.saveChanges")}</Button>

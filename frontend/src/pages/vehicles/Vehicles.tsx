@@ -60,11 +60,38 @@ const Vehicles = () => {
     searchParams.get("station") || "all"
   );
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
-  const [priceRange, setPriceRange] = useState([0, 50]);
+  const [priceRange, setPriceRange] = useState([0, 200]);
   const [sortBy, setSortBy] = useState("name");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all");
+
+  // Refresh vehicles when component mounts or URL changes
+  useEffect(() => {
+    refetchVehicles();
+  }, [searchParams, refetchVehicles]);
+
+  // Listen for vehicle updates from staff dashboard
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // Check if there's a flag indicating vehicles were updated
+      const vehiclesUpdated = localStorage.getItem('vehiclesUpdated');
+      if (vehiclesUpdated === 'true') {
+        refetchVehicles();
+        localStorage.removeItem('vehiclesUpdated');
+      }
+    };
+
+    // Listen for storage events (when staff assigns vehicles)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check on mount
+    handleStorageChange();
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refetchVehicles]);
 
   // Handle URL parameters on component mount
   useEffect(() => {
@@ -84,9 +111,10 @@ const Vehicles = () => {
       setSearchTerm(location.trim());
     }
 
-    // Keep location filter as "all" by default, regardless of search location
-    // This allows users to see vehicles from all locations but filtered by search term
-    // The location filter will only be changed when user manually selects a different location
+    // Handle location filter from URL parameter
+    if (location && location.trim() !== "" && location !== "all") {
+      setLocationFilter(location.trim());
+    }
 
     if (vehicleType && vehicleType.trim() !== "") {
       setVehicleTypeFilter(vehicleType.trim());
@@ -105,7 +133,7 @@ const Vehicles = () => {
       // Handle price range from URL
       switch (priceRangeParam) {
         case "under50":
-          setPriceRange([0, 50]);
+          setPriceRange([0, 200]);
           break;
         case "50-100":
           setPriceRange([50, 100]);
@@ -132,6 +160,7 @@ const Vehicles = () => {
     
     return {
       id: apiVehicle.uniqueVehicleId,
+      vehicleId: apiVehicle.vehicleId, // Add vehicleId for unique keys
       modelId: apiVehicle.modelId,
       uniqueVehicleId: apiVehicle.uniqueVehicleId,
       licensePlate: apiVehicle.licensePlate || '',
@@ -153,7 +182,7 @@ const Vehicles = () => {
       condition: apiVehicle.condition as any,
       // Use model image if vehicle doesn't have specific image
       image: apiVehicle.image || (model ? model.image : ''),
-      location: apiVehicle.location,
+      location: apiVehicle.location || station?.city || 'Unknown Location',
       stationId: apiVehicle.stationId?.toString() || '1',
       stationName: station ? station.name : 'Unknown Station',
       stationAddress: station ? station.address : '',
@@ -180,14 +209,40 @@ const Vehicles = () => {
 
   // Use API data with fallback to static data
   const staticVehicles = getVehicles(language);
+  const vehicles = apiVehicles ? apiVehicles.map(mapApiToUI) : staticVehicles;
   
   // Debug logging
-  console.log('API Vehicles:', apiVehicles);
-  console.log('API Loading:', vehiclesLoading);
-  console.log('API Error:', vehiclesError);
-  console.log('Static Vehicles:', staticVehicles.length);
+  console.log('=== VEHICLES DEBUG ===');
+  console.log('API Vehicles:', apiVehicles?.length);
+  console.log('Search Term:', searchTerm);
+  console.log('Location Filter:', locationFilter);
+  console.log('Price Range:', priceRange);
   
-  const vehicles = apiVehicles ? apiVehicles.map(mapApiToUI) : staticVehicles;
+  // Check for VF5 vehicles
+  const vf5Vehicles = vehicles.filter(v => v.modelId === 'VF5');
+  console.log('VF5 Vehicles found:', vf5Vehicles.length);
+  if (vf5Vehicles.length > 0) {
+    console.log('VF5 Vehicles details:', vf5Vehicles.map(v => ({
+      id: v.id,
+      modelId: v.modelId,
+      location: v.location,
+      stationId: v.stationId,
+      stationName: v.stationName
+    })));
+  }
+  
+  // Check District 1 vehicles
+  const district1Vehicles = vehicles.filter(v => v.location && v.location.includes('District 1'));
+  console.log('District 1 Vehicles found:', district1Vehicles.length);
+  
+  // Check specific VF5 at District 1
+  const vf5District1 = vehicles.filter(v => v.modelId === 'VF5' && v.location && v.location.includes('District 1'));
+  console.log('VF5 at District 1:', vf5District1.length);
+  if (vf5District1.length > 0) {
+    console.log('VF5 District 1 details:', vf5District1[0]);
+  }
+  
+  console.log('=== END DEBUG ===');
 
   // Update URL parameters when filters change
   const updateSearchParams = (key: string, value: string) => {
@@ -245,24 +300,34 @@ const Vehicles = () => {
   // Get unique locations for filter
   const locations = useMemo(() => {
     const uniqueLocations = [...new Set(vehicles.map((v) => v.location))];
-    return uniqueLocations;
+    // Filter out empty strings and null/undefined values
+    return uniqueLocations.filter(location => location && location.trim() !== '');
   }, [vehicles]);
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
     const filtered = vehicles.filter((vehicle) => {
+      // ✅ Filter out pending vehicles
+      if (vehicle.availability?.toLowerCase() === 'pending') {
+        return false;
+      }
+
       // Comprehensive search across multiple fields
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
         !searchTerm ||
-        vehicle.name.toLowerCase().includes(searchLower) ||
-        vehicle.brand.toLowerCase().includes(searchLower) ||
-        vehicle.model.toLowerCase().includes(searchLower) ||
-        vehicle.location.toLowerCase().includes(searchLower) ||
-        vehicle.type.toLowerCase().includes(searchLower);
+        (vehicle.name && vehicle.name.toLowerCase().includes(searchLower)) ||
+        (vehicle.brand && vehicle.brand.toLowerCase().includes(searchLower)) ||
+        (vehicle.model && vehicle.model.toLowerCase().includes(searchLower)) ||
+        (vehicle.modelId && vehicle.modelId.toLowerCase().includes(searchLower)) ||
+        (vehicle.uniqueVehicleId && vehicle.uniqueVehicleId.toLowerCase().includes(searchLower)) ||
+        (vehicle.location && vehicle.location.toLowerCase().includes(searchLower)) ||
+        (vehicle.type && vehicle.type.toLowerCase().includes(searchLower));
 
       const matchesLocation =
-        locationFilter === "all" || vehicle.location === locationFilter;
+        locationFilter === "all" || 
+        (vehicle.location && vehicle.location.toLowerCase().includes(locationFilter.toLowerCase())) ||
+        (vehicle.stationName && vehicle.stationName.toLowerCase().includes(locationFilter.toLowerCase()));
 
       const matchesStation =
         stationFilter === "all" || vehicle.stationId === stationFilter;
@@ -273,12 +338,33 @@ const Vehicles = () => {
 
       // Handle price filtering for both USD and VND
       const vehiclePrice =
-        language === "vi" ? vehicle.pricePerHour / 23000 : vehicle.pricePerHour; // Convert VND to USD approximation
+        language === "vi" ? vehicle.pricePerHour : vehicle.pricePerHour / 23000; // Convert VND to USD when language is EN
       const matchesPrice =
         vehiclePrice >= priceRange[0] && vehiclePrice <= priceRange[1];
 
       const matchesVehicleType =
         vehicleTypeFilter === "all" || vehicle.type === vehicleTypeFilter;
+
+      // Debug specific vehicle
+      if (vehicle.modelId === 'VF5' && vehicle.location && vehicle.location.includes('District 1')) {
+        console.log('🔍 VF5 District 1 Filter Debug:', {
+          vehicle: vehicle.modelId,
+          location: vehicle.location,
+          searchTerm,
+          locationFilter,
+          priceRange,
+          vehiclePrice,
+          vehiclePricePerHour: vehicle.pricePerHour,
+          language,
+          '✅ matchesSearch': matchesSearch,
+          '✅ matchesLocation': matchesLocation,
+          '✅ matchesStation': matchesStation,
+          '✅ matchesAvailability': matchesAvailability,
+          '✅ matchesPrice': matchesPrice,
+          '✅ matchesVehicleType': matchesVehicleType,
+          '❌ finalResult': matchesSearch && matchesLocation && matchesStation && matchesAvailability && matchesPrice && matchesVehicleType
+        });
+      }
 
       return (
         matchesSearch &&
@@ -399,14 +485,17 @@ const Vehicles = () => {
                     <SelectItem value="all">
                       {t("common.allLocations")}
                     </SelectItem>
-                    {locations.map((location) => (
-                      <SelectItem
-                        key={String(location)}
-                        value={String(location)}
-                      >
-                        {String(location)}
-                      </SelectItem>
-                    ))}
+                    {locations.map((location) => {
+                      const locationValue = String(location).trim();
+                      return locationValue ? (
+                        <SelectItem
+                          key={locationValue}
+                          value={locationValue}
+                        >
+                          {locationValue}
+                        </SelectItem>
+                      ) : null;
+                    })}
                   </SelectContent>
                 </Select>
 
@@ -545,9 +634,9 @@ const Vehicles = () => {
                     <Slider
                       value={priceRange}
                       onValueChange={setPriceRange}
-                      max={language === "vi" ? 1000 : 50}
+                      max={language === "vi" ? 1000 : 200}
                       min={0}
-                      step={language === "vi" ? 10 : 1}
+                      step={language === "vi" ? 10 : 5}
                       className="w-full"
                     />
                   </div>
@@ -715,7 +804,7 @@ const Vehicles = () => {
                   }`}
                 >
                   {filteredVehicles.map((vehicle, index) => (
-                    <FadeIn key={vehicle.id} delay={index * 100}>
+                    <FadeIn key={`${vehicle.vehicleId || vehicle.id}-${index}`} delay={index * 100}>
                       <VehicleCard
                         vehicle={vehicle}
                         className={viewMode === "list" ? "flex-row" : ""}
@@ -740,7 +829,7 @@ const Vehicles = () => {
                       setLocationFilter("all");
                       setStationFilter("all");
                       setAvailabilityFilter("all");
-                      setPriceRange([0, 50]);
+                      setPriceRange([0, 200]);
                     }}
                   >
                     Clear Filters

@@ -9,6 +9,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { WalkInVehicle } from "./types";
+import { useChargingContext } from '@/contexts/ChargingContext';
+import { BATTERY_THRESHOLDS } from '@/lib/vehicle-constants';
 
 interface WalkInVehicleSelectorProps {
   vehicles: WalkInVehicle[];
@@ -21,7 +23,14 @@ const WalkInVehicleSelector: React.FC<WalkInVehicleSelectorProps> = ({
   selectedVehicleId,
   onVehicleSelect,
 }) => {
-  const availableVehicles = vehicles.filter(v => v.status === "available");
+  const { chargingVehicles } = useChargingContext();
+  
+  // Filter out charging vehicles and low battery vehicles
+  const availableVehicles = vehicles.filter(v => 
+    v.status === "available" && 
+    !chargingVehicles.has(v.id) &&
+    v.batteryLevel > BATTERY_THRESHOLDS.LOW_BATTERY
+  );
 
   return (
     <div className="space-y-4">

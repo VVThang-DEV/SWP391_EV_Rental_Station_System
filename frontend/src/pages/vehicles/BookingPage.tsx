@@ -54,19 +54,70 @@ import {
   Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useChargingContext } from "@/contexts/ChargingContext";
+import { isLowBattery } from "@/lib/vehicle-constants";
 import { QRCodeSVG } from "qrcode.react";
+import { apiService } from "@/services/api";
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { chargingVehicles } = useChargingContext();
+  const [isCheckingActiveBooking, setIsCheckingActiveBooking] = useState(true);
   
   // Use API data with fallback to static data
   const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
   const staticVehicle = id ? getVehicleById(id) : null;
   
+  // ⚠️ VALIDATION: Check if user has active booking before allowing new booking
+  useEffect(() => {
+    const checkActiveBooking = async () => {
+      try {
+        const reservations = await apiService.getReservations();
+        const activeReservations = reservations.reservations?.filter(r => 
+          !['completed', 'cancelled', 'finished'].includes(r.status?.toLowerCase() || '')
+        ) || [];
+        
+        if (activeReservations.length > 0) {
+          console.log("[BookingPage] ❌ User has active booking:", activeReservations);
+          toast({
+            title: "Cannot Book",
+            description: "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+            variant: "destructive",
+          });
+          
+          // Navigate back to vehicles page immediately
+          navigate('/vehicles');
+        } else {
+          console.log("[BookingPage] ✅ No active bookings - allowing booking");
+        }
+      } catch (error) {
+        console.error("[BookingPage] Error checking active bookings:", error);
+        // If error, still allow booking (graceful degradation)
+      } finally {
+        setIsCheckingActiveBooking(false);
+      }
+    };
+    
+    checkActiveBooking();
+  }, [toast, navigate]);
+  
   // Find vehicle from API data or fallback to static
-  const apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === id);
+  console.log("[BookingPage] Looking for vehicle with id:", id);
+  console.log("[BookingPage] Available apiVehicles:", apiVehicles?.map(v => ({ vehicleId: v.vehicleId, uniqueVehicleId: v.uniqueVehicleId })));
+  
+  // First try to find by uniqueVehicleId matching the id
+  let apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === id);
+  
+  // If not found, try to find by matching with static data
+  if (!apiVehicle && staticVehicle) {
+    console.log("[BookingPage] Not found by uniqueVehicleId, trying to match with static data");
+    console.log("[BookingPage] Static vehicle uniqueVehicleId:", staticVehicle.uniqueVehicleId);
+    apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === staticVehicle.uniqueVehicleId);
+  }
+  
+  console.log("[BookingPage] Found apiVehicle:", apiVehicle);
   const vehicle = apiVehicle ? {
     // Map API data to expected format
     id: apiVehicle.uniqueVehicleId,
@@ -100,6 +151,31 @@ const BookingPage = () => {
     createdAt: apiVehicle.createdAt,
     updatedAt: apiVehicle.updatedAt
   } : staticVehicle;
+
+  // Check if vehicle is currently charging
+  const isCharging = vehicle && (chargingVehicles.has(vehicle.id) || chargingVehicles.has(vehicle.uniqueVehicleId || ''));
+  
+  // Check if vehicle has low battery
+  const hasLowBattery = vehicle && isLowBattery(vehicle.batteryLevel);
+  
+  // Redirect if vehicle is charging or has low battery
+  useEffect(() => {
+    if (isCharging) {
+      toast({
+        title: "Xe không khả dụng",
+        description: "Xe này đang được sạc pin và không thể đặt ngay bây giờ.",
+        variant: "destructive",
+      });
+      navigate("/vehicles");
+    } else if (hasLowBattery) {
+      toast({
+        title: "Xe không khả dụng",
+        description: "Xe này có pin yếu và cần được sạc trước khi có thể đặt.",
+        variant: "destructive",
+      });
+      navigate("/vehicles");
+    }
+  }, [isCharging, hasLowBattery, navigate, toast]);
 
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -220,13 +296,59 @@ const BookingPage = () => {
     });
   };
 
-  const currentUserData = {
-    fullName: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+84 901 234 567",
-    driverLicense: "B123456789",
+  // State for user data
+  const [userData, setUserData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    licenseNumber: "",
+  });
+  const [isLoadingUserData, setIsLoadingUserData] = useState(true);
 
-  };
+  // Fetch user data on component mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        setIsLoadingUserData(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          // If not logged in, use default values
+          setUserData({
+            fullName: "",
+            email: "",
+            phone: "",
+            licenseNumber: "",
+          });
+          setIsLoadingUserData(false);
+          return;
+        }
+
+        const response = await apiService.getCurrentUser();
+        if (response.success && response.user) {
+          const user = response.user;
+          setUserData({
+            fullName: user.fullName || "",
+            email: user.email || "",
+            phone: user.phone || "",
+            licenseNumber: user.licenseNumber || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        // If error, use empty values
+        setUserData({
+          fullName: "",
+          email: "",
+          phone: "",
+          licenseNumber: "",
+        });
+      } finally {
+        setIsLoadingUserData(false);
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   // ✅ FIX: Auto-select slot cho daily rental
   // Helper function để tạo best slot
@@ -262,14 +384,29 @@ const BookingPage = () => {
     endTime: getTimeStr(),
     rentalDuration: "daily",
     customerInfo: {
-      fullName: currentUserData.fullName, //  Auto-filled từ profile
-      email: currentUserData.email, // Auto-filled từ profile  
-      phone: currentUserData.phone, // Auto-filled từ profile
-      driverLicense: currentUserData.driverLicense, // Auto-filled từ profile
+      fullName: "", // Will be auto-filled from API
+      email: "", // Will be auto-filled from API
+      phone: "", // Will be auto-filled from API
+      driverLicense: "", // Will be auto-filled from API
     },
-    paymentMethod: "qr_code",
-
+    paymentMethod: "wallet",
+    reservationId: null as number | null, // Add reservationId field
   });
+
+  // Update bookingData when userData is loaded
+  useEffect(() => {
+    if (!isLoadingUserData && userData.fullName) {
+      setBookingData(prev => ({
+        ...prev,
+        customerInfo: {
+          fullName: userData.fullName,
+          email: userData.email,
+          phone: userData.phone,
+          driverLicense: userData.licenseNumber,
+        },
+      }));
+    }
+  }, [isLoadingUserData, userData]);
 
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
 
@@ -795,10 +932,22 @@ const BookingPage = () => {
             Customer Information
           </CardTitle>
           {/* THÊM: Thông báo thông tin auto-fill */}
-          <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
-            <CheckCircle className="h-4 w-4" />
-            <span>Information automatically filled from your profile. You can edit if needed.</span>
-          </div>
+          {isLoadingUserData ? (
+            <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+              <Clock className="h-4 w-4 animate-spin" />
+              <span>Loading your profile information...</span>
+            </div>
+          ) : userData.fullName ? (
+            <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+              <CheckCircle className="h-4 w-4" />
+              <span>Information automatically filled from your profile. You can edit if needed.</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
+              <Clock className="h-4 w-4" />
+              <span>Please fill in your information to complete the booking.</span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -896,20 +1045,151 @@ const BookingPage = () => {
         vehicleId={vehicle.id}
         vehicleName={vehicle.name}
         customerInfo={bookingData.customerInfo}
-        onPaymentComplete={(paymentData) => {
+        onPaymentComplete={async (paymentData) => {
 
-          // ✅ LƯU BOOKING KHI PAYMENT THÀNH CÔNG
+          // ✅ TẠO RESERVATION ID VÀ LƯU VÀO SQL DATABASE
           try {
-            // Logic xác định status dựa trên thời gian
-            const now = new Date();
+            // Gọi API để tạo reservation trong database
             const startDateTime = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
             const endDateTime = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
 
+            // ✅ FIX: Ensure start time is in the future (with 15 min buffer)
+            const now = new Date();
+            const minAllowedTime = new Date(now.getTime() - 15 * 60 * 1000); // 15 minutes in the past
+            
+            console.log("[Booking] Current time:", now.toISOString());
+            console.log("[Booking] Start time:", startDateTime.toISOString());
+            console.log("[Booking] Min allowed time:", minAllowedTime.toISOString());
+            
+            if (startDateTime < minAllowedTime) {
+              console.warn("[Booking] Start time is too far in the past, adjusting to future time");
+              // Add 2 hours to current time to ensure it's in the future
+              const adjustedStart = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+              const duration = endDateTime.getTime() - startDateTime.getTime();
+              startDateTime.setTime(adjustedStart.getTime());
+              endDateTime.setTime(adjustedStart.getTime() + duration);
+              console.log("[Booking] Adjusted start time:", startDateTime.toISOString());
+              console.log("[Booking] Adjusted end time:", endDateTime.toISOString());
+            }
+
+            // Use the actual vehicleId from API data
+            let vehicleId: number;
+            
+            if (apiVehicle && apiVehicle.vehicleId) {
+              // Use the actual vehicleId from API
+              vehicleId = apiVehicle.vehicleId;
+              console.log("[Booking] Using API vehicleId:", vehicleId);
+            } else {
+              // No API data available - this should not happen
+              console.error("[Booking] No API vehicle data available for vehicle.id:", vehicle.id);
+              toast({
+                title: "Error",
+                description: "Vehicle data not found. Please refresh the page and try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            // Validate vehicle ID
+            if (isNaN(vehicleId) || vehicleId <= 0) {
+              console.error("[Booking] Invalid vehicle ID:", vehicle.id, "->", vehicleId);
+              toast({
+                title: "Error",
+                description: "Invalid vehicle ID. Please try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            const reservationData = {
+              vehicleId: vehicleId,
+              stationId: parseInt(vehicle.stationId || '1'),
+              startTime: startDateTime.toISOString(),
+              endTime: endDateTime.toISOString(),
+            };
+
+            console.log("[Booking] Raw Vehicle ID:", vehicle.id);
+            console.log("[Booking] Parsed Vehicle ID:", vehicleId);
+            console.log("[Booking] Station ID:", vehicle.stationId);
+            console.log("[Booking] Creating reservation with data:", reservationData);
+            console.log("[Booking] Start Time:", startDateTime.toISOString());
+            console.log("[Booking] End Time:", endDateTime.toISOString());
+
+            let reservationId: number | null = null;
+            try {
+              console.log("[Booking] Calling API to create reservation...");
+              console.log("[Booking] Reservation data:", JSON.stringify(reservationData, null, 2));
+              
+              const reservationResponse = await apiService.createReservation(reservationData);
+              
+              console.log("[Booking] API Response:", reservationResponse);
+              
+              if (reservationResponse.success && reservationResponse.reservation) {
+                reservationId = reservationResponse.reservation.reservationId;
+                console.log("✅ Reservation created in database:", reservationResponse.reservation);
+                console.log("[Booking] Saved Start Time:", reservationResponse.reservation.startTime);
+                console.log("[Booking] Saved End Time:", reservationResponse.reservation.endTime);
+                
+                // Store reservationId in bookingData
+                setBookingData(prev => ({
+                  ...prev,
+                  reservationId: reservationId
+                }));
+
+                // ✅ UPDATE PAYMENT VỚI RESERVATION_ID
+                if (reservationId && bookingData.paymentMethod === 'wallet') {
+                  try {
+                    console.log("[Payment] Updating payment with reservation_id:", reservationId);
+                    
+                    // Update payment record that doesn't have reservation_id yet
+                    const token = localStorage.getItem('token');
+                    const updateResponse = await fetch('http://localhost:5000/api/wallet/update-payment', {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        reservationId: reservationId,
+                        amount: totalCost,
+                      }),
+                    });
+
+                    if (updateResponse.ok) {
+                      console.log("[Payment] Payment updated successfully with reservation_id");
+                    } else {
+                      console.log("[Payment] Update failed, but continuing...");
+                    }
+                  } catch (paymentError) {
+                    console.error("Error updating payment in database:", paymentError);
+                    // Continue even if payment update fails
+                  }
+                }
+              } else {
+                // API returned success=false
+                throw new Error(reservationResponse.message || "Failed to create reservation");
+              }
+            } catch (apiError: any) {
+              console.error("❌ Error creating reservation in database:", apiError);
+              
+              // Show error message to user and stop booking process
+              toast({
+                title: "Booking Failed",
+                description: apiError.message || "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+                variant: "destructive",
+              });
+              
+              // Stop here - don't continue with local storage
+              return;
+            }
+
+            // Logic xác định status dựa trên thời gian
+            const currentTime = new Date();
             let status: "active" | "upcoming" | "completed";
 
-            if (now >= startDateTime && now <= endDateTime) {
+            if (currentTime >= startDateTime && currentTime <= endDateTime) {
               status = "active"; // Đang trong thời gian thuê
-            } else if (now < startDateTime) {
+            } else if (currentTime < startDateTime) {
               status = "upcoming"; // Chưa đến thời gian thuê
             } else {
               status = "completed"; // Đã kết thúc (trường hợp ít xảy ra)
@@ -949,6 +1229,22 @@ const BookingPage = () => {
             });
 
             console.log("Booking saved successfully:", newBooking);
+            
+            // Show success message with reservation ID if available
+            if (reservationId) {
+              toast({
+                title: "Payment Successful!",
+                description: `Your booking has been confirmed. Reservation ID: ${reservationId}`,
+              });
+            } else {
+              toast({
+                title: "Payment Successful!",
+                description: "Your booking has been confirmed.",
+              });
+            }
+
+            // Move to confirmation step
+            setStep(3);
           } catch (error) {
             console.error("Error saving booking:", error);
             toast({
@@ -958,15 +1254,8 @@ const BookingPage = () => {
             });
             return;
           }
-
-
-          toast({
-            title: "Payment Successful!",
-            description: "Your booking has been confirmed.",
-          });
-          setStep(3);
         }}
-        paymentMethod={bookingData.paymentMethod as "qr_code" | "cash"}
+        paymentMethod={bookingData.paymentMethod as "wallet" | "cash"}
         onBack={() => setStep(1)}
       />
     </div>
@@ -990,6 +1279,13 @@ const BookingPage = () => {
             Booking ID: <strong>#EV-{Date.now().toString().slice(-6)}</strong>
           </span>
         </div>
+        {bookingData.reservationId && (
+          <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-full mt-2">
+            <span className="text-sm font-medium text-blue-800">
+              Reservation ID: <strong>{bookingData.reservationId}</strong>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Booking Summary */}
@@ -1174,6 +1470,20 @@ const BookingPage = () => {
       </div>
     </div>
   );
+
+  // Show loading while checking for active bookings
+  if (isCheckingActiveBooking) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-lg text-muted-foreground">Checking availability...</p>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
 
   return (
     <PageTransition>

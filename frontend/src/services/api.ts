@@ -79,29 +79,30 @@ class ApiService {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
+        ...(token && { "Authorization": `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
     };
-
-    // Add auth token if available
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
 
     try {
       const response = await fetch(url, config);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        const errorMessage = errorData.message || errorData.success === false 
+          ? errorData.message || `HTTP error! status: ${response.status}` 
+          : `HTTP error! status: ${response.status}`;
+        const error = new Error(errorMessage) as any;
+        error.status = response.status;
+        error.data = errorData;
+        throw error;
       }
 
       return await response.json();
@@ -201,6 +202,29 @@ class ApiService {
     });
   }
 
+  async getCurrentUser() {
+    return this.request<{
+      success: boolean;
+      user: {
+        userId: number;
+        email: string;
+        fullName: string;
+        phone?: string;
+        cccd?: string;
+        licenseNumber?: string;
+        address?: string;
+        gender?: string;
+        dateOfBirth?: string;
+        position?: string;
+        roleName: string;
+        createdAt: string;
+        updatedAt: string;
+      };
+    }>("/auth/current-user", {
+      method: "GET",
+    });
+  }
+
   // Vehicles
   async getVehicles(): Promise<Vehicle[]> {
     return this.request<Vehicle[]>("/api/vehicles");
@@ -216,6 +240,17 @@ class ApiService {
 
   async getVehiclesByStation(stationId: number): Promise<Vehicle[]> {
     return this.request<Vehicle[]>(`/api/vehicles/station/${stationId}`);
+  }
+
+  async getUnassignedVehicles(): Promise<Vehicle[]> {
+    return this.request<Vehicle[]>("/api/vehicles/unassigned");
+  }
+
+  async assignVehicleToStation(vehicleId: number, stationId: number, location: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/api/vehicles/assign-to-station", {
+      method: "POST",
+      body: JSON.stringify({ vehicleId, stationId, location }),
+    });
   }
 
   // Vehicle Models
@@ -240,9 +275,184 @@ class ApiService {
     return this.request<Station>(`/api/stations/${id}`);
   }
 
+  async updateStation(id: number, data: Partial<Station>): Promise<Station> {
+    return this.request<Station>(`/api/stations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateStationAvailableVehicles(id: number): Promise<Station> {
+    return this.request<Station>(`/api/stations/${id}/update-available-vehicles`, {
+      method: "PUT",
+    });
+  }
+
   // Health check
   async healthCheck() {
     return this.request<{ status: string }>("/health");
+  }
+
+  // Reservations
+  async createReservation(data: {
+    vehicleId: number;
+    stationId: number;
+    startTime: string;
+    endTime: string;
+  }) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      reservation: {
+        reservationId: number;
+        userId: number;
+        vehicleId: number;
+        stationId: number;
+        startTime: string;
+        endTime: string;
+        status: string;
+        createdAt: string;
+      };
+    }>("/api/reservations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getReservations() {
+    return this.request<{
+      success: boolean;
+      reservations: Array<{
+        reservationId: number;
+        userId: number;
+        vehicleId: number;
+        stationId: number;
+        startTime: string;
+        endTime: string;
+        status: string;
+        createdAt: string;
+      }>;
+    }>("/api/reservations", {
+      method: "GET",
+    });
+  }
+
+  async getReservationById(id: number) {
+    return this.request<{
+      success: boolean;
+      reservation: {
+        reservationId: number;
+        userId: number;
+        vehicleId: number;
+        stationId: number;
+        startTime: string;
+        endTime: string;
+        status: string;
+        createdAt: string;
+      };
+    }>(`/api/reservations/${id}`, {
+      method: "GET",
+    });
+  }
+
+  async cancelReservation(id: number) {
+    return this.request<{
+      success: boolean;
+      message: string;
+    }>(`/api/reservations/${id}/cancel`, {
+      method: "POST",
+    });
+  }
+
+  // Payments
+  async createPayment(data: {
+    reservationId?: number;
+    rentalId?: number;
+    methodType: string;
+    amount: number;
+    status: string;
+    transactionId?: string;
+    isDeposit?: boolean;
+  }) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      payment: {
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      };
+    }>("/api/payments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPaymentsByReservation(reservationId: number) {
+    return this.request<{
+      success: boolean;
+      payments: Array<{
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>(`/api/payments/reservation/${reservationId}`, {
+      method: "GET",
+    });
+  }
+
+  async getUserPayments() {
+    return this.request<{
+      success: boolean;
+      payments: Array<{
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>("/api/payments/user", {
+      method: "GET",
+    });
+  }
+
+  async getPaymentById(id: number) {
+    return this.request<{
+      success: boolean;
+      payment: {
+        paymentId: number;
+        reservationId: number | null;
+        rentalId: number | null;
+        methodType: string;
+        amount: number;
+        status: string;
+        transactionId: string | null;
+        isDeposit: boolean;
+        createdAt: string;
+        updatedAt: string;
+      };
+    }>(`/api/payments/${id}`, {
+      method: "GET",
+    });
   }
 }
 
@@ -297,6 +507,28 @@ export interface AddVehicleRequest {
   mileage: number;
   licensePlate?: string;
   location?: string;
+  notes?: string;
+}
+
+export interface AdminCreateVehicleRequest {
+  modelId: string;
+  uniqueVehicleId?: string;
+  batteryLevel: number;
+  condition: string;
+  mileage: number;
+  licensePlate?: string;
+  lastMaintenance?: string;
+  inspectionDate?: string;
+  insuranceExpiry?: string;
+  location?: string;
+  // Các trường mới từ form
+  color?: string;
+  year?: number;
+  batteryCapacity?: number;
+  purchaseDate?: string;
+  warrantyExpiry?: string;
+  nextMaintenanceDate?: string;
+  fuelEfficiency?: number;
   notes?: string;
 }
 
@@ -383,9 +615,28 @@ class StaffApiService {
 
   // Staff Profile
   async getStaffProfile(): Promise<StaffProfile> {
-    const response = await fetch(`${this.baseUrl}/profile`);
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/profile`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch staff profile');
+    }
+    return response.json();
+  }
+
+  // Station Info
+  async getStationInfo(): Promise<StationInfo> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/station`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch station info');
     }
     return response.json();
   }
@@ -529,7 +780,33 @@ class StaffApiService {
   }
 }
 
+// Admin API Service
+class AdminApiService {
+  private baseUrl = 'http://localhost:5000/api/admin';
+
+  // Create Vehicle (Admin only)
+  async createVehicle(data: AdminCreateVehicleRequest): Promise<any> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/vehicles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create vehicle');
+    }
+
+    return response.json();
+  }
+}
+
 // Export singleton instance
 export const apiService = new ApiService();
 export const staffApiService = new StaffApiService();
+export const adminApiService = new AdminApiService();
 export default apiService;

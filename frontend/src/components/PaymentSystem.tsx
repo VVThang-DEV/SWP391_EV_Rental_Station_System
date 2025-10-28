@@ -44,7 +44,7 @@ interface PaymentSystemProps {
     phone: string;
   };
   onPaymentComplete: (paymentData: PaymentData) => void;
-  paymentMethod?: "qr_code" | "cash";
+  paymentMethod?: "wallet" | "cash";
   onBack?: () => void;
 }
 
@@ -65,16 +65,15 @@ const PaymentSystem = ({
   vehicleName = "",
   customerInfo,
   onPaymentComplete,
-  paymentMethod = "qr_code",
+  paymentMethod = "wallet",
   onBack,
 }: PaymentSystemProps) => {
   const [currentMethod, setCurrentMethod] = useState(paymentMethod);
   const [paymentStatus, setPaymentStatus] = useState<
     "idle" | "processing" | "completed" | "failed"
   >("idle");
-  const [qrCodeData, setQrCodeData] = useState("");
-
-  const [paymentTimer, setPaymentTimer] = useState(300); // 5 minutes
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(true);
 
   const { toast } = useToast();
 
@@ -86,6 +85,38 @@ const PaymentSystem = ({
 
   // Số tiền VND để hiển thị và thanh toán
   const amountVND = convertToVND(amount);
+
+  // Fetch wallet balance
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setLoadingBalance(false);
+          return;
+        }
+
+        const response = await fetch('http://localhost:5000/api/wallet/balance', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setWalletBalance(data.balance);
+        } else {
+          console.error('Failed to fetch wallet balance');
+        }
+      } catch (error) {
+        console.error('Error fetching wallet balance:', error);
+      } finally {
+        setLoadingBalance(false);
+      }
+    };
+
+    fetchWalletBalance();
+  }, []);
 
   // Thông tin ngân hàng thực
   const BANK_INFO = {
@@ -122,46 +153,6 @@ const PaymentSystem = ({
   };
 
   const navigate = useNavigate();
- 
-  // Generate QR code data (mock)
-  useEffect(() => {
-    if (currentMethod === "qr_code") {
-      const paymentData = {
-        amount: amount, // USD
-        amountVND: amountVND, // VND
-        bookingId: bookingId,
-        vehicleId: vehicleId,
-        vehicleName: vehicleName,
-        merchantId: "EVRENTALS_001",
-        description: `EV Rental Payment - ${bookingId}`,
-        timestamp: new Date().toISOString(),
-      };
-      setQrCodeData(JSON.stringify(paymentData));
-    }
-  }, [amount, bookingId, vehicleId, vehicleName, currentMethod, amountVND]);
-
-  // Payment timer countdown
-  useEffect(() => {
-    if (currentMethod === "qr_code" && paymentStatus === "idle") {
-      const timer = setInterval(() => {
-        setPaymentTimer((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setPaymentStatus("failed");
-            toast({
-              title: "Payment Expired",
-              description: "The QR code has expired. Please try again.",
-              variant: "destructive",
-            });
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [currentMethod, paymentStatus, toast]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -171,39 +162,109 @@ const PaymentSystem = ({
 
 
 
-  const handlePaymentMethodChange = (method: "qr_code" | "cash") => {
+  const handlePaymentMethodChange = (method: "wallet" | "cash") => {
     setCurrentMethod(method);
     setPaymentStatus("idle");
-    setPaymentTimer(300);
   };
 
   const processPayment = async () => {
+    if (currentMethod === "wallet" && walletBalance !== null && walletBalance < amountVND) {
+      toast({
+        title: "Insufficient Balance",
+        description: `Your wallet has ${walletBalance.toLocaleString('vi-VN')} VND, but you need ${amountVND.toLocaleString('vi-VN')} VND. Please deposit more money.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setPaymentStatus("processing");
 
-    // Simulate payment processing
-    setTimeout(() => {
-      const paymentData: PaymentData = {
-        paymentId: `PAY_${Date.now()}`,
-        method: currentMethod,
-        amount: amountVND,
-        status: "completed",
-        timestamp: new Date(),
-        receiptSent: false,
-      };
+    try {
+      if (currentMethod === "wallet") {
+        // Call wallet withdrawal API
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error("Not authenticated");
+        }
 
-      setPaymentStatus("completed");
+        const response = await fetch('http://localhost:5000/api/wallet/withdraw', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            Amount: amountVND,
+            Reason: `Payment for booking ${bookingId}`,
+            TransactionId: `TXN_${Date.now()}`,
+            ReservationId: null, // Will be set later when reservation is created
+          }),
+        });
 
-      // Send receipt email (mock)
-      setTimeout(() => {
-        paymentData.receiptSent = true;
-        onPaymentComplete(paymentData);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Payment failed');
+        }
+
+        const result = await response.json();
+        
+        // Update local balance
+        setWalletBalance(result.newBalance);
+
+        const paymentData: PaymentData = {
+          paymentId: `PAY_${Date.now()}`,
+          method: "wallet",
+          amount: amountVND,
+          status: "completed",
+          timestamp: new Date(),
+          receiptSent: false,
+        };
+
+        setPaymentStatus("completed");
 
         toast({
           title: "Payment Successful!",
-          description: `Receipt sent to ${customerInfo.email}`,
+          description: `Amount ${amountVND.toLocaleString('vi-VN')} VND deducted from wallet. New balance: ${result.newBalance.toLocaleString('vi-VN')} VND`,
         });
-      }, 1000);
-    }, 2000);
+
+        setTimeout(() => {
+          paymentData.receiptSent = true;
+          onPaymentComplete(paymentData);
+        }, 1000);
+      } else {
+        // Cash payment (simulated)
+        setTimeout(() => {
+          const paymentData: PaymentData = {
+            paymentId: `PAY_${Date.now()}`,
+            method: currentMethod,
+            amount: amountVND,
+            status: "completed",
+            timestamp: new Date(),
+            receiptSent: false,
+          };
+
+          setPaymentStatus("completed");
+
+          setTimeout(() => {
+            paymentData.receiptSent = true;
+            onPaymentComplete(paymentData);
+
+            toast({
+              title: "Payment Successful!",
+              description: `Receipt sent to ${customerInfo.email}`,
+            });
+          }, 1000);
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      setPaymentStatus("failed");
+      toast({
+        title: "Payment Failed",
+        description: error.message || "An error occurred during payment",
+        variant: "destructive",
+      });
+    }
   };
 
 
@@ -245,106 +306,49 @@ Thank you for choosing EVRentals!
   
 
 
-  const renderQRPayment = () => (
+  const renderWalletPayment = () => (
     <div className="space-y-6">
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="flex items-center justify-center space-x-2">
-            <QrCode className="h-6 w-6" />
-            <span>Bank Transfer QR Code</span>
+            <CreditCard className="h-6 w-6" />
+            <span>Wallet Payment</span>
           </CardTitle>
           <CardDescription>
-            Scan with your banking app to transfer money
+            Pay directly from your wallet balance
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {paymentStatus === "idle" && (
             <>
-
-              {/* ✅ THÊM: Bank Information */}
-              <div className="p-4 bg-gray-50 rounded-lg space-y-3 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Bank:</span>
-                  <span className="font-medium">{BANK_INFO.bankName}</span>
+              {/* Wallet Balance */}
+              {loadingBalance ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-sm text-muted-foreground mt-2">Loading wallet balance...</p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Account Number:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{BANK_INFO.accountNumber}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => copyToClipboard(BANK_INFO.accountNumber, "Account number")}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </Button>
+              ) : (
+                <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 font-medium">Current Balance:</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {walletBalance !== null ? walletBalance.toLocaleString('vi-VN') : '0'} VND
+                    </span>
                   </div>
+                  {walletBalance !== null && walletBalance < amountVND && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                      <p>⚠️ Insufficient balance</p>
+                      <p className="text-xs mt-1">You need {amountVND.toLocaleString('vi-VN')} VND but only have {walletBalance.toLocaleString('vi-VN')} VND</p>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Account Name:</span>
-                  <span className="font-medium text-xs">{BANK_INFO.accountName}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Transfer Content:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-blue-600 text-xs">{generateTransferContent()}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => copyToClipboard(generateTransferContent(), "Transfer content")}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* QR Code Display */}
-              <div className="flex justify-center">
-                <div className="p-4 bg-white border-2 border-dashed border-primary rounded-lg">
-                  <img
-                    src={generateBankQRContent()}
-                    alt="VietQR Code"
-                    className="w-48 h-48 object-contain"
-                    onError={(e) => {
-                      // Fallback nếu API VietQR lỗi
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const fallback = document.createElement('div');
-                      fallback.innerHTML = `
-                        <QRCodeSVG
-                          value="${generateTransferContent()}"
-                          size={200}
-                          level="M"
-                          includeMargin={true}
-                        />
-                      `;
-                      target.parentNode?.appendChild(fallback);
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Payment Timer */}
-              <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Clock className="h-4 w-4 text-warning" />
-                  <span className="text-sm font-medium text-warning">
-                    Time remaining: {formatTime(paymentTimer)}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Transfer must be completed within 5 minutes
-                </p>
-              </div>
+              )}
 
               {/* Payment Details */}
-              <div className="space-y-2">
+              <div className="space-y-2 p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between">
-                  <span>Amount:</span>
-                  <span className="font-bold">{amountVND.toLocaleString('vi-VN')} VND</span>
+                  <span className="text-gray-600">Payment Amount:</span>
+                  <span className="font-bold text-lg text-green-600">{amountVND.toLocaleString('vi-VN')} VND</span>
                 </div>
 
                 <div className="flex justify-between">
@@ -355,7 +359,7 @@ Thank you for choosing EVRentals!
                 {vehicleName && (
                   <div className="flex justify-between">
                     <span>Vehicle:</span>
-                    <span className="font-medium text-sm">{vehicleName}</span>
+                    <span className="font-medium">{vehicleName}</span>
                   </div>
                 )}
 
@@ -363,13 +367,28 @@ Thank you for choosing EVRentals!
                   <span>Booking ID:</span>
                   <span className="font-mono text-sm">{bookingId}</span>
                 </div>
+
+                {walletBalance !== null && walletBalance >= amountVND && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Balance After Payment:</span>
+                      <span className="font-bold text-blue-600">
+                        {(walletBalance - amountVND).toLocaleString('vi-VN')} VND
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
               <div className="flex space-x-2">
-                <Button className="flex-1" onClick={processPayment}> 
+                <Button 
+                  className="flex-1" 
+                  onClick={processPayment}
+                  disabled={walletBalance !== null && walletBalance < amountVND}
+                > 
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  I've Paid
+                  Pay with Wallet
                 </Button>
               </div>
             </>
@@ -486,13 +505,13 @@ Thank you for choosing EVRentals!
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Button
-                variant={currentMethod === "qr_code" ? "default" : "outline"}
+                variant={currentMethod === "wallet" ? "default" : "outline"}
                 className="h-16"
-                onClick={() => handlePaymentMethodChange("qr_code")}
+                onClick={() => handlePaymentMethodChange("wallet")}
               >
                 <div className="flex flex-col items-center space-y-2">
-                  <QrCode className="h-6 w-6" />
-                  <span>QR Code</span>
+                  <CreditCard className="h-6 w-6" />
+                  <span>Wallet</span>
                 </div>
               </Button>
 
@@ -513,7 +532,7 @@ Thank you for choosing EVRentals!
       )}
 
       {/* Payment Interface */}
-      {currentMethod === "qr_code" && renderQRPayment()}
+      {currentMethod === "wallet" && renderWalletPayment()}
       {currentMethod === "cash" && renderCashPayment()} 
 
       {/* Receipt Actions */}

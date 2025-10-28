@@ -1,3 +1,5 @@
+using EVRentalApi.Models;
+
 namespace EVRentalApi.Infrastructure.Repositories
 {
     public interface IVehicleRepository
@@ -7,6 +9,9 @@ namespace EVRentalApi.Infrastructure.Repositories
         Task<IEnumerable<dynamic>> GetAvailableVehiclesAsync();
         Task<IEnumerable<dynamic>> GetVehiclesByModelIdAsync(string modelId);
         Task<IEnumerable<dynamic>> GetVehiclesByStationIdAsync(int stationId);
+        Task<IEnumerable<dynamic>> GetUnassignedVehiclesAsync();
+        Task<bool> AssignVehicleToStationAsync(int vehicleId, int stationId, string location);
+        Task<dynamic?> CreateVehicleAsync(AdminCreateVehicleRequest request);
     }
 }
 
