@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useStationVehicles, useStaffProfile, useStationInfo } from "@/hooks/useStaffApi";
-import { apiService, Vehicle } from "@/services/api";
+import { useStationVehicles, useStaffProfile, useStationInfo, usePendingVehicles } from "@/hooks/useStaffApi";
+import { apiService, Vehicle, staffApiService } from "@/services/api";
 import {
   Card,
   CardContent,
@@ -101,14 +101,40 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const { data: staffProfile, loading: profileLoading, error: profileError } = useStaffProfile();
   const { data: stationInfo, loading: stationLoading, error: stationError } = useStationInfo();
   const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
+  const { data: pendingVehicles, loading: pendingVehiclesLoading, error: pendingVehiclesError, refetch: refetchPendingVehicles } = usePendingVehicles();
+  
+  // Pending customers state
+  const [pendingCustomers, setPendingCustomers] = useState<any[]>([]);
+  const [pendingCustomersLoading, setPendingCustomersLoading] = useState(false);
+  const [pendingCustomersError, setPendingCustomersError] = useState<string | null>(null);
   
   // Debug API data
   console.log('Staff Profile:', staffProfile);
   console.log('Station Info:', stationInfo);
   console.log('API Vehicles:', apiVehicles);
+  console.log('Pending Vehicles:', pendingVehicles);
+  console.log('Pending Customers:', pendingCustomers);
   console.log('Vehicles Loading:', vehiclesLoading);
   console.log('Vehicles Error:', vehiclesError);
   console.log('Token:', localStorage.getItem('token'));
+
+  // Fetch pending customers
+  const fetchPendingCustomers = async () => {
+    try {
+      setPendingCustomersLoading(true);
+      const customers = await staffApiService.getCustomersForVerification();
+      setPendingCustomers(customers);
+    } catch (error) {
+      console.error('Error fetching pending customers:', error);
+      setPendingCustomersError(error instanceof Error ? error.message : 'Failed to fetch customers');
+    } finally {
+      setPendingCustomersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingCustomers();
+  }, []);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [maintenanceNotes, setMaintenanceNotes] = useState("");
@@ -310,30 +336,70 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     },
   ];
 
-  const pendingBookings = [
-    {
-      id: "B001",
-      customer: "Tran Thi B",
-      vehicle: "Tesla Model 3",
-      pickupTime: "2024-01-15T14:00:00",
-      licenseVerified: false,
-      documentsUploaded: true,
-    },
-    {
-      id: "B002",
-      customer: "Le Van C",
-      vehicle: "VinFast VF8",
-      pickupTime: "2024-01-15T16:30:00",
-      licenseVerified: true,
-      documentsUploaded: true,
-    },
-  ];
+  // Only show pending customers (NO System Registration / pending vehicles)
+  const pendingBookings = pendingCustomers.map((customer) => ({
+    id: customer.reservationId?.toString() || customer.userId?.toString(),
+    reservationId: customer.reservationId,
+    customer: customer.fullName,
+    customerInfo: customer,
+    vehicle: customer.vehicleModel,
+    registeredAt: customer.createdAt, // Use createdAt as "Registered" time
+    pickupTime: customer.startTime,
+    endTime: customer.endTime,
+    phone: customer.phone,
+    email: customer.email,
+    cccd: customer.cccd,
+    licenseNumber: customer.licenseNumber,
+    hasDocuments: customer.hasDocuments,
+    documents: customer.documents || [],
+    licenseVerified: customer.documents?.some((d: any) => d.documentType === 'license' && d.status === 'approved') || false,
+    documentsUploaded: customer.hasDocuments,
+  }));
 
-  const handleVehicleCheckout = (vehicleId: string, customerId: string) => {
-    toast({
-      title: "Vehicle Checked Out",
-      description: `Vehicle ${vehicleId} has been successfully checked out.`,
-    });
+  const handleVehicleCheckout = async (vehicleId: string, bookingId?: string) => {
+    try {
+      // Find the booking to get customer ID
+      const booking = pendingBookings.find(b => 
+        (b.reservationId?.toString() === bookingId) || (b.id === bookingId)
+      );
+      
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+
+      // Get customer ID from booking
+      const customerId = booking.customerInfo.userId;
+      
+      if (!customerId) {
+        throw new Error("Customer ID not found");
+      }
+
+      // Call verify customer API - this will update both reservation and vehicle status
+      await staffApiService.verifyCustomer(customerId, {
+        documentType: "all",
+        status: "approved",
+        notes: "Customer verified and checked out"
+      });
+      
+      // Refresh both vehicle lists and pending customers
+      await refetchVehicles();
+      await refetchPendingVehicles();
+      await fetchPendingCustomers();
+      
+      toast({
+        title: "Vehicle Checked Out",
+        description: `Vehicle has been successfully checked out.`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to checkout vehicle",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   const handleVehicleCheckin = (vehicleId: string) => {
@@ -919,9 +985,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={vehicle.status === "rented"}
+                        disabled={vehicle.status === "rented" || vehicle.status === "pending"}
                         onClick={() => handleEditVehicle(vehicle)}
-                        title={vehicle.status === "rented" ? "Cannot edit vehicle that is currently rented" : "Edit vehicle"}
+                        title={vehicle.status === "rented" || vehicle.status === "pending" ? "Cannot edit vehicle with this status" : "Edit vehicle"}
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         Edit
@@ -962,6 +1028,19 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         >
                           <RefreshCw className="h-3 w-3 mr-1" />
                           Return Inspection
+                        </Button>
+                      )}
+
+                      {vehicle.status === "pending" && (
+                        <Button
+                          size="sm"
+                          className="bg-primary"
+                          onClick={() =>
+                            handleVehicleStatusUpdate(vehicle.id, "available")
+                          }
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Approve Vehicle
                         </Button>
                       )}
 
@@ -1703,7 +1782,22 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {pendingBookings.map((booking) => (
+            {(pendingCustomersLoading || pendingVehiclesLoading) ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading...</p>
+              </div>
+            ) : (pendingCustomersError || pendingVehiclesError) ? (
+              <div className="text-center py-8 text-red-500">
+                <p>Error: {pendingCustomersError || pendingVehiclesError}</p>
+              </div>
+            ) : pendingBookings.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No pending verifications found</p>
+              </div>
+            ) : (
+              pendingBookings.map((booking: any) => (
               <div
                 key={booking.id}
                 className="flex items-center justify-between p-4 border rounded-lg"
@@ -1717,8 +1811,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     <p className="text-sm text-muted-foreground">
                       Vehicle: {booking.vehicle}
                     </p>
+                    {booking.phone && (
+                      <p className="text-sm text-muted-foreground">
+                        Phone: {booking.phone}
+                      </p>
+                    )}
                     <p className="text-sm text-muted-foreground">
-                      Pickup: {new Date(booking.pickupTime).toLocaleString()}
+                      Registered: {new Date(booking.registeredAt).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -1747,86 +1846,128 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
                   <div className="flex space-x-2">
                     <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline">
-                          Verify Documents
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Customer Verification</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Driver's License</Label>
-                            <div className="flex space-x-2 mt-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() =>
-                                  handleTakePhoto(booking.id, "license")
-                                }
-                              >
-                                <Camera className="h-4 w-4 mr-2" />
-                                Take Photo
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() =>
-                                  handleUploadDocument(booking.id, "license")
-                                }
-                              >
-                                <Upload className="h-4 w-4 mr-2" />
-                                Upload
-                              </Button>
-                            </div>
-                          </div>
-                          <div>
-                            <Label>Identity Document (CCCD/CMND)</Label>
-                            <div className="flex space-x-2 mt-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() =>
-                                  handleTakePhoto(booking.id, "identity")
-                                }
-                              >
-                                <Camera className="h-4 w-4 mr-2" />
-                                Take Photo
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() =>
-                                  handleUploadDocument(booking.id, "identity")
-                                }
-                              >
-                                <Upload className="h-4 w-4 mr-2" />
-                                Upload
-                              </Button>
-                            </div>
-                          </div>
-                          <Button
-                            className="w-full"
-                            onClick={() =>
-                              handleCustomerVerification(booking.id)
-                            }
-                          >
-                            Verify & Approve
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            Verify Documents
                           </Button>
-                        </div>
-                      </DialogContent>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Customer Verification: {booking.customer}</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-6">
+                            {/* Customer Info */}
+                            <div className="space-y-2">
+                              <h3 className="font-semibold">Customer Information</h3>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <p><span className="font-medium">Name:</span> {booking.customer}</p>
+                                {booking.phone && <p><span className="font-medium">Phone:</span> {booking.phone}</p>}
+                                {booking.email && <p><span className="font-medium">Email:</span> {booking.email}</p>}
+                                <p><span className="font-medium">Vehicle:</span> {booking.vehicle}</p>
+                              </div>
+                            </div>
+
+                            {/* Documents Section */}
+                            {booking.documents && booking.documents.length > 0 && (
+                              <div className="space-y-4">
+                                <h3 className="font-semibold">Uploaded Documents</h3>
+                                <div className="space-y-3">
+                                  {booking.documents.map((doc: any) => (
+                                    <div key={doc.documentId} className="border rounded-lg p-3">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <Label className="font-semibold capitalize">{doc.documentType}</Label>
+                                        <Badge variant={doc.status === 'approved' ? 'default' : 'secondary'}>
+                                          {doc.status || 'Pending'}
+                                        </Badge>
+                                      </div>
+                                      <img 
+                                        src={`http://localhost:5000${doc.fileUrl}`} 
+                                        alt={doc.documentType}
+                                        className="w-full h-48 object-contain bg-muted rounded border cursor-pointer"
+                                        onClick={() => window.open(`http://localhost:5000${doc.fileUrl}`, '_blank')}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Verify Documents Section */}
+                            <div className="space-y-4">
+                              <h3 className="font-semibold">Verify Documents</h3>
+                              <div>
+                                <Label>Driver's License</Label>
+                                <div className="flex space-x-2 mt-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() =>
+                                      handleTakePhoto(booking.id, "license")
+                                    }
+                                  >
+                                    <Camera className="h-4 w-4 mr-2" />
+                                    Take Photo
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() =>
+                                      handleUploadDocument(booking.id, "license")
+                                    }
+                                  >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Upload
+                                  </Button>
+                                </div>
+                              </div>
+                              <div>
+                                <Label>Identity Document (CCCD/CMND)</Label>
+                                <div className="flex space-x-2 mt-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() =>
+                                      handleTakePhoto(booking.id, "identity")
+                                    }
+                                  >
+                                    <Camera className="h-4 w-4 mr-2" />
+                                    Take Photo
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() =>
+                                      handleUploadDocument(booking.id, "identity")
+                                    }
+                                  >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Upload
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <Button
+                              className="w-full"
+                              onClick={() =>
+                                handleCustomerVerification(booking.id)
+                              }
+                            >
+                              Verify & Approve Documents
+                            </Button>
+                          </div>
+                        </DialogContent>
                     </Dialog>
 
                     <Button
                       size="sm"
+                      className="bg-primary"
                       onClick={() =>
-                        handleVehicleCheckout(booking.vehicle, booking.id)
+                        handleVehicleCheckout(booking.vehicle, booking.reservationId?.toString() || booking.id)
                       }
                     >
                       Complete Checkout
@@ -1834,7 +1975,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   </div>
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </CardContent>
       </Card>

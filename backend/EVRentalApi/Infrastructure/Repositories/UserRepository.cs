@@ -236,6 +236,8 @@ WHERE email = @Email AND is_active = 1";
     // Update personal information
     public async Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth, string? phone)
     {
+        Console.WriteLine($"[UserRepository] UpdatePersonalInfoAsync called with email: {email}");
+        
         const string sql = @"
 UPDATE users 
 SET cccd = @Cccd,
@@ -245,7 +247,7 @@ SET cccd = @Cccd,
     date_of_birth = @DateOfBirth,
     phone = @Phone,
     updated_at = @UpdatedAt
-WHERE email = @Email AND is_active = 1";
+WHERE email = @Email";
 
         await using var conn = _connFactory();
         await conn.OpenAsync();
@@ -266,10 +268,33 @@ WHERE email = @Email AND is_active = 1";
         try
         {
             var rowsAffected = await cmd.ExecuteNonQueryAsync();
+            Console.WriteLine($"[UserRepository] UpdatePersonalInfoAsync - rows affected: {rowsAffected}");
+            
+            if (rowsAffected == 0)
+            {
+                Console.WriteLine($"[UserRepository] No user found with email: {email}");
+                
+                // Check if user exists at all
+                var checkSql = "SELECT user_id, is_active FROM users WHERE email = @Email";
+                await using var checkCmd = new SqlCommand(checkSql, conn);
+                checkCmd.Parameters.AddWithValue("@Email", email);
+                var checkResult = await checkCmd.ExecuteScalarAsync();
+                
+                if (checkResult == null)
+                {
+                    Console.WriteLine($"[UserRepository] User does not exist in database");
+                }
+                else
+                {
+                    Console.WriteLine($"[UserRepository] User exists with is_active status");
+                }
+            }
+            
             return rowsAffected > 0;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[UserRepository] UpdatePersonalInfoAsync error: {ex.Message}");
             return false;
         }
     }

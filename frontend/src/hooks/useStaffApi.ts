@@ -288,3 +288,34 @@ export const useVehicle = (vehicleId: number) => {
     updateVehicle 
   };
 };
+
+// Pending Vehicles Hook
+export const usePendingVehicles = () => {
+  const [data, setData] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await staffApiService.getVehiclesByStatus('pending');
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch pending vehicles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  return { 
+    data, 
+    loading, 
+    error, 
+    refetch: fetchData
+  };
+};

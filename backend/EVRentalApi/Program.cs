@@ -10,6 +10,7 @@ using EVRentalApi.Infrastructure.Repositories;
 using EVRentalApi.Infrastructure.Email;
 using EVRentalApi.Models;
 using System.Collections.Generic;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -98,8 +99,16 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Serve static files (for uploaded documents)
+// Serve static files from wwwroot
 app.UseStaticFiles();
+
+// Serve static files from uploads directory
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "uploads")),
+    RequestPath = "/uploads"
+});
 
 // Map controllers
 app.MapControllers();

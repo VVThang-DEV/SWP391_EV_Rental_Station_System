@@ -555,6 +555,7 @@ export interface MaintenanceRecord {
 }
 
 export interface CustomerVerification {
+  reservationId: number;
   userId: number;
   fullName: string;
   email: string;
@@ -564,6 +565,10 @@ export interface CustomerVerification {
   address: string | null;
   dateOfBirth: string | null;
   gender: string | null;
+  vehicleId: number;
+  vehicleModel: string;
+  startTime: string;
+  endTime: string;
   hasDocuments: boolean;
   documents: Document[];
   createdAt: string;
@@ -655,6 +660,19 @@ class StaffApiService {
     return response.json();
   }
 
+  async getVehiclesByStatus(status: string): Promise<Vehicle[]> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/vehicles/status/${status}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch vehicles by status');
+    }
+    return response.json();
+  }
+
   async getVehicle(vehicleId: number): Promise<Vehicle> {
     const token = localStorage.getItem('token');
     const response = await fetch(`${this.baseUrl}/vehicles/${vehicleId}`, {
@@ -735,7 +753,12 @@ class StaffApiService {
 
   // Customer Verification
   async getCustomersForVerification(): Promise<CustomerVerification[]> {
-    const response = await fetch(`${this.baseUrl}/customers`);
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/customers`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch customers for verification');
     }
@@ -743,10 +766,12 @@ class StaffApiService {
   }
 
   async verifyCustomer(customerId: number, data: CustomerVerificationRequest): Promise<void> {
+    const token = localStorage.getItem('token');
     const response = await fetch(`${this.baseUrl}/customers/${customerId}/verify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(data),
     });

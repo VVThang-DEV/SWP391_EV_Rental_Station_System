@@ -131,6 +131,81 @@ public class StaffRepository : IStaffRepository
         return vehicles;
     }
 
+    public async Task<List<VehicleDto>> GetVehiclesByStatusAsync(int staffId, string status)
+    {
+        const string sql = @"
+            SELECT 
+                v.vehicle_id,
+                v.station_id,
+                v.model_id,
+                v.unique_vehicle_id,
+                v.battery_level,
+                v.max_range_km,
+                v.status,
+                v.price_per_hour,
+                v.price_per_day,
+                v.rating,
+                v.review_count,
+                v.trips,
+                v.mileage,
+                v.last_maintenance,
+                v.last_maintenance,
+                v.insurance_expiry,
+                v.condition,
+                v.created_at,
+                v.updated_at,
+                v.image,
+                v.license_plate,
+                v.fuel_efficiency,
+                v.location
+            FROM vehicles v
+            INNER JOIN users u ON v.station_id = u.station_id
+            WHERE u.user_id = @StaffId 
+                AND u.role_id = (SELECT role_id FROM roles WHERE role_name = 'staff')
+                AND v.status = @Status";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@StaffId", staffId);
+        cmd.Parameters.AddWithValue("@Status", status);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var vehicles = new List<VehicleDto>();
+
+        while (await reader.ReadAsync())
+        {
+            vehicles.Add(new VehicleDto
+            {
+                VehicleId = reader.GetInt32("vehicle_id"),
+                StationId = reader.GetInt32("station_id"),
+                ModelId = reader.GetString("model_id"),
+                UniqueVehicleId = reader.IsDBNull("unique_vehicle_id") ? null : reader.GetString("unique_vehicle_id"),
+                BatteryLevel = reader.GetInt32("battery_level"),
+                MaxRangeKm = reader.IsDBNull("max_range_km") ? 0 : reader.GetInt32("max_range_km"),
+                Status = reader.GetString("status"),
+                PricePerHour = reader.GetDecimal("price_per_hour"),
+                PricePerDay = reader.IsDBNull("price_per_day") ? 0 : reader.GetDecimal("price_per_day"),
+                Rating = reader.IsDBNull("rating") ? 0 : reader.GetDecimal("rating"),
+                ReviewCount = reader.IsDBNull("review_count") ? 0 : reader.GetInt32("review_count"),
+                Trips = reader.IsDBNull("trips") ? 0 : reader.GetInt32("trips"),
+                Mileage = reader.IsDBNull("mileage") ? 0 : reader.GetInt32("mileage"),
+                LastMaintenance = reader.IsDBNull("last_maintenance") ? "" : reader.GetDateTime("last_maintenance").ToString("yyyy-MM-dd"),
+                InsuranceExpiry = reader.IsDBNull("insurance_expiry") ? "" : reader.GetDateTime("insurance_expiry").ToString("yyyy-MM-dd"),
+                Condition = reader.IsDBNull("condition") ? null : reader.GetString("condition"),
+                CreatedAt = reader.GetDateTime("created_at"),
+                UpdatedAt = reader.GetDateTime("updated_at"),
+                Image = reader.IsDBNull("image") ? null : reader.GetString("image"),
+                LicensePlate = reader.IsDBNull("license_plate") ? null : reader.GetString("license_plate"),
+                FuelEfficiency = reader.IsDBNull("fuel_efficiency") ? null : reader.GetString("fuel_efficiency"),
+                Location = reader.IsDBNull("location") ? null : reader.GetString("location")
+            });
+        }
+
+        return vehicles;
+    }
+
     public async Task<VehicleDto?> GetVehicleAsync(int vehicleId, int staffId)
     {
         const string sql = @"
@@ -368,14 +443,183 @@ public class StaffRepository : IStaffRepository
 
     public async Task<List<CustomerVerificationDto>> GetCustomersForVerificationAsync(int staffId)
     {
-        // Simplified implementation
-        return new List<CustomerVerificationDto>();
+        const string sql = @"
+            SELECT 
+                r.reservation_id,
+                r.user_id,
+                r.vehicle_id,
+                r.start_time,
+                r.end_time,
+                r.created_at,
+                u.full_name,
+                u.email,
+                u.phone,
+                u.cccd,
+                u.license_number,
+                u.address,
+                u.date_of_birth,
+                u.gender,
+                v.model_id as vehicle_model
+            FROM reservations r
+            INNER JOIN users u ON r.user_id = u.user_id
+            INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+            INNER JOIN stations s ON v.station_id = s.station_id
+            INNER JOIN users staff ON staff.station_id = s.station_id
+            WHERE staff.user_id = @StaffId 
+                AND staff.role_id = (SELECT role_id FROM roles WHERE role_name = 'staff')
+                AND LOWER(r.status) = 'pending'";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@StaffId", staffId);
+
+        var customers = new List<CustomerVerificationDto>();
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var customer = new CustomerVerificationDto
+            {
+                ReservationId = reader.GetInt32("reservation_id"),
+                UserId = reader.GetInt32("user_id"),
+                VehicleId = reader.GetInt32("vehicle_id"),
+                FullName = reader.GetString("full_name"),
+                Email = reader.GetString("email"),
+                Phone = reader.GetString("phone"),
+                VehicleModel = reader.GetString("vehicle_model"),
+                StartTime = reader.GetDateTime("start_time"),
+                EndTime = reader.GetDateTime("end_time"),
+                CreatedAt = reader.GetDateTime("created_at"),
+                Cccd = reader.IsDBNull("cccd") ? null : reader.GetString("cccd"),
+                LicenseNumber = reader.IsDBNull("license_number") ? null : reader.GetString("license_number"),
+                Address = reader.IsDBNull("address") ? null : reader.GetString("address"),
+                DateOfBirth = reader.IsDBNull("date_of_birth") ? null : reader.GetDateTime("date_of_birth"),
+                Gender = reader.IsDBNull("gender") ? null : reader.GetString("gender"),
+                Documents = new List<DocumentDto>()
+            };
+
+            // Get documents for this customer
+            customer.Documents = await GetUserDocumentsAsync(customer.UserId);
+            customer.HasDocuments = customer.Documents.Count > 0;
+
+            customers.Add(customer);
+        }
+
+        return customers;
+    }
+
+    private async Task<List<DocumentDto>> GetUserDocumentsAsync(int userId)
+    {
+        const string sql = @"
+            SELECT 
+                document_id,
+                document_type,
+                file_url,
+                status,
+                verified_at,
+                verified_by,
+                uploaded_at
+            FROM user_documents
+            WHERE user_id = @UserId";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@UserId", userId);
+
+        var documents = new List<DocumentDto>();
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            documents.Add(new DocumentDto
+            {
+                DocumentId = reader.GetInt32("document_id"),
+                DocumentType = reader.GetString("document_type"),
+                FileUrl = reader.GetString("file_url"),
+                Status = reader.IsDBNull("status") ? null : reader.GetString("status"),
+                VerifiedAt = reader.IsDBNull("verified_at") ? null : reader.GetDateTime("verified_at"),
+                VerifiedBy = reader.IsDBNull("verified_by") ? null : reader.GetInt32("verified_by"),
+                UploadedAt = reader.GetDateTime("uploaded_at")
+            });
+        }
+
+        return documents;
     }
 
     public async Task<bool> VerifyCustomerAsync(int customerId, int staffId, CustomerVerificationRequest request)
     {
-        // Simplified implementation
-        return true;
+        try
+        {
+            await using var conn = _connFactory();
+            await conn.OpenAsync();
+
+            // Find the pending reservation for this customer
+            const string findReservationSql = @"
+                SELECT TOP 1 reservation_id, vehicle_id
+                FROM reservations
+                WHERE user_id = @UserId AND LOWER(status) = 'pending'
+                ORDER BY created_at DESC";
+
+            int reservationId = 0;
+            int vehicleId = 0;
+
+            await using (var findCmd = new SqlCommand(findReservationSql, conn))
+            {
+                findCmd.Parameters.AddWithValue("@UserId", customerId);
+                await using var reader = await findCmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    reservationId = reader.GetInt32("reservation_id");
+                    vehicleId = reader.GetInt32("vehicle_id");
+                }
+            }
+
+            if (reservationId == 0)
+            {
+                Console.WriteLine($"[VerifyCustomerAsync] No pending reservation found for customer {customerId}");
+                return false;
+            }
+
+            // Update reservation status to 'confirmed'
+            const string updateReservationSql = @"
+                UPDATE reservations
+                SET status = 'confirmed'
+                WHERE reservation_id = @ReservationId";
+
+            await using var updateReservationCmd = new SqlCommand(updateReservationSql, conn);
+            updateReservationCmd.Parameters.AddWithValue("@ReservationId", reservationId);
+            var reservationUpdated = await updateReservationCmd.ExecuteNonQueryAsync() > 0;
+
+            // Update vehicle status to 'rented'
+            const string updateVehicleSql = @"
+                UPDATE vehicles
+                SET status = 'rented', updated_at = GETDATE()
+                WHERE vehicle_id = @VehicleId";
+
+            await using var updateVehicleCmd = new SqlCommand(updateVehicleSql, conn);
+            updateVehicleCmd.Parameters.AddWithValue("@VehicleId", vehicleId);
+            var vehicleUpdated = await updateVehicleCmd.ExecuteNonQueryAsync() > 0;
+
+            if (reservationUpdated && vehicleUpdated)
+            {
+                Console.WriteLine($"[VerifyCustomerAsync] Successfully updated reservation {reservationId} and vehicle {vehicleId}");
+                return true;
+            }
+            else
+            {
+                Console.WriteLine($"[VerifyCustomerAsync] Failed to update reservation or vehicle. Reservation: {reservationUpdated}, Vehicle: {vehicleUpdated}");
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[VerifyCustomerAsync] Error: {ex.Message}");
+            return false;
+        }
     }
 
     public async Task<List<HandoverDto>> GetHandoversAsync(int staffId)

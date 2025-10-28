@@ -70,6 +70,29 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
+    /// Get vehicles by status at staff's station
+    /// </summary>
+    [HttpGet("vehicles/status/{status}")]
+    public async Task<IActionResult> GetVehiclesByStatus(string status)
+    {
+        try
+        {
+            var staffId = GetStaffIdFromToken();
+            if (staffId == null)
+            {
+                return Unauthorized("Invalid staff token");
+            }
+
+            var vehicles = await _staffService.GetVehiclesByStatusAsync(staffId.Value, status);
+            return Ok(vehicles);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get specific vehicle details
     /// </summary>
     [HttpGet("vehicles/{vehicleId}")]

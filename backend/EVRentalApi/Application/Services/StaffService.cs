@@ -22,6 +22,11 @@ public class StaffService : IStaffService
         return await _staffRepository.GetStationVehiclesAsync(staffId);
     }
 
+    public async Task<List<VehicleDto>> GetVehiclesByStatusAsync(int staffId, string status)
+    {
+        return await _staffRepository.GetVehiclesByStatusAsync(staffId, status);
+    }
+
     public async Task<VehicleDto?> GetVehicleAsync(int vehicleId, int staffId)
     {
         return await _staffRepository.GetVehicleAsync(vehicleId, staffId);
@@ -42,13 +47,15 @@ public class StaffService : IStaffService
                 };
             }
 
-            // Check if vehicle is currently rented - prevent editing rented vehicles
-            if (vehicle.Status?.ToLower() == "rented")
+            // Check if vehicle is currently rented or pending - prevent editing
+            if (vehicle.Status?.ToLower() == "rented" || vehicle.Status?.ToLower() == "pending")
             {
                 return new VehicleUpdateResponse
                 {
                     Success = false,
-                    Message = "Cannot edit vehicle that is currently rented. Please wait until the rental period ends."
+                    Message = vehicle.Status?.ToLower() == "rented" 
+                        ? "Cannot edit vehicle that is currently rented. Please wait until the rental period ends."
+                        : "Cannot edit vehicle that is pending approval. Please approve or reject the vehicle first."
                 };
             }
 
@@ -138,13 +145,15 @@ public class StaffService : IStaffService
                 };
             }
 
-            // Check if vehicle is currently rented - prevent maintenance on rented vehicles
-            if (vehicle.Status?.ToLower() == "rented")
+            // Check if vehicle is currently rented or pending - prevent maintenance
+            if (vehicle.Status?.ToLower() == "rented" || vehicle.Status?.ToLower() == "pending")
             {
                 return new MaintenanceResponse
                 {
                     Success = false,
-                    Message = "Cannot perform maintenance on vehicle that is currently rented. Please wait until the rental period ends."
+                    Message = vehicle.Status?.ToLower() == "rented" 
+                        ? "Cannot perform maintenance on vehicle that is currently rented. Please wait until the rental period ends."
+                        : "Cannot perform maintenance on vehicle that is pending approval. Please approve or reject the vehicle first."
                 };
             }
 
@@ -273,6 +282,18 @@ public class StaffService : IStaffService
             if (vehicle == null || vehicle.StationId != user.StationId.Value)
             {
                 return new VehicleUpdateResponse { Success = false, Message = "Vehicle not found or does not belong to your station." };
+            }
+
+            // Check if vehicle is currently rented or pending - prevent editing
+            if (vehicle.Status?.ToLower() == "rented" || vehicle.Status?.ToLower() == "pending")
+            {
+                return new VehicleUpdateResponse 
+                { 
+                    Success = false, 
+                    Message = vehicle.Status?.ToLower() == "rented" 
+                        ? "Cannot edit vehicle that is currently rented. Please wait until the rental period ends."
+                        : "Cannot edit vehicle that is pending approval. Please approve or reject the vehicle first."
+                };
             }
 
             // Update vehicle properties

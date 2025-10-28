@@ -10,6 +10,7 @@ public interface IStaffRepository
     
     // Vehicle Management
     Task<List<VehicleDto>> GetStationVehiclesAsync(int staffId);
+    Task<List<VehicleDto>> GetVehiclesByStatusAsync(int staffId, string status);
     Task<VehicleDto?> GetVehicleAsync(int vehicleId, int staffId);
     Task<VehicleDto?> UpdateVehicleAsync(int vehicleId, UpdateVehicleRequest request);
     Task<bool> UpdateVehicleAsync(VehicleDto vehicle);
