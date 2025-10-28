@@ -20,7 +20,8 @@ builder.Services.AddCors(p => p.AddDefaultPolicy(b => b
         "http://localhost:3000",
         "http://localhost:8080",
         "http://localhost:8081",
-        "http://localhost:8082"
+        "http://localhost:8082",
+        "http://localhost:8083"
     )
     .AllowAnyHeader()
     .AllowAnyMethod()));
@@ -980,6 +981,225 @@ app.MapPost("/api/wallet/payment-intent", [Microsoft.AspNetCore.Authorization.Au
     return Results.Ok(new { success = true, data = response });
 });
 
+// Storage for processed MoMo intents (in-memory for sandbox)
+var _processedIntents = new Dictionary<string, ProcessedIntent>();
+
+// MoMo Payment Webhook (public endpoint for MoMo to call)
+app.MapPost("/api/payment/momo/webhook", async (HttpContext context, IPaymentGatewayService gatewayService, Func<SqlConnection> getConnection, MoMoWebhookRequest request) =>
+{
+    Console.WriteLine($"[MoMo Webhook] Received webhook: IntentId={request.IntentId}, Status={request.Status}, Amount={request.Amount}");
+    
+    // Validate webhook signature (in production, verify MoMo signature)
+    // For sandbox, we'll skip signature verification
+    
+    try
+    {
+        Console.WriteLine($"[MoMo Webhook] Processing webhook for intent: {request.IntentId}");
+        
+        // Extract userId from intentId
+        // Format: pi_{timestamp}_{userId}_{guid}
+        var intentParts = request.IntentId.Split('_');
+        int userId = 0;
+        
+        if (intentParts.Length >= 3 && int.TryParse(intentParts[2], out userId))
+        {
+            Console.WriteLine($"[MoMo Webhook] Extracted userId: {userId}");
+        }
+        else
+        {
+            Console.WriteLine("[MoMo Webhook] Could not extract userId from intentId");
+            return Results.BadRequest(new { success = false, message = "Invalid intent ID format" });
+        }
+        
+        // Use amount from request
+        var amount = request.Amount;
+        Console.WriteLine($"[MoMo Webhook] Amount: {amount}, Status: {request.Status}");
+        
+        // Only process if payment was successful
+        if (request.Status != "completed")
+        {
+            Console.WriteLine($"[MoMo Webhook] Payment not successful, status: {request.Status}");
+            return Results.Ok(new { success = true, message = "Webhook received but payment not completed" });
+        }
+        
+        // Process wallet deposit
+        using var conn = getConnection();
+        await conn.OpenAsync();
+        var trans = conn.BeginTransaction();
+        
+        try
+        {
+            Console.WriteLine($"[MoMo Webhook] Inserting payment record...");
+            // Insert payment record
+            var cmd1 = new SqlCommand(@"
+                INSERT INTO dbo.payments (user_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
+                VALUES (@userId, 'momo', @amount, 'success', 'deposit', @transactionId, GETDATE(), GETDATE());
+                SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
+            cmd1.Parameters.AddWithValue("@userId", userId);
+            cmd1.Parameters.AddWithValue("@amount", amount);
+            cmd1.Parameters.AddWithValue("@transactionId", request.TransactionId ?? $"TXN_{DateTime.Now.Ticks}");
+            
+            var paymentId = (int)await cmd1.ExecuteScalarAsync();
+            Console.WriteLine($"[MoMo Webhook] Payment record inserted with ID: {paymentId}");
+
+            Console.WriteLine($"[MoMo Webhook] Updating wallet balance...");
+            // Update wallet balance
+            var cmd2 = new SqlCommand("UPDATE dbo.users SET wallet_balance = ISNULL(wallet_balance, 0) + @amount WHERE user_id = @userId", conn, trans);
+            cmd2.Parameters.AddWithValue("@userId", userId);
+            cmd2.Parameters.AddWithValue("@amount", amount);
+            await cmd2.ExecuteNonQueryAsync();
+            
+            Console.WriteLine($"[MoMo Webhook] Wallet balance updated.");
+
+            // Get new balance
+            var cmd3 = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+            cmd3.Parameters.AddWithValue("@userId", userId);
+            var balanceResult = await cmd3.ExecuteScalarAsync();
+            var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+
+            trans.Commit();
+            await conn.CloseAsync();
+            
+            Console.WriteLine($"[MoMo Webhook] Wallet updated successfully for user {userId}, amount: {amount}, new balance: {newBalance}");
+            
+            // Mark as processed for polling
+            _processedIntents[request.IntentId] = new ProcessedIntent
+            {
+                Amount = amount,
+                CompletedAt = DateTime.UtcNow
+            };
+            
+            return Results.Ok(new 
+            { 
+                success = true, 
+                message = "Webhook processed successfully",
+                newBalance
+            });
+        }
+        catch (Exception ex)
+        {
+            trans.Rollback();
+            await conn.CloseAsync();
+            Console.WriteLine($"[MoMo Webhook] Database error: {ex.Message}");
+            Console.WriteLine($"[MoMo Webhook] Stack trace: {ex.StackTrace}");
+            return Results.BadRequest(new { success = false, message = $"Webhook processing failed: {ex.Message}" });
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[MoMo Webhook] General error: {ex.Message}");
+        return Results.BadRequest(new { success = false, message = ex.Message });
+    }
+});
+
+// MoMo Payment Status Check
+app.MapGet("/api/payment/momo/status", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, IPaymentGatewayService gatewayService, string intentId) =>
+{
+    Console.WriteLine($"[MoMo Status] Checking status for intent: {intentId}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+    
+    // Check if payment was confirmed
+    var (amount, methodType) = await gatewayService.GetIntentDetailsAsync(intentId);
+    
+    // In sandbox, simulate checking payment status from a storage
+    // In production, this would query MoMo's API
+    
+    // For now, return a mock status
+    var isCompleted = _processedIntents.ContainsKey(intentId);
+    
+    if (isCompleted)
+    {
+        var intentData = _processedIntents[intentId];
+        return Results.Ok(new 
+        { 
+            success = true, 
+            status = "completed",
+            amount = intentData.Amount,
+            completedAt = intentData.CompletedAt
+        });
+    }
+    
+    return Results.Ok(new { success = true, status = "pending" });
+});
+
+// MoMo Payment Confirmation
+app.MapPost("/api/payment/momo/confirm", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, IPaymentGatewayService gatewayService, Func<SqlConnection> getConnection, MoMoConfirmRequest request) =>
+{
+    Console.WriteLine($"[MoMo Confirm] IntentId: {request.IntentId}, Amount: {request.Amount}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+    
+    try
+    {
+        // Mark intent as processed
+        _processedIntents[request.IntentId] = new ProcessedIntent
+        {
+            Amount = request.Amount,
+            CompletedAt = DateTime.UtcNow
+        };
+        
+        // Process wallet deposit
+        using var conn = getConnection();
+        await conn.OpenAsync();
+        var trans = conn.BeginTransaction();
+        
+        try
+        {
+            // Insert payment record
+            var cmd1 = new SqlCommand(@"
+                INSERT INTO dbo.payments (user_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
+                VALUES (@userId, 'momo', @amount, 'success', 'deposit', @transactionId, GETDATE(), GETDATE());
+                SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
+            cmd1.Parameters.AddWithValue("@userId", userId);
+            cmd1.Parameters.AddWithValue("@amount", request.Amount);
+            cmd1.Parameters.AddWithValue("@transactionId", $"TXN{DateTime.Now.Ticks}");
+            
+            var paymentId = (int)await cmd1.ExecuteScalarAsync();
+
+            // Update wallet balance
+            var cmd2 = new SqlCommand("UPDATE dbo.users SET wallet_balance = ISNULL(wallet_balance, 0) + @amount WHERE user_id = @userId", conn, trans);
+            cmd2.Parameters.AddWithValue("@userId", userId);
+            cmd2.Parameters.AddWithValue("@amount", request.Amount);
+            await cmd2.ExecuteNonQueryAsync();
+
+            // Get new balance
+            var cmd3 = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+            cmd3.Parameters.AddWithValue("@userId", userId);
+            var balanceResult = await cmd3.ExecuteScalarAsync();
+            var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+
+            trans.Commit();
+            await conn.CloseAsync();
+            
+            return Results.Ok(new 
+            { 
+                success = true, 
+                message = "Payment confirmed successfully",
+                newBalance 
+            });
+        }
+        catch (Exception ex)
+        {
+            trans.Rollback();
+            await conn.CloseAsync();
+            return Results.BadRequest(new { success = false, message = $"Payment processing failed: {ex.Message}" });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, message = ex.Message });
+    }
+});
+
 app.MapPost("/api/wallet/confirm-payment", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, IPaymentGatewayService gatewayService, Func<SqlConnection> getConnection, ConfirmPaymentRequest request) =>
 {
     Console.WriteLine($"[Confirm Payment] IntentId: {request.IntentId}, PaymentMethod: {request.PaymentMethod}");
@@ -1072,5 +1292,14 @@ record LoginRequest(string Email, string Password);
 record DepositRequest(decimal Amount, string MethodType, string? TransactionId);
 record WithdrawRequest(decimal Amount, string? Reason, string? TransactionId, int? ReservationId);
 record UpdatePaymentRequest(int ReservationId, decimal Amount);
+record MoMoWebhookRequest(string IntentId, string Status, decimal Amount, string? TransactionId);
+record MoMoConfirmRequest(string IntentId, decimal Amount, string Method);
+
+// Helper classes for MoMo integration
+class ProcessedIntent
+{
+    public decimal Amount { get; set; }
+    public DateTime CompletedAt { get; set; }
+}
 
 

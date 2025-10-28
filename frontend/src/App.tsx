@@ -37,6 +37,8 @@ import {
   AdminDashboard,
   ApiTest,
 } from "./pages/pages";
+import MoMoPaymentPage from "./pages/payment/MoMoPaymentPage";
+import MoMoSandboxPage from "./pages/payment/MoMoSandboxPage";
 
 const queryClient = new QueryClient();
 
@@ -186,6 +188,9 @@ const App = () => {
                 <Route path="/help" element={<Help />} />
                 <Route path="/safety" element={<Safety />} />
                 <Route path="/api-test" element={<ApiTest />} />
+                {/* Payment Routes */}
+                <Route path="/payment/momo" element={<MoMoPaymentPage />} />
+                <Route path="/payment/momo/sandbox" element={<MoMoSandboxPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

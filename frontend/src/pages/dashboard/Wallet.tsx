@@ -256,7 +256,14 @@ const Wallet = ({ user }: WalletProps) => {
         method: paymentMethod
       }));
 
-      // Step 2: Open payment checkout
+      // Step 2: Navigate to MoMo payment page
+      if (paymentMethod === "momo") {
+        setIsDepositOpen(false);
+        window.location.href = `http://localhost:8080/payment/momo?intent=${IntentId}&amount=${amount}&returnUrl=/wallet`;
+        return;
+      }
+      
+      // For other methods, use existing flow
       setIsDepositOpen(false);
       setIsGatewayOpen(true);
       setGatewayIntentId(IntentId);

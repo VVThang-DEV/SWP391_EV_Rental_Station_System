@@ -59,10 +59,11 @@ public class PaymentGatewayService : IPaymentGatewayService
                 break;
             
             case "momo":
-                checkoutUrl = $"http://localhost:5173/payment/checkout?intent={intentId}&method=momo";
+                checkoutUrl = $"http://localhost:8080/payment/momo?intent={intentId}&amount={request.Amount}";
                 paymentData = new Dictionary<string, object>
                 {
-                    ["paymentUrl"] = GenerateMoMoUrl(request.Amount)
+                    ["paymentUrl"] = GenerateMoMoUrl(request.Amount),
+                    ["sandboxUrl"] = $"http://localhost:8080/payment/momo/sandbox?intent={intentId}&amount={request.Amount}"
                 };
                 break;
             
@@ -217,7 +218,8 @@ public class PaymentGatewayService : IPaymentGatewayService
     {
         var orderId = Guid.NewGuid().ToString();
         var amountStr = ((long)(amount * 100)).ToString();
-        return $"https://test-payment.momo.vn/gw_payment/transactionProcessor?amount={amountStr}&orderId={orderId}";
+        // Local MoMo Sandbox Payment URL
+        return $"http://localhost:8080/payment/momo/sandbox?amount={amountStr}&orderId={orderId}";
     }
 
     private string GenerateVnPaySandboxUrl(decimal amount, string intentId)

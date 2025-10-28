@@ -199,24 +199,64 @@ const PaymentCheckout = ({ intentId, method, amount, onComplete, onCancel }: Pay
         );
 
       case "momo":
+        // Using VietQR format so MoMo app can scan and transfer to bank
+        const momoQRValue = `https://img.vietqr.io/image/970422-2004777719-compact2.jpg?amount=${amount}&addInfo=EV_MOMO_${intentId.substring(0, 15)}`;
+        
         return (
           <div className="space-y-4">
+            <Badge variant="outline" className="w-full justify-center py-2">
+              <Clock className="h-4 w-4 mr-2" />
+              Scan with MoMo App to Transfer
+            </Badge>
+
             <div className="p-4 bg-pink-50 rounded-lg border-2 border-pink-200">
               <div className="flex items-center gap-2 mb-2">
                 <Smartphone className="h-6 w-6 text-pink-600" />
-                <h3 className="font-semibold text-pink-900">MoMo Wallet</h3>
+                <h3 className="font-semibold text-pink-900">MoMo Wallet Payment</h3>
               </div>
               <p className="text-sm text-pink-700">
-                Scan QR code with MoMo app or pay via MoMo app
+                Scan the QR code below with your MoMo app to make payment. After payment, click "I've Paid" to confirm.
               </p>
             </div>
+
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Recipient Bank:</span>
+                <span className="font-medium text-sm">MB Bank</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Account Number:</span>
+                <span className="font-mono font-medium text-sm">2004777719</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Account Name:</span>
+                <span className="font-medium text-sm">LUU VU HUNG</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Amount:</span>
+                <span className="font-bold text-pink-600 text-lg">{amount.toLocaleString("vi-VN")} VND</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-700 text-center">
+                💡 Scan the QR code with MoMo app to transfer money. This is a sandbox simulation.
+              </p>
+            </div>
+
             <div className="flex justify-center p-6 bg-white border-2 border-dashed border-pink-300 rounded-lg">
               <QRCodeSVG
-                value={`momopay://sandbox?amount=${amount}&intent=${intentId}`}
+                value={momoQRValue}
                 size={200}
                 level="M"
                 includeMargin={true}
               />
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-xs text-yellow-700 text-center">
+                ⚠️ After scanning and paying via MoMo app, remember to click "I've Paid" button below to confirm
+              </p>
             </div>
           </div>
         );
