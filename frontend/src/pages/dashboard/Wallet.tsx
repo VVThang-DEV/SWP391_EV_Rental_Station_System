@@ -80,13 +80,16 @@ const Wallet = ({ user }: WalletProps) => {
   const [gatewayMethod, setGatewayMethod] = useState("bank_transfer");
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [lastDepositAmount, setLastDepositAmount] = useState(0);
   const [lastTransactionId, setLastTransactionId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -94,25 +97,31 @@ const Wallet = ({ user }: WalletProps) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('token');
-        
+        const token = localStorage.getItem("token");
+
         // Fetch balance
-        const balanceResponse = await fetch('http://localhost:5000/api/wallet/balance', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        const balanceResponse = await fetch(
+          "http://localhost:5000/api/wallet/balance",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         if (balanceResponse.ok) {
           const balanceData = await balanceResponse.json();
           setBalance(balanceData.balance);
         }
-        
+
         // Fetch transactions
-        const transactionsResponse = await fetch('http://localhost:5000/api/wallet/transactions', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        const transactionsResponse = await fetch(
+          "http://localhost:5000/api/wallet/transactions",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         if (transactionsResponse.ok) {
           const transactionsData = await transactionsResponse.json();
           // Map API data to Transaction type
@@ -120,34 +129,38 @@ const Wallet = ({ user }: WalletProps) => {
             let type: "deposit" | "withdrawal" | "payment" | "refund";
             let amount: number;
             let description: string;
-            
+
             switch (t.transactionType) {
-              case 'deposit':
-                type = 'deposit';
+              case "deposit":
+                type = "deposit";
                 amount = t.amount;
                 description = `Wallet Top-up via ${t.methodType}`;
                 break;
-              case 'payment':
-                type = 'payment';
+              case "payment":
+                type = "payment";
                 amount = -t.amount;
-                description = `Payment for Booking #${t.reservationId || t.rentalId}`;
+                description = `Payment for Booking #${
+                  t.reservationId || t.rentalId
+                }`;
                 break;
-              case 'refund':
-                type = 'refund';
+              case "refund":
+                type = "refund";
                 amount = t.amount;
-                description = `Refund for Booking #${t.reservationId || t.rentalId}`;
+                description = `Refund for Booking #${
+                  t.reservationId || t.rentalId
+                }`;
                 break;
-              case 'withdrawal':
-                type = 'withdrawal';
+              case "withdrawal":
+                type = "withdrawal";
                 amount = -t.amount;
-                description = `Withdrawal to ${t.methodType || 'wallet'}`;
+                description = `Withdrawal to ${t.methodType || "wallet"}`;
                 break;
               default:
-                type = 'payment';
+                type = "payment";
                 amount = -t.amount;
-                description = 'Transaction';
+                description = "Transaction";
             }
-            
+
             return {
               id: t.paymentId.toString(),
               type,
@@ -161,7 +174,7 @@ const Wallet = ({ user }: WalletProps) => {
           setTransactions(mappedTransactions);
         }
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error("Failed to fetch data:", error);
       }
     };
     fetchData();
@@ -204,57 +217,72 @@ const Wallet = ({ user }: WalletProps) => {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      
-      // Step 1: Create payment intent with gateway
-      console.log('Creating payment intent...', { amount, paymentMethod });
-      const intentResponse = await fetch('http://localhost:5000/api/wallet/payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          Amount: amount,
-          Currency: 'VND',
-          Method: paymentMethod,
-          Metadata: {}
-        }),
-      });
+      const token = localStorage.getItem("token");
 
-      console.log('Intent response status:', intentResponse.status);
-      
+      // Step 1: Create payment intent with gateway
+      console.log("Creating payment intent...", { amount, paymentMethod });
+      const intentResponse = await fetch(
+        "http://localhost:5000/api/wallet/payment-intent",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            Amount: amount,
+            Currency: "VND",
+            Method: paymentMethod,
+            Metadata: {},
+          }),
+        }
+      );
+
+      console.log("Intent response status:", intentResponse.status);
+
       if (!intentResponse.ok) {
         const errorData = await intentResponse.json();
-        console.error('Error creating intent:', errorData);
-        throw new Error(errorData.message || 'Failed to create payment intent');
+        console.error("Error creating intent:", errorData);
+        throw new Error(errorData.message || "Failed to create payment intent");
       }
 
       const intentData = await intentResponse.json();
-      console.log('Intent data received (full):', intentData);
-      console.log('intentData.data:', intentData.data);
-      
+      console.log("Intent data received (full):", intentData);
+      console.log("intentData.data:", intentData.data);
+
       // Check if response has the expected structure
       if (!intentData.data) {
-        console.error('No data in response:', intentData);
-        throw new Error('Invalid response from server');
+        console.error("No data in response:", intentData);
+        throw new Error("Invalid response from server");
       }
-      
+
       // Backend might return different property names (camelCase vs PascalCase)
-      const IntentId = intentData.data.IntentId || intentData.data.intentId || intentData.data.intent_id;
-      const CheckoutUrl = intentData.data.CheckoutUrl || intentData.data.checkoutUrl || intentData.data.checkout_url;
-      const PaymentData = intentData.data.PaymentData || intentData.data.paymentData || intentData.data.payment_data;
-      
-      console.log('Extracted IntentId:', IntentId);
-      console.log('CheckoutUrl:', CheckoutUrl);
-      console.log('PaymentData:', PaymentData);
+      const IntentId =
+        intentData.data.IntentId ||
+        intentData.data.intentId ||
+        intentData.data.intent_id;
+      const CheckoutUrl =
+        intentData.data.CheckoutUrl ||
+        intentData.data.checkoutUrl ||
+        intentData.data.checkout_url;
+      const PaymentData =
+        intentData.data.PaymentData ||
+        intentData.data.paymentData ||
+        intentData.data.payment_data;
+
+      console.log("Extracted IntentId:", IntentId);
+      console.log("CheckoutUrl:", CheckoutUrl);
+      console.log("PaymentData:", PaymentData);
 
       // Store intent data for confirmation
-      localStorage.setItem('pendingPaymentIntent', JSON.stringify({
-        intentId: IntentId,
-        amount,
-        method: paymentMethod
-      }));
+      localStorage.setItem(
+        "pendingPaymentIntent",
+        JSON.stringify({
+          intentId: IntentId,
+          amount,
+          method: paymentMethod,
+        })
+      );
 
       // Step 2: Navigate to MoMo payment page
       if (paymentMethod === "momo") {
@@ -262,14 +290,14 @@ const Wallet = ({ user }: WalletProps) => {
         window.location.href = `http://localhost:8080/payment/momo?intent=${IntentId}&amount=${amount}&returnUrl=/wallet`;
         return;
       }
-      
+
       // For other methods, use existing flow
       setIsDepositOpen(false);
       setIsGatewayOpen(true);
       setGatewayIntentId(IntentId);
       setGatewayAmount(amount);
       setGatewayMethod(paymentMethod);
-      
+
       toast({
         title: "Payment Gateway",
         description: "Redirecting to payment gateway...",
@@ -287,34 +315,41 @@ const Wallet = ({ user }: WalletProps) => {
   const handleGatewayComplete = async () => {
     // After payment is confirmed, update balance and show success
     setIsGatewayOpen(false);
-    
+
     // Refresh balance
-    const token = localStorage.getItem('token');
-    const balanceResponse = await fetch('http://localhost:5000/api/wallet/balance', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const token = localStorage.getItem("token");
+    const balanceResponse = await fetch(
+      "http://localhost:5000/api/wallet/balance",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     if (balanceResponse.ok) {
       const balanceData = await balanceResponse.json();
       setBalance(balanceData.balance);
     }
-    
+
     // Show success dialog
     setLastDepositAmount(gatewayAmount);
-    setLastTransactionId(localStorage.getItem('pendingPaymentIntent') ? JSON.parse(localStorage.getItem('pendingPaymentIntent')!).intentId : '');
+    setLastTransactionId(
+      localStorage.getItem("pendingPaymentIntent")
+        ? JSON.parse(localStorage.getItem("pendingPaymentIntent")!).intentId
+        : ""
+    );
     setIsSuccessOpen(true);
     setIsDepositOpen(false);
-    
+
     // Clear pending intent
-    localStorage.removeItem('pendingPaymentIntent');
+    localStorage.removeItem("pendingPaymentIntent");
     setLoading(false);
   };
 
   const handleGatewayCancel = () => {
     setIsGatewayOpen(false);
     setDepositAmount("");
-    localStorage.removeItem('pendingPaymentIntent');
+    localStorage.removeItem("pendingPaymentIntent");
     setLoading(false);
   };
 
@@ -338,19 +373,62 @@ const Wallet = ({ user }: WalletProps) => {
     const matchesSearch = transaction.description
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-    const matchesDate =
-      dateFilter === "all" ||
-      (dateFilter === "today" &&
-        new Date(transaction.date).toDateString() ===
-          new Date().toDateString()) ||
-      (dateFilter === "week" &&
-        new Date(transaction.date) >
-          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) ||
-      (dateFilter === "month" &&
-        new Date(transaction.date) >
-          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+
+    let matchesDate = false;
+    const transactionDate = new Date(transaction.date);
+
+    if (dateFilter === "all") {
+      matchesDate = true;
+    } else if (dateFilter === "today") {
+      matchesDate =
+        transactionDate.toDateString() === new Date().toDateString();
+    } else if (dateFilter === "week") {
+      matchesDate =
+        transactionDate > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    } else if (dateFilter === "month") {
+      matchesDate =
+        transactionDate > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    } else if (dateFilter === "specific-month") {
+      matchesDate =
+        transactionDate.getMonth() + 1 === selectedMonth &&
+        transactionDate.getFullYear() === selectedYear;
+    }
+
     return matchesSearch && matchesDate;
   });
+
+  // Calculate period expenses (total payments for filtered period)
+  const periodExpenses = Math.abs(
+    filteredTransactions
+      .filter((t) => t.type === "payment")
+      .reduce((sum, t) => sum + t.amount, 0)
+  );
+
+  // Get period label for display
+  const getPeriodLabel = () => {
+    if (dateFilter === "all") return "All Time";
+    if (dateFilter === "today") return "Today";
+    if (dateFilter === "week") return "This Week";
+    if (dateFilter === "month") return "This Month";
+    if (dateFilter === "specific-month") {
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      return `${monthNames[selectedMonth - 1]} ${selectedYear}`;
+    }
+    return "Selected Period";
+  };
 
   if (!user) {
     return (
@@ -539,9 +617,97 @@ const Wallet = ({ user }: WalletProps) => {
                         <SelectItem value="today">Today</SelectItem>
                         <SelectItem value="week">This Week</SelectItem>
                         <SelectItem value="month">This Month</SelectItem>
+                        <SelectItem value="specific-month">
+                          Specific Month
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Month/Year selectors when specific month is selected */}
+                  {dateFilter === "specific-month" && (
+                    <div className="flex gap-3">
+                      <Select
+                        value={selectedMonth.toString()}
+                        onValueChange={(value) =>
+                          setSelectedMonth(parseInt(value))
+                        }
+                      >
+                        <SelectTrigger className="w-full sm:w-[140px]">
+                          <SelectValue placeholder="Select Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">January</SelectItem>
+                          <SelectItem value="2">February</SelectItem>
+                          <SelectItem value="3">March</SelectItem>
+                          <SelectItem value="4">April</SelectItem>
+                          <SelectItem value="5">May</SelectItem>
+                          <SelectItem value="6">June</SelectItem>
+                          <SelectItem value="7">July</SelectItem>
+                          <SelectItem value="8">August</SelectItem>
+                          <SelectItem value="9">September</SelectItem>
+                          <SelectItem value="10">October</SelectItem>
+                          <SelectItem value="11">November</SelectItem>
+                          <SelectItem value="12">December</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={selectedYear.toString()}
+                        onValueChange={(value) =>
+                          setSelectedYear(parseInt(value))
+                        }
+                      >
+                        <SelectTrigger className="w-full sm:w-[100px]">
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const year = new Date().getFullYear() - i;
+                            return (
+                              <SelectItem key={year} value={year.toString()}>
+                                {year}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Period Expenses Summary */}
+                  {dateFilter !== "all" && (
+                    <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 border-blue-200 dark:border-blue-800">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <div>
+                              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                Expenses for {getPeriodLabel()}
+                              </p>
+                              <p className="text-xs text-blue-700 dark:text-blue-300">
+                                Total payments in selected period
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                              {formatCurrency(periodExpenses)}
+                            </p>
+                            <p className="text-xs text-blue-700 dark:text-blue-300">
+                              {
+                                filteredTransactions.filter(
+                                  (t) => t.type === "payment"
+                                ).length
+                              }{" "}
+                              transactions
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
 
                 {/* Transaction Tabs */}
@@ -967,7 +1133,7 @@ const Wallet = ({ user }: WalletProps) => {
           <DialogHeader>
             <DialogTitle>Transaction Details</DialogTitle>
           </DialogHeader>
-          
+
           {selectedTransaction && (
             <div className="space-y-4">
               {/* Transaction Info */}
@@ -976,32 +1142,42 @@ const Wallet = ({ user }: WalletProps) => {
                   <span className="text-muted-foreground">Transaction ID:</span>
                   <span className="font-medium">{selectedTransaction.id}</span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type:</span>
-                  <span className="font-medium capitalize">{selectedTransaction.type}</span>
+                  <span className="font-medium capitalize">
+                    {selectedTransaction.type}
+                  </span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Description:</span>
-                  <span className="font-medium">{selectedTransaction.description}</span>
+                  <span className="font-medium">
+                    {selectedTransaction.description}
+                  </span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount:</span>
-                  <span className={`font-semibold ${
-                    selectedTransaction.amount > 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {selectedTransaction.amount > 0 ? "+" : ""}
+                  <span
+                    className={`font-semibold ${
+                      selectedTransaction.amount > 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {selectedTransaction.amount > 0 ? "+" : "-"}
                     {formatCurrency(selectedTransaction.amount)}
                   </span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Payment Method:</span>
-                  <span className="font-medium">{selectedTransaction.paymentMethod || "N/A"}</span>
+                  <span className="font-medium">
+                    {selectedTransaction.paymentMethod || "N/A"}
+                  </span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status:</span>
                   <Badge
@@ -1016,7 +1192,7 @@ const Wallet = ({ user }: WalletProps) => {
                     {selectedTransaction.status}
                   </Badge>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Date & Time:</span>
                   <span className="font-medium">
@@ -1024,7 +1200,7 @@ const Wallet = ({ user }: WalletProps) => {
                   </span>
                 </div>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4">
                 <Button
