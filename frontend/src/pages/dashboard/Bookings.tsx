@@ -13,6 +13,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Calendar,
   Clock,
   MapPin,
@@ -22,7 +32,12 @@ import {
   RotateCcw,
   Edit,
   Loader2,
+  Download,
+  QrCode,
+  Smartphone,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Reservation {
   reservationId: number;
@@ -68,6 +83,9 @@ const Bookings = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Reservation | null>(null);
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<number | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchReservations();
@@ -97,14 +115,17 @@ const Bookings = () => {
     }
   };
 
-  const cancelReservation = async (reservationId: number) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) {
-      return;
-    }
+  const handleCancelClick = (reservationId: number) => {
+    setReservationToCancel(reservationId);
+    setCancelDialogOpen(true);
+  };
+
+  const cancelReservation = async () => {
+    if (!reservationToCancel) return;
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/reservations/${reservationId}/cancel`, {
+      const response = await fetch(`http://localhost:5000/api/reservations/${reservationToCancel}/cancel`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -118,21 +139,50 @@ const Bookings = () => {
         if (result.refundAmount && result.refundAmount > 0) {
           const vndAmount = result.refundAmount.toLocaleString('vi-VN');
           const newBalance = result.newBalance?.toLocaleString('vi-VN') || '';
-          alert(`Booking cancelled successfully!\n\n💰 Refund Information:\nRefund Amount: ${vndAmount} VND\nNew Wallet Balance: ${newBalance} VND\n\nThe refund has been processed to your wallet.`);
+          toast({
+            title: "Booking Cancelled Successfully!",
+            description: `Refunded ${vndAmount} VND to your wallet. New balance: ${newBalance} VND`,
+          });
         } else {
-          alert('Booking cancelled successfully!');
+          toast({
+            title: "Booking Cancelled",
+            description: "Your booking has been cancelled successfully.",
+          });
         }
         
         // Refresh reservations list
         fetchReservations();
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Failed to cancel booking');
+        toast({
+          title: "Cancellation Failed",
+          description: errorData.message || 'Failed to cancel booking',
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error cancelling reservation:', error);
-      alert('An error occurred while cancelling the booking');
+      toast({
+        title: "Error",
+        description: "An error occurred while cancelling the booking",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelDialogOpen(false);
+      setReservationToCancel(null);
     }
+  };
+
+  const handleDownloadReceipt = () => {
+    if (!selectedBooking) return;
+    
+    // Use window.print() to print/download the current dialog view
+    window.print();
+    
+    toast({
+      title: "Receipt Ready",
+      description: "You can now print or save as PDF.",
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -298,7 +348,7 @@ const Bookings = () => {
                           <Button 
                             variant="destructive" 
                             size="sm"
-                            onClick={() => cancelReservation(reservation.reservationId)}
+                            onClick={() => handleCancelClick(reservation.reservationId)}
                           >
                             Cancel Booking
                           </Button>
@@ -459,6 +509,40 @@ const Bookings = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* QR Code Section */}
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <QrCode className="h-5 w-5 text-amber-700" />
+                    Vehicle Access QR Code
+                  </h3>
+                  <p className="text-sm text-amber-700 mb-4">
+                    Scan this code when you arrive at the vehicle
+                  </p>
+                  <div className="flex justify-center p-4 bg-white rounded-xl border-2 border-amber-200">
+                    <QRCodeSVG
+                      value={JSON.stringify({
+                        reservationId: selectedBooking.reservationId,
+                        vehicleId: selectedBooking.vehicleId,
+                        stationId: selectedBooking.stationId,
+                        userId: selectedBooking.userId,
+                        startTime: selectedBooking.startTime,
+                        endTime: selectedBooking.endTime,
+                        status: selectedBooking.status,
+                        accessCode: `ACCESS_${selectedBooking.reservationId}_${Date.now()}`,
+                        timestamp: new Date().toISOString(),
+                      })}
+                      size={180}
+                      level="M"
+                      includeMargin={true}
+                      fgColor="#1f2937"
+                      bgColor="#ffffff"
+                    />
+                  </div>
+                  <p className="text-xs text-amber-700 mt-4 text-center">
+                    Keep this QR code handy - you'll need it to unlock your vehicle
+                  </p>
+                </div>
               </div>
             )}
 
@@ -469,10 +553,35 @@ const Bookings = () => {
               >
                 Close
               </Button>
-              <Button>Download Receipt</Button>
+              <Button onClick={handleDownloadReceipt}>
+                <Download className="h-4 w-4 mr-2" />
+                Download Receipt
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Cancel Confirmation Dialog */}
+        <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to cancel this booking? This action cannot be undone.
+                {reservationToCancel && " Any applicable refunds will be processed to your wallet."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>No, Keep Booking</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={cancelReservation}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Yes, Cancel Booking
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
