@@ -17,15 +17,15 @@ public class PersonalInfoService
         try
         {
             // Diagnostic logging to help debug failing updates
-            Console.WriteLine("[PersonalInfoService] UpdatePersonalInfoAsync called with:");
+            Console.WriteLine("[PersonalInfoService] ===== UpdatePersonalInfoAsync START =====");
             Console.WriteLine($"  Email: {request.Email}");
-            Console.WriteLine($"  Cccd: {request.Cccd}");
-            Console.WriteLine($"  LicenseNumber: {request.LicenseNumber}");
-            Console.WriteLine($"  Address: {request.Address}");
-            Console.WriteLine($"  Gender: {request.Gender}");
-            Console.WriteLine($"  DateOfBirth: {request.DateOfBirth}");
-            Console.WriteLine($"  Phone: {request.Phone}");
-            Console.WriteLine($"  AvatarUrl: {request.AvatarUrl}");
+            Console.WriteLine($"  Cccd: '{request.Cccd}'");
+            Console.WriteLine($"  LicenseNumber: '{request.LicenseNumber}'");
+            Console.WriteLine($"  Address: '{request.Address}'");
+            Console.WriteLine($"  Gender: '{request.Gender}'");
+            Console.WriteLine($"  DateOfBirth: '{request.DateOfBirth}'");
+            Console.WriteLine($"  Phone: '{request.Phone}'");
+            Console.WriteLine($"  AvatarUrl: '{request.AvatarUrl}'");
 
             // Validate input
             if (string.IsNullOrWhiteSpace(request.Email))
@@ -33,21 +33,21 @@ public class PersonalInfoService
                 return new UpdatePersonalInfoResponse(false, "Email không được để trống");
             }
 
-            // Validate CCCD format (12 digits)
+            // Validate CCCD format (12 digits) - Skip if empty
             if (!string.IsNullOrWhiteSpace(request.Cccd) && !IsValidCccd(request.Cccd))
             {
                 Console.WriteLine($"[PersonalInfoService] CCCD validation failed: '{request.Cccd}' (length: {request.Cccd?.Length})");
                 return new UpdatePersonalInfoResponse(false, "Số CCCD phải có 12 chữ số");
             }
 
-            // Validate license number format
+            // Validate license number format - Skip if empty
             if (!string.IsNullOrWhiteSpace(request.LicenseNumber) && !IsValidLicenseNumber(request.LicenseNumber))
             {
                 Console.WriteLine($"[PersonalInfoService] License number validation failed: '{request.LicenseNumber}' (length: {request.LicenseNumber?.Length})");
                 return new UpdatePersonalInfoResponse(false, "Số bằng lái xe không hợp lệ");
             }
 
-            // Validate gender
+            // Validate gender - Skip if empty
             if (!string.IsNullOrWhiteSpace(request.Gender) && !IsValidGender(request.Gender))
             {
                 Console.WriteLine($"[PersonalInfoService] Gender validation failed: '{request.Gender}'");
@@ -99,11 +99,13 @@ public class PersonalInfoService
                     }
                 }
 
+                Console.WriteLine("[PersonalInfoService] ===== UpdatePersonalInfoAsync SUCCESS =====");
                 return new UpdatePersonalInfoResponse(true, "Cập nhật thông tin cá nhân thành công");
             }
             else
             {
                 Console.WriteLine($"[PersonalInfoService] Update failed for email: {request.Email}");
+                Console.WriteLine("[PersonalInfoService] ===== UpdatePersonalInfoAsync FAILED (rowsAffected=0) =====");
                 return new UpdatePersonalInfoResponse(false, "Có lỗi xảy ra khi cập nhật thông tin");
             }
 

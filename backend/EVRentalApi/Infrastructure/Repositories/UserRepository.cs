@@ -189,7 +189,7 @@ SELECT SCOPE_IDENTITY();";
     // Check if user exists by email (for forgot password)
     public async Task<bool> UserExistsByEmailAsync(string email)
     {
-        const string sql = "SELECT COUNT(1) FROM users WHERE email = @Email AND is_active = 1";
+        const string sql = "SELECT COUNT(1) FROM users WHERE email = @Email";
 
         await using var conn = _connFactory();
         await conn.OpenAsync();
@@ -238,19 +238,40 @@ WHERE email = @Email AND is_active = 1";
     {
         Console.WriteLine($"[UserRepository] UpdatePersonalInfoAsync called with email: {email}");
         
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        // Check if phone is being updated and if it conflicts with existing data
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            const string checkPhoneSql = @"
+SELECT user_id 
+FROM users 
+WHERE phone = @Phone AND email != @Email";
+            
+            await using var checkCmd = new SqlCommand(checkPhoneSql, conn);
+            checkCmd.Parameters.AddWithValue("@Phone", phone);
+            checkCmd.Parameters.AddWithValue("@Email", email);
+            
+            var conflictingUserId = await checkCmd.ExecuteScalarAsync();
+            if (conflictingUserId != null)
+            {
+                Console.WriteLine($"[UserRepository] Phone {phone} is already used by user {conflictingUserId}");
+                return false;
+            }
+        }
+        
         const string sql = @"
 UPDATE users 
-SET cccd = @Cccd,
-    license_number = @LicenseNumber,
-    address = @Address,
-    gender = @Gender,
-    date_of_birth = @DateOfBirth,
-    phone = @Phone,
+SET cccd = COALESCE(@Cccd, cccd),
+    license_number = COALESCE(@LicenseNumber, license_number),
+    address = COALESCE(@Address, address),
+    gender = COALESCE(@Gender, gender),
+    date_of_birth = COALESCE(@DateOfBirth, date_of_birth),
+    phone = CASE WHEN @Phone IS NOT NULL THEN @Phone ELSE phone END,
     updated_at = @UpdatedAt
 WHERE email = @Email";
 
-        await using var conn = _connFactory();
-        await conn.OpenAsync();
         await using var cmd = new SqlCommand(sql, conn)
         {
             CommandType = CommandType.Text

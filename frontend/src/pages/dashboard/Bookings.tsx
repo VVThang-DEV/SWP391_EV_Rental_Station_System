@@ -242,6 +242,9 @@ const Bookings = () => {
   const filteredReservations =
     activeTab === "all"
       ? reservations
+      : activeTab === "active"
+      ? reservations.filter((reservation) => 
+          ['active', 'confirmed'].includes(reservation.status?.toLowerCase() || ''))
       : reservations.filter((reservation) => reservation.status?.toLowerCase() === activeTab);
 
   return (

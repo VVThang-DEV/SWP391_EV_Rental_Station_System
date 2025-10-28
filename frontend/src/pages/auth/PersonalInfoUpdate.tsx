@@ -193,15 +193,15 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     setIsLoading(true);
 
     try {
-      // Prepare data for API call
+      // Prepare data for API call (backend expects PascalCase)
       const updateData = {
-        email: personalData.email,
-        cccd: personalData.cccd,
+        Email: personalData.email,
+        Cccd: personalData.cccd,
         LicenseNumber: personalData.licenseNumber,
-        address: personalData.address,
-        gender: personalData.gender,
-        dateOfBirth: personalData.dateOfBirth,
-        phone: personalData.phone,
+        Address: personalData.address,
+        Gender: personalData.gender,
+        DateOfBirth: personalData.dateOfBirth,
+        Phone: personalData.phone,
       };
 
       // Debug logging
