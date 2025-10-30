@@ -245,7 +245,7 @@ WHERE email = @Email AND is_active = 1";
         if (!string.IsNullOrWhiteSpace(phone))
         {
             const string checkPhoneSql = @"
-SELECT user_id 
+SELECT user_id, email, full_name
 FROM users 
 WHERE phone = @Phone AND email != @Email";
             
@@ -253,24 +253,28 @@ WHERE phone = @Phone AND email != @Email";
             checkCmd.Parameters.AddWithValue("@Phone", phone);
             checkCmd.Parameters.AddWithValue("@Email", email);
             
-            var conflictingUserId = await checkCmd.ExecuteScalarAsync();
-            if (conflictingUserId != null)
+            await using var reader = await checkCmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
             {
-                Console.WriteLine($"[UserRepository] Phone {phone} is already used by user {conflictingUserId}");
+                var conflictingUserId = reader.GetInt32(0);
+                var conflictingEmail = reader.GetString(1);
+                var conflictingName = reader.GetString(2);
+                Console.WriteLine($"[UserRepository] ❌ PHONE DUPLICATE: Phone {phone} is already used by user_id={conflictingUserId}, email={conflictingEmail}, name={conflictingName}");
                 return false;
             }
         }
         
+        // Force update by always updating updated_at, even if data hasn't changed
         const string sql = @"
 UPDATE users 
-SET cccd = COALESCE(@Cccd, cccd),
-    license_number = COALESCE(@LicenseNumber, license_number),
-    address = COALESCE(@Address, address),
-    gender = COALESCE(@Gender, gender),
-    date_of_birth = COALESCE(@DateOfBirth, date_of_birth),
+SET cccd = CASE WHEN @Cccd IS NOT NULL THEN @Cccd ELSE cccd END,
+    license_number = CASE WHEN @LicenseNumber IS NOT NULL THEN @LicenseNumber ELSE license_number END,
+    address = CASE WHEN @Address IS NOT NULL THEN @Address ELSE address END,
+    gender = CASE WHEN @Gender IS NOT NULL THEN @Gender ELSE gender END,
+    date_of_birth = CASE WHEN @DateOfBirth IS NOT NULL THEN @DateOfBirth ELSE date_of_birth END,
     phone = CASE WHEN @Phone IS NOT NULL THEN @Phone ELSE phone END,
     updated_at = @UpdatedAt
-WHERE email = @Email";
+WHERE email = @Email AND is_active = 1";
 
         await using var cmd = new SqlCommand(sql, conn)
         {
