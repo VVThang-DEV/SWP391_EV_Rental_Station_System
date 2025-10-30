@@ -94,8 +94,11 @@ public class CustomerVerificationDto
     public string? Gender { get; set; }
     public int VehicleId { get; set; }
     public string VehicleModel { get; set; } = string.Empty;
+    public decimal VehiclePricePerHour { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal DepositAmount { get; set; }
     public bool HasDocuments { get; set; }
     public List<DocumentDto> Documents { get; set; } = new();
     public DateTime CreatedAt { get; set; }

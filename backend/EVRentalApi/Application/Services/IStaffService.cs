@@ -26,7 +26,13 @@ public interface IStaffService
     Task<List<CustomerVerificationDto>> GetCustomersForVerificationAsync(int staffId);
     Task<CustomerVerificationResponse> VerifyCustomerAsync(int customerId, int staffId, CustomerVerificationRequest request);
     
+    // Reservation Management
+    Task<CustomerVerificationResponse> ConfirmReservationAsync(int reservationId, int staffId);
+    
     // Handover Management
     Task<List<HandoverDto>> GetHandoversAsync(int staffId);
     Task<HandoverResponse> RecordHandoverAsync(int staffId, HandoverRequest request);
+    
+    // Activity Logs
+    Task<List<StaffActivityLogDto>> GetTodayActivityLogsAsync(int staffId);
 }

@@ -26,5 +26,14 @@ public class ReservationDto
     public DateTime EndTime { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public string? CancellationReason { get; set; }
+    public string? CancelledBy { get; set; }
+    public DateTime? CancelledAt { get; set; }
+}
+
+public class CancelReservationRequest
+{
+    public string? Reason { get; set; }
+    public string? CancelledBy { get; set; }
 }
 

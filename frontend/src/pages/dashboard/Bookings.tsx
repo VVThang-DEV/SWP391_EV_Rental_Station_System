@@ -50,6 +50,9 @@ interface Reservation {
   createdAt: string;
   vehicleName?: string;
   stationName?: string;
+  cancellationReason?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
 }
 
 interface VehicleDetails {
@@ -129,7 +132,12 @@ const Bookings = () => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          reason: 'Cancelled by customer',
+          cancelledBy: 'customer',
+        }),
       });
       
       if (response.ok) {
@@ -435,6 +443,33 @@ const Bookings = () => {
                   <h3 className="text-lg font-semibold mb-3">Status</h3>
                   <div>{getStatusBadge(selectedBooking.status)}</div>
                 </div>
+
+                {/* Cancellation Information */}
+                {selectedBooking.status.toLowerCase() === 'cancelled' && selectedBooking.cancellationReason && (
+                  <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-3 text-red-800">Cancellation Details</h3>
+                    <div className="space-y-2">
+                      <div>
+                        <div className="text-sm font-medium text-red-700">Reason</div>
+                        <div className="text-red-900 mt-1">{selectedBooking.cancellationReason}</div>
+                      </div>
+                      {selectedBooking.cancelledBy && (
+                        <div>
+                          <div className="text-sm font-medium text-red-700">Cancelled By</div>
+                          <div className="text-red-900 mt-1 capitalize">{selectedBooking.cancelledBy}</div>
+                        </div>
+                      )}
+                      {selectedBooking.cancelledAt && (
+                        <div>
+                          <div className="text-sm font-medium text-red-700">Cancelled At</div>
+                          <div className="text-red-900 mt-1">
+                            {new Date(selectedBooking.cancelledAt).toLocaleString('vi-VN')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Booking Information */}
                 <div className="bg-muted/50 p-4 rounded-lg">

@@ -185,7 +185,8 @@ public class ReservationRepository : IReservationRepository
             await connection.OpenAsync();
 
             var sql = @"
-                SELECT reservation_id, user_id, vehicle_id, station_id, start_time, end_time, status, created_at
+                SELECT reservation_id, user_id, vehicle_id, station_id, start_time, end_time, status, created_at,
+                       cancellation_reason, cancelled_by, cancelled_at
                 FROM reservations
                 WHERE user_id = @UserId
                 ORDER BY created_at DESC";
@@ -206,7 +207,10 @@ public class ReservationRepository : IReservationRepository
                     StartTime = reader.GetDateTime("start_time"),
                     EndTime = reader.GetDateTime("end_time"),
                     Status = reader.GetString("status"),
-                    CreatedAt = reader.GetDateTime("created_at")
+                    CreatedAt = reader.GetDateTime("created_at"),
+                    CancellationReason = reader.IsDBNull(reader.GetOrdinal("cancellation_reason")) ? null : reader.GetString("cancellation_reason"),
+                    CancelledBy = reader.IsDBNull(reader.GetOrdinal("cancelled_by")) ? null : reader.GetString("cancelled_by"),
+                    CancelledAt = reader.IsDBNull(reader.GetOrdinal("cancelled_at")) ? null : reader.GetDateTime("cancelled_at")
                 });
             }
         }
@@ -226,7 +230,8 @@ public class ReservationRepository : IReservationRepository
             await connection.OpenAsync();
 
             var sql = @"
-                SELECT reservation_id, user_id, vehicle_id, station_id, start_time, end_time, status, created_at
+                SELECT reservation_id, user_id, vehicle_id, station_id, start_time, end_time, status, created_at,
+                       cancellation_reason, cancelled_by, cancelled_at
                 FROM reservations
                 WHERE reservation_id = @ReservationId";
 
@@ -246,7 +251,10 @@ public class ReservationRepository : IReservationRepository
                     StartTime = reader.GetDateTime("start_time"),
                     EndTime = reader.GetDateTime("end_time"),
                     Status = reader.GetString("status"),
-                    CreatedAt = reader.GetDateTime("created_at")
+                    CreatedAt = reader.GetDateTime("created_at"),
+                    CancellationReason = reader.IsDBNull(reader.GetOrdinal("cancellation_reason")) ? null : reader.GetString("cancellation_reason"),
+                    CancelledBy = reader.IsDBNull(reader.GetOrdinal("cancelled_by")) ? null : reader.GetString("cancelled_by"),
+                    CancelledAt = reader.IsDBNull(reader.GetOrdinal("cancelled_at")) ? null : reader.GetDateTime("cancelled_at")
                 };
             }
         }
@@ -284,7 +292,7 @@ public class ReservationRepository : IReservationRepository
         }
     }
 
-    public async Task<bool> CancelReservationAsync(int reservationId)
+    public async Task<bool> CancelReservationAsync(int reservationId, string? reason = null, string? cancelledBy = null)
     {
         try
         {
@@ -307,14 +315,19 @@ public class ReservationRepository : IReservationRepository
 
             int vehicleId = (int)vehicleIdObj;
 
-            // Update reservation status to cancelled
+            // Update reservation status to cancelled with reason and metadata
             var updateReservationSql = @"
                 UPDATE reservations
-                SET status = 'cancelled'
+                SET status = 'cancelled',
+                    cancellation_reason = @Reason,
+                    cancelled_by = @CancelledBy,
+                    cancelled_at = GETDATE()
                 WHERE reservation_id = @ReservationId";
 
             using var updateReservationCmd = new SqlCommand(updateReservationSql, connection);
             updateReservationCmd.Parameters.AddWithValue("@ReservationId", reservationId);
+            updateReservationCmd.Parameters.AddWithValue("@Reason", (object?)reason ?? DBNull.Value);
+            updateReservationCmd.Parameters.AddWithValue("@CancelledBy", (object?)cancelledBy ?? DBNull.Value);
             var reservationRowsAffected = await updateReservationCmd.ExecuteNonQueryAsync();
 
             if (reservationRowsAffected > 0)

@@ -459,7 +459,14 @@ public class StaffRepository : IStaffRepository
                 u.address,
                 u.date_of_birth,
                 u.gender,
-                v.model_id as vehicle_model
+                v.model_id as vehicle_model,
+                v.price_per_hour,
+                ISNULL(
+                    (SELECT SUM(amount) 
+                     FROM payments 
+                     WHERE reservation_id = r.reservation_id AND status = 'success'),
+                    0
+                ) as total_paid
             FROM reservations r
             INNER JOIN users u ON r.user_id = u.user_id
             INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
@@ -480,6 +487,15 @@ public class StaffRepository : IStaffRepository
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
+            var startTime = reader.GetDateTime("start_time");
+            var endTime = reader.GetDateTime("end_time");
+            var pricePerHour = reader.GetDecimal("price_per_hour");
+            var totalPaid = reader.GetDecimal("total_paid");
+            
+            // Calculate rental duration in hours
+            var hours = Math.Ceiling((endTime - startTime).TotalHours);
+            var totalAmount = (decimal)hours * pricePerHour;
+            
             var customer = new CustomerVerificationDto
             {
                 ReservationId = reader.GetInt32("reservation_id"),
@@ -489,8 +505,11 @@ public class StaffRepository : IStaffRepository
                 Email = reader.GetString("email"),
                 Phone = reader.GetString("phone"),
                 VehicleModel = reader.GetString("vehicle_model"),
-                StartTime = reader.GetDateTime("start_time"),
-                EndTime = reader.GetDateTime("end_time"),
+                VehiclePricePerHour = pricePerHour,
+                StartTime = startTime,
+                EndTime = endTime,
+                TotalAmount = totalAmount,
+                DepositAmount = totalPaid,
                 CreatedAt = reader.GetDateTime("created_at"),
                 Cccd = reader.IsDBNull("cccd") ? null : reader.GetString("cccd"),
                 LicenseNumber = reader.IsDBNull("license_number") ? null : reader.GetString("license_number"),
@@ -557,67 +576,98 @@ public class StaffRepository : IStaffRepository
             await using var conn = _connFactory();
             await conn.OpenAsync();
 
-            // Find the pending reservation for this customer
-            const string findReservationSql = @"
-                SELECT TOP 1 reservation_id, vehicle_id
-                FROM reservations
-                WHERE user_id = @UserId AND LOWER(status) = 'pending'
-                ORDER BY created_at DESC";
+            // Only approve user documents, don't complete the checkout yet
+            // Checkout will be completed later in Pickup Management after final verification
+            const string updateDocumentsSql = @"
+                UPDATE user_documents
+                SET status = 'approved',
+                    verified_at = GETDATE(),
+                    verified_by = @StaffId
+                WHERE user_id = @UserId AND status = 'pending'";
 
-            int reservationId = 0;
-            int vehicleId = 0;
+            await using var updateDocsCmd = new SqlCommand(updateDocumentsSql, conn);
+            updateDocsCmd.Parameters.AddWithValue("@UserId", customerId);
+            updateDocsCmd.Parameters.AddWithValue("@StaffId", staffId);
+            var docsUpdated = await updateDocsCmd.ExecuteNonQueryAsync();
 
-            await using (var findCmd = new SqlCommand(findReservationSql, conn))
+            if (docsUpdated > 0)
             {
-                findCmd.Parameters.AddWithValue("@UserId", customerId);
-                await using var reader = await findCmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    reservationId = reader.GetInt32("reservation_id");
-                    vehicleId = reader.GetInt32("vehicle_id");
-                }
-            }
-
-            if (reservationId == 0)
-            {
-                Console.WriteLine($"[VerifyCustomerAsync] No pending reservation found for customer {customerId}");
-                return false;
-            }
-
-            // Update reservation status to 'confirmed'
-            const string updateReservationSql = @"
-                UPDATE reservations
-                SET status = 'confirmed'
-                WHERE reservation_id = @ReservationId";
-
-            await using var updateReservationCmd = new SqlCommand(updateReservationSql, conn);
-            updateReservationCmd.Parameters.AddWithValue("@ReservationId", reservationId);
-            var reservationUpdated = await updateReservationCmd.ExecuteNonQueryAsync() > 0;
-
-            // Update vehicle status to 'rented'
-            const string updateVehicleSql = @"
-                UPDATE vehicles
-                SET status = 'rented', updated_at = GETDATE()
-                WHERE vehicle_id = @VehicleId";
-
-            await using var updateVehicleCmd = new SqlCommand(updateVehicleSql, conn);
-            updateVehicleCmd.Parameters.AddWithValue("@VehicleId", vehicleId);
-            var vehicleUpdated = await updateVehicleCmd.ExecuteNonQueryAsync() > 0;
-
-            if (reservationUpdated && vehicleUpdated)
-            {
-                Console.WriteLine($"[VerifyCustomerAsync] Successfully updated reservation {reservationId} and vehicle {vehicleId}");
+                Console.WriteLine($"[VerifyCustomerAsync] Successfully approved {docsUpdated} documents for customer {customerId}");
                 return true;
             }
             else
             {
-                Console.WriteLine($"[VerifyCustomerAsync] Failed to update reservation or vehicle. Reservation: {reservationUpdated}, Vehicle: {vehicleUpdated}");
+                Console.WriteLine($"[VerifyCustomerAsync] No pending documents found for customer {customerId}");
                 return false;
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[VerifyCustomerAsync] Error: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> ConfirmReservationAsync(int reservationId, int staffId)
+    {
+        try
+        {
+            await using var conn = _connFactory();
+            await conn.OpenAsync();
+
+            // Get reservation and vehicle info
+            const string getReservationSql = @"
+                SELECT user_id, vehicle_id 
+                FROM reservations 
+                WHERE reservation_id = @ReservationId AND status = 'pending'";
+
+            await using var getCmd = new SqlCommand(getReservationSql, conn);
+            getCmd.Parameters.AddWithValue("@ReservationId", reservationId);
+
+            await using var reader = await getCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                Console.WriteLine($"[ConfirmReservation] Reservation {reservationId} not found or not pending");
+                return false;
+            }
+
+            int userId = reader.GetInt32(0);
+            int vehicleId = reader.GetInt32(1);
+            await reader.CloseAsync();
+
+            Console.WriteLine($"[ConfirmReservation] Confirming reservation {reservationId} for user {userId}, vehicle {vehicleId}");
+
+            // Update reservation status to confirmed
+            const string updateReservationSql = @"
+                UPDATE reservations 
+                SET status = 'confirmed' 
+                WHERE reservation_id = @ReservationId";
+
+            await using var updateReservationCmd = new SqlCommand(updateReservationSql, conn);
+            updateReservationCmd.Parameters.AddWithValue("@ReservationId", reservationId);
+            var reservationUpdated = await updateReservationCmd.ExecuteNonQueryAsync();
+
+            if (reservationUpdated > 0)
+            {
+                // Update vehicle status to rented
+                const string updateVehicleSql = @"
+                    UPDATE vehicles 
+                    SET status = 'rented', updated_at = GETDATE()
+                    WHERE vehicle_id = @VehicleId";
+
+                await using var updateVehicleCmd = new SqlCommand(updateVehicleSql, conn);
+                updateVehicleCmd.Parameters.AddWithValue("@VehicleId", vehicleId);
+                await updateVehicleCmd.ExecuteNonQueryAsync();
+
+                Console.WriteLine($"[ConfirmReservation] Successfully confirmed reservation {reservationId}. Vehicle {vehicleId} now rented.");
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ConfirmReservation] Error: {ex.Message}");
             return false;
         }
     }
@@ -695,5 +745,150 @@ public class StaffRepository : IStaffRepository
             };
         }
         return null;
+    }
+
+    public async Task<List<StaffActivityLogDto>> GetTodayActivityLogsAsync(int staffId)
+    {
+        var activities = new List<StaffActivityLogDto>();
+        
+        try
+        {
+            await using var conn = _connFactory();
+            await conn.OpenAsync();
+
+            // Get today's date range
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+
+            // Query 1: Payments processed today
+            const string paymentsSql = @"
+                SELECT 
+                    p.payment_id,
+                    'payment' as activity_type,
+                    u.full_name as customer_name,
+                    v.model_id as vehicle_model,
+                    p.amount,
+                    p.method_type as details,
+                    p.created_at,
+                    p.status
+                FROM payments p
+                INNER JOIN users u ON p.user_id = u.user_id
+                LEFT JOIN reservations r ON p.reservation_id = r.reservation_id
+                LEFT JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                WHERE p.created_at >= @Today AND p.created_at < @Tomorrow
+                ORDER BY p.created_at DESC";
+
+            await using var paymentsCmd = new SqlCommand(paymentsSql, conn);
+            paymentsCmd.Parameters.AddWithValue("@Today", today);
+            paymentsCmd.Parameters.AddWithValue("@Tomorrow", tomorrow);
+
+            await using var paymentsReader = await paymentsCmd.ExecuteReaderAsync();
+            while (await paymentsReader.ReadAsync())
+            {
+                activities.Add(new StaffActivityLogDto
+                {
+                    ActivityId = paymentsReader.GetInt32(0),
+                    ActivityType = paymentsReader.GetString(1),
+                    CustomerName = paymentsReader.GetString(2),
+                    VehicleModel = paymentsReader.IsDBNull(3) ? null : paymentsReader.GetString(3),
+                    Amount = paymentsReader.GetDecimal(4),
+                    Details = paymentsReader.GetString(5),
+                    CreatedAt = paymentsReader.GetDateTime(6),
+                    Status = paymentsReader.GetString(7)
+                });
+            }
+            await paymentsReader.CloseAsync();
+
+            // Query 2: Cancellations today
+            const string cancellationsSql = @"
+                SELECT 
+                    r.reservation_id,
+                    'cancellation' as activity_type,
+                    u.full_name as customer_name,
+                    v.model_id as vehicle_model,
+                    NULL as amount,
+                    r.cancellation_reason as details,
+                    r.cancelled_at as created_at,
+                    r.cancelled_by as status
+                FROM reservations r
+                INNER JOIN users u ON r.user_id = u.user_id
+                INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                WHERE r.status = 'cancelled' 
+                    AND r.cancelled_at >= @Today 
+                    AND r.cancelled_at < @Tomorrow
+                ORDER BY r.cancelled_at DESC";
+
+            await using var cancellationsCmd = new SqlCommand(cancellationsSql, conn);
+            cancellationsCmd.Parameters.AddWithValue("@Today", today);
+            cancellationsCmd.Parameters.AddWithValue("@Tomorrow", tomorrow);
+
+            await using var cancellationsReader = await cancellationsCmd.ExecuteReaderAsync();
+            while (await cancellationsReader.ReadAsync())
+            {
+                activities.Add(new StaffActivityLogDto
+                {
+                    ActivityId = cancellationsReader.GetInt32(0),
+                    ActivityType = cancellationsReader.GetString(1),
+                    CustomerName = cancellationsReader.GetString(2),
+                    VehicleModel = cancellationsReader.GetString(3),
+                    Amount = null,
+                    Details = cancellationsReader.IsDBNull(5) ? "Cancelled" : cancellationsReader.GetString(5),
+                    CreatedAt = cancellationsReader.GetDateTime(6),
+                    Status = cancellationsReader.IsDBNull(7) ? "unknown" : cancellationsReader.GetString(7)
+                });
+            }
+            await cancellationsReader.CloseAsync();
+
+            // Query 3: Confirmations today
+            const string confirmationsSql = @"
+                SELECT 
+                    r.reservation_id,
+                    'confirmation' as activity_type,
+                    u.full_name as customer_name,
+                    v.model_id as vehicle_model,
+                    NULL as amount,
+                    'Reservation confirmed and vehicle unlocked' as details,
+                    r.created_at,
+                    r.status
+                FROM reservations r
+                INNER JOIN users u ON r.user_id = u.user_id
+                INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                WHERE r.status = 'confirmed' 
+                    AND r.created_at >= @Today 
+                    AND r.created_at < @Tomorrow
+                ORDER BY r.created_at DESC";
+
+            await using var confirmationsCmd = new SqlCommand(confirmationsSql, conn);
+            confirmationsCmd.Parameters.AddWithValue("@Today", today);
+            confirmationsCmd.Parameters.AddWithValue("@Tomorrow", tomorrow);
+
+            await using var confirmationsReader = await confirmationsCmd.ExecuteReaderAsync();
+            while (await confirmationsReader.ReadAsync())
+            {
+                activities.Add(new StaffActivityLogDto
+                {
+                    ActivityId = confirmationsReader.GetInt32(0),
+                    ActivityType = confirmationsReader.GetString(1),
+                    CustomerName = confirmationsReader.GetString(2),
+                    VehicleModel = confirmationsReader.GetString(3),
+                    Amount = null,
+                    Details = confirmationsReader.GetString(5),
+                    CreatedAt = confirmationsReader.GetDateTime(6),
+                    Status = confirmationsReader.GetString(7)
+                });
+            }
+            
+            // Sort all activities by time
+            activities = activities.OrderByDescending(a => a.CreatedAt).ToList();
+            
+            Console.WriteLine($"[GetTodayActivityLogs] Found {activities.Count} activities for today");
+            
+            return activities;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GetTodayActivityLogs] Error: {ex.Message}");
+            return activities;
+        }
     }
 }

@@ -8,7 +8,7 @@ public interface IReservationService
     Task<ReservationResponse> CreateReservationAsync(CreateReservationRequest request);
     Task<IEnumerable<ReservationDto>> GetUserReservationsAsync(int userId);
     Task<ReservationDto?> GetReservationByIdAsync(int reservationId);
-    Task<bool> CancelReservationAsync(int reservationId);
+    Task<bool> CancelReservationAsync(int reservationId, string? reason = null, string? cancelledBy = null);
 }
 
 public class ReservationService : IReservationService
@@ -73,9 +73,9 @@ public class ReservationService : IReservationService
         return await _reservationRepository.GetReservationByIdAsync(reservationId);
     }
 
-    public async Task<bool> CancelReservationAsync(int reservationId)
+    public async Task<bool> CancelReservationAsync(int reservationId, string? reason = null, string? cancelledBy = null)
     {
-        return await _reservationRepository.CancelReservationAsync(reservationId);
+        return await _reservationRepository.CancelReservationAsync(reservationId, reason, cancelledBy);
     }
 }
 

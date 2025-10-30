@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import VehicleUnlockConfirmation from "./VehicleUnlockConfirmation";
 import { useToast } from "@/hooks/use-toast";
+import { usePendingVehicles } from "@/hooks/useStaffApi";
+import { staffApiService } from "@/services/api";
 
 interface PendingBooking {
   bookingId: string;
@@ -56,70 +58,111 @@ const StaffPickupManager: React.FC = () => {
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const { toast } = useToast();
 
-  // Mock data for pending pickups
-  const [bookings, setBookings] = useState<PendingBooking[]>([
-    {
-      bookingId: "BK12345",
-      vehicleId: "EV001",
-      vehicleName: "Tesla Model 3 2022",
-      customerName: "Nguyen Van A",
-      customerPhone: "+84 90 123 4567",
-      pickupLocation: "District 1 Central Station",
-      pickupDate: "2024-01-15",
-      pickupTime: "14:00",
-      returnDate: "2024-01-17",
-      returnTime: "14:00",
-      totalAmount: 360.0,
-      depositAmount: 100.0,
-      documentsVerified: true,
-      licenseVerified: true,
-      qrScanned: true,
-      status: "ready",
-    },
-    {
-      bookingId: "BK12346",
-      vehicleId: "EV002",
-      vehicleName: "VinFast VF8 2023",
-      customerName: "Tran Thi B",
-      customerPhone: "+84 91 234 5678",
-      pickupLocation: "District 1 Central Station",
-      pickupDate: "2024-01-15",
-      pickupTime: "15:30",
-      returnDate: "2024-01-16",
-      returnTime: "15:30",
-      totalAmount: 180.0,
-      depositAmount: 100.0,
-      documentsVerified: false,
-      licenseVerified: true,
-      qrScanned: false,
-      status: "incomplete",
-    },
-    {
-      bookingId: "BK12347",
-      vehicleId: "EV003",
-      vehicleName: "BYD Tang 2023",
-      customerName: "Le Van C",
-      customerPhone: "+84 92 345 6789",
-      pickupLocation: "District 1 Central Station",
-      pickupDate: "2024-01-15",
-      pickupTime: "16:00",
-      returnDate: "2024-01-18",
-      returnTime: "16:00",
-      totalAmount: 540.0,
-      depositAmount: 150.0,
-      documentsVerified: true,
-      licenseVerified: false,
-      qrScanned: false,
-      status: "incomplete",
-    },
-  ]);
+  // Load pending pickups from API
+  const [bookings, setBookings] = useState<PendingBooking[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { data: pendingVehicles, refetch: refetchPendingVehicles } = usePendingVehicles();
+
+  // Fetch pending customers for verification
+  useEffect(() => {
+    const loadPendingPickups = async () => {
+      try {
+        setLoading(true);
+        const customers = await staffApiService.getCustomersForVerification();
+        console.log("📦 Loaded customers for pickup:", customers);
+        
+        // Map API data to PendingBooking format
+        const mappedBookings: PendingBooking[] = customers.map((customer: any) => {
+          const hasDocuments = customer.documents && customer.documents.length > 0;
+          const allDocsApproved = hasDocuments && customer.documents.every((doc: any) => doc.status === 'approved');
+          const hasLicense = customer.documents && customer.documents.some((doc: any) => 
+            doc.documentType === 'driverLicense' && doc.status === 'approved'
+          );
+          
+          // Determine status based on verifications
+          let status: "pending" | "ready" | "incomplete" = "pending";
+          if (allDocsApproved && hasLicense) {
+            status = "ready";
+          } else if (hasDocuments && !allDocsApproved) {
+            status = "incomplete";
+          }
+          
+          // Parse pickup date/time from StartTime
+          let pickupDate = "N/A";
+          let pickupTime = "N/A";
+          let returnDate = "N/A";
+          let returnTime = "N/A";
+          
+          try {
+            if (customer.startTime) {
+              const start = new Date(customer.startTime);
+              if (!isNaN(start.getTime())) {
+                pickupDate = start.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+                pickupTime = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+              }
+            }
+            
+            if (customer.endTime) {
+              const end = new Date(customer.endTime);
+              if (!isNaN(end.getTime())) {
+                returnDate = end.toLocaleDateString('en-CA');
+                returnTime = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+              }
+            }
+          } catch (err) {
+            console.warn("Invalid date for reservation:", customer.reservationId);
+          }
+          
+          return {
+            bookingId: customer.reservationId?.toString() || `BK${customer.userId}`,
+            vehicleId: customer.vehicleId?.toString() || "N/A",
+            vehicleName: customer.vehicleModel || "Unknown Vehicle",
+            customerName: customer.fullName || "Unknown",
+            customerPhone: customer.phone || "N/A",
+            pickupLocation: "Station", // Can be enhanced with actual station data
+            pickupDate: pickupDate,
+            pickupTime: pickupTime,
+            returnDate: returnDate,
+            returnTime: returnTime,
+            totalAmount: customer.totalAmount || 0,
+            depositAmount: customer.depositAmount || 0,
+            documentsVerified: allDocsApproved,
+            licenseVerified: hasLicense,
+            qrScanned: false, // Will be updated when QR is scanned
+            status: status,
+          };
+        });
+        
+        setBookings(mappedBookings);
+      } catch (error) {
+        console.error("Error loading pending pickups:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load pending pickups",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPendingPickups();
+  }, [toast]);
 
   const handleQRScanned = (bookingId: string) => {
     // In real app, this would be triggered by external QR scanner
     setBookings((prev) =>
-      prev.map((b) =>
-        b.bookingId === bookingId ? { ...b, qrScanned: true } : b
-      )
+      prev.map((b) => {
+        if (b.bookingId === bookingId) {
+          const updated = { ...b, qrScanned: true };
+          // Auto-update status if all verifications complete
+          if (updated.qrScanned && updated.documentsVerified && updated.licenseVerified) {
+            updated.status = "ready";
+          }
+          return updated;
+        }
+        return b;
+      })
     );
     toast({
       title: "QR Code Scanned",
@@ -129,9 +172,17 @@ const StaffPickupManager: React.FC = () => {
 
   const handleVerifyDocuments = (bookingId: string) => {
     setBookings((prev) =>
-      prev.map((b) =>
-        b.bookingId === bookingId ? { ...b, documentsVerified: true } : b
-      )
+      prev.map((b) => {
+        if (b.bookingId === bookingId) {
+          const updated = { ...b, documentsVerified: true };
+          // Auto-update status if all verifications complete
+          if (updated.qrScanned && updated.documentsVerified && updated.licenseVerified) {
+            updated.status = "ready";
+          }
+          return updated;
+        }
+        return b;
+      })
     );
     toast({
       title: "Documents Verified",
@@ -141,9 +192,17 @@ const StaffPickupManager: React.FC = () => {
 
   const handleVerifyLicense = (bookingId: string) => {
     setBookings((prev) =>
-      prev.map((b) =>
-        b.bookingId === bookingId ? { ...b, licenseVerified: true } : b
-      )
+      prev.map((b) => {
+        if (b.bookingId === bookingId) {
+          const updated = { ...b, licenseVerified: true };
+          // Auto-update status if all verifications complete
+          if (updated.qrScanned && updated.documentsVerified && updated.licenseVerified) {
+            updated.status = "ready";
+          }
+          return updated;
+        }
+        return b;
+      })
     );
     toast({
       title: "License Verified",
@@ -156,23 +215,97 @@ const StaffPickupManager: React.FC = () => {
     setIsConfirmationOpen(true);
   };
 
-  const handleConfirmUnlock = (bookingId: string) => {
-    // Remove from pending and add to completed
-    setBookings((prev) => prev.filter((b) => b.bookingId !== bookingId));
-    toast({
-      title: "Vehicle Unlocked",
-      description: "Customer can now access the vehicle",
-    });
+  const handleConfirmUnlock = async (bookingId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      console.log(`[Confirm Unlock] Processing reservation ${bookingId}`);
+      
+      // Call API to confirm reservation and unlock vehicle
+      const response = await fetch(`http://localhost:5000/api/staff/reservations/${bookingId}/confirm`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("[Confirm Unlock] Failed:", errorData);
+        throw new Error(errorData.message || "Failed to confirm reservation");
+      }
+
+      const result = await response.json();
+      console.log("[Confirm Unlock] Success:", result);
+
+      // Remove from pending list
+      setBookings((prev) => prev.filter((b) => b.bookingId !== bookingId));
+      
+      toast({
+        title: "✅ Vehicle Unlocked",
+        description: "Customer can now access the vehicle. Reservation confirmed.",
+      });
+
+      // Refresh data
+      refetchPendingVehicles();
+    } catch (error) {
+      console.error("Error confirming unlock:", error);
+      toast({
+        title: "❌ Failed to Unlock",
+        description: error instanceof Error ? error.message : "Could not confirm reservation. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDenyPickup = (bookingId: string, reason: string) => {
-    // Update booking status to denied
-    setBookings((prev) => prev.filter((b) => b.bookingId !== bookingId));
-    toast({
-      title: "Pickup Denied",
-      description: "Customer has been notified",
-      variant: "destructive",
-    });
+  const handleDenyPickup = async (bookingId: string, reason: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      console.log(`[Deny Pickup] Cancelling booking ${bookingId} with reason: ${reason}`);
+      
+      // Call API to cancel/deny the reservation
+      const response = await fetch(`http://localhost:5000/api/reservations/${bookingId}/cancel`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason: reason,
+          cancelledBy: "staff",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("[Deny Pickup] Failed:", errorData);
+        throw new Error(errorData.message || "Failed to deny pickup");
+      }
+
+      const result = await response.json();
+      console.log("[Deny Pickup] Success:", result);
+
+      // Remove from local state
+      setBookings((prev) => prev.filter((b) => b.bookingId !== bookingId));
+      
+      toast({
+        title: "Pickup Denied",
+        description: `Booking ${bookingId} has been cancelled. Customer will be notified.`,
+        variant: "destructive",
+      });
+
+      // Refetch to ensure data is in sync
+      refetchPendingVehicles();
+    } catch (error) {
+      console.error("Error denying pickup:", error);
+      toast({
+        title: "Failed to Deny Pickup",
+        description: error instanceof Error ? error.message : "Could not cancel the booking. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (booking: PendingBooking) => {
@@ -272,36 +405,69 @@ const StaffPickupManager: React.FC = () => {
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
-          <PendingPickupsTable
-            bookings={filteredBookings}
-            onQRScanned={handleQRScanned}
-            onVerifyDocuments={handleVerifyDocuments}
-            onVerifyLicense={handleVerifyLicense}
-            onReviewPickup={handleReviewPickup}
-            getStatusBadge={getStatusBadge}
-          />
+          {loading ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading pending pickups...</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <PendingPickupsTable
+              bookings={filteredBookings}
+              onQRScanned={handleQRScanned}
+              onVerifyDocuments={handleVerifyDocuments}
+              onVerifyLicense={handleVerifyLicense}
+              onReviewPickup={handleReviewPickup}
+              getStatusBadge={getStatusBadge}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="ready" className="space-y-4">
-          <PendingPickupsTable
-            bookings={readyBookings}
-            onQRScanned={handleQRScanned}
-            onVerifyDocuments={handleVerifyDocuments}
-            onVerifyLicense={handleVerifyLicense}
-            onReviewPickup={handleReviewPickup}
-            getStatusBadge={getStatusBadge}
-          />
+          {loading ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading ready pickups...</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <PendingPickupsTable
+              bookings={readyBookings}
+              onQRScanned={handleQRScanned}
+              onVerifyDocuments={handleVerifyDocuments}
+              onVerifyLicense={handleVerifyLicense}
+              onReviewPickup={handleReviewPickup}
+              getStatusBadge={getStatusBadge}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="incomplete" className="space-y-4">
-          <PendingPickupsTable
-            bookings={incompleteBookings}
-            onQRScanned={handleQRScanned}
-            onVerifyDocuments={handleVerifyDocuments}
-            onVerifyLicense={handleVerifyLicense}
-            onReviewPickup={handleReviewPickup}
-            getStatusBadge={getStatusBadge}
-          />
+          {loading ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading incomplete pickups...</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <PendingPickupsTable
+              bookings={incompleteBookings}
+              onQRScanned={handleQRScanned}
+              onVerifyDocuments={handleVerifyDocuments}
+              onVerifyLicense={handleVerifyLicense}
+              onReviewPickup={handleReviewPickup}
+              getStatusBadge={getStatusBadge}
+            />
+          )}
         </TabsContent>
       </Tabs>
 

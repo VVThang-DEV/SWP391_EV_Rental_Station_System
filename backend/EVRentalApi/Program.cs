@@ -426,7 +426,7 @@ app.MapGet("/api/reservations/{id}", [Microsoft.AspNetCore.Authorization.Authori
     });
 });
 
-app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, IReservationService reservationService, Func<SqlConnection> getConnection, HttpContext context) =>
+app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, CancelReservationRequest req, IReservationService reservationService, Func<SqlConnection> getConnection, HttpContext context) =>
 {
     var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
     if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
@@ -435,9 +435,10 @@ app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization
     }
 
     Console.WriteLine($"[Cancel Booking] Processing cancellation for reservation {id} by user {userId}");
+    Console.WriteLine($"[Cancel Booking] Reason: {req.Reason}, CancelledBy: {req.CancelledBy}");
 
-    // Cancel the reservation
-    var success = await reservationService.CancelReservationAsync(id);
+    // Cancel the reservation with reason
+    var success = await reservationService.CancelReservationAsync(id, req.Reason, req.CancelledBy);
     
     if (!success)
     {
@@ -453,8 +454,24 @@ app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization
     
     try
     {
+        // First, get the customer's user_id from the reservation (NOT from JWT token, because staff might be cancelling)
+        var getCustomerIdCmd = new SqlCommand("SELECT user_id FROM dbo.reservations WHERE reservation_id = @ReservationId", conn, trans);
+        getCustomerIdCmd.Parameters.AddWithValue("@ReservationId", id);
+        var customerIdObj = await getCustomerIdCmd.ExecuteScalarAsync();
+        
+        if (customerIdObj == null || customerIdObj == DBNull.Value)
+        {
+            Console.WriteLine($"[Cancel Booking] ERROR: Reservation {id} not found");
+            trans.Rollback();
+            await conn.CloseAsync();
+            return Results.BadRequest(new { success = false, message = "Reservation not found" });
+        }
+        
+        int customerId = (int)customerIdObj;
+        Console.WriteLine($"[Cancel Booking] Found customer_id: {customerId} for reservation {id}");
+        
         // Get payment information for this reservation
-        Console.WriteLine($"[Cancel Booking] Checking payments for reservation {id} and user {userId}");
+        Console.WriteLine($"[Cancel Booking] Checking payments for reservation {id} and customer {customerId}");
         
         // Query payments: check for wallet payments with flexible conditions
         var getPaymentCmd = new SqlCommand(@"
@@ -508,41 +525,41 @@ app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization
             Console.WriteLine($"[Cancel Booking] Updated {updateCount} payment records to refunded status");
             
             // Verify the update
-            Console.WriteLine($"[Cancel Booking] Verification: reservation_id={id}, userId={userId}, refundAmount={refundAmount}");
+            Console.WriteLine($"[Cancel Booking] Verification: reservation_id={id}, customerId={customerId}, refundAmount={refundAmount}");
             
-            // Insert refund transaction
-            var refundTransactionId = $"RFND_{DateTime.UtcNow.Ticks}_{userId}";
+            // Insert refund transaction (refund to CUSTOMER, not the staff who cancelled)
+            var refundTransactionId = $"RFND_{DateTime.UtcNow.Ticks}_{customerId}";
             var insertRefundCmd = new SqlCommand(@"
                 INSERT INTO dbo.payments (user_id, reservation_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
                 VALUES (@userId, @ReservationId, 'wallet', @amount, 'success', 'refund', @transactionId, GETDATE(), GETDATE());
                 SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
-            insertRefundCmd.Parameters.AddWithValue("@userId", userId);
+            insertRefundCmd.Parameters.AddWithValue("@userId", customerId);
             insertRefundCmd.Parameters.AddWithValue("@ReservationId", id);
             insertRefundCmd.Parameters.AddWithValue("@amount", refundAmount);
             insertRefundCmd.Parameters.AddWithValue("@transactionId", refundTransactionId);
             var refundPaymentId = await insertRefundCmd.ExecuteScalarAsync();
-            Console.WriteLine($"[Cancel Booking] Created refund transaction with payment_id: {refundPaymentId}");
+            Console.WriteLine($"[Cancel Booking] Created refund transaction with payment_id: {refundPaymentId}, refunding to customer_id: {customerId}");
             
-            // Get current balance before refund
+            // Get current balance before refund (CUSTOMER's balance, not staff's)
             var checkBalanceBeforeCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
-            checkBalanceBeforeCmd.Parameters.AddWithValue("@userId", userId);
+            checkBalanceBeforeCmd.Parameters.AddWithValue("@userId", customerId);
             var balanceBeforeResult = await checkBalanceBeforeCmd.ExecuteScalarAsync();
             var balanceBefore = balanceBeforeResult == DBNull.Value ? 0m : (decimal)balanceBeforeResult;
-            Console.WriteLine($"[Cancel Booking] Balance BEFORE refund: {balanceBefore} VND");
+            Console.WriteLine($"[Cancel Booking] Customer balance BEFORE refund: {balanceBefore} VND");
             
-            // Update wallet balance
+            // Update wallet balance (CUSTOMER's wallet, not staff's)
             var updateWalletCmd = new SqlCommand(@"
                 UPDATE dbo.users 
                 SET wallet_balance = ISNULL(wallet_balance, 0) + @amount 
                 WHERE user_id = @userId", conn, trans);
-            updateWalletCmd.Parameters.AddWithValue("@userId", userId);
+            updateWalletCmd.Parameters.AddWithValue("@userId", customerId);
             updateWalletCmd.Parameters.AddWithValue("@amount", refundAmount);
             await updateWalletCmd.ExecuteNonQueryAsync();
-            Console.WriteLine($"[Cancel Booking] Updated wallet balance +{refundAmount}");
+            Console.WriteLine($"[Cancel Booking] Updated customer wallet balance +{refundAmount}");
             
-            // Get new balance
+            // Get new balance (CUSTOMER's new balance)
             var getBalanceCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
-            getBalanceCmd.Parameters.AddWithValue("@userId", userId);
+            getBalanceCmd.Parameters.AddWithValue("@userId", customerId);
             var balanceResult = await getBalanceCmd.ExecuteScalarAsync();
             var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
             

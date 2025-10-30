@@ -230,6 +230,36 @@ public class StaffService : IStaffService
         }
     }
 
+    public async Task<CustomerVerificationResponse> ConfirmReservationAsync(int reservationId, int staffId)
+    {
+        try
+        {
+            var success = await _staffRepository.ConfirmReservationAsync(reservationId, staffId);
+            if (!success)
+            {
+                return new CustomerVerificationResponse
+                {
+                    Success = false,
+                    Message = "Failed to confirm reservation"
+                };
+            }
+
+            return new CustomerVerificationResponse
+            {
+                Success = true,
+                Message = "Reservation confirmed successfully"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new CustomerVerificationResponse
+            {
+                Success = false,
+                Message = $"Error confirming reservation: {ex.Message}"
+            };
+        }
+    }
+
     public async Task<List<HandoverDto>> GetHandoversAsync(int staffId)
     {
         return await _staffRepository.GetHandoversAsync(staffId);
@@ -317,5 +347,10 @@ public class StaffService : IStaffService
         {
             return new VehicleUpdateResponse { Success = false, Message = $"Error updating vehicle: {ex.Message}" };
         }
+    }
+
+    public async Task<List<StaffActivityLogDto>> GetTodayActivityLogsAsync(int staffId)
+    {
+        return await _staffRepository.GetTodayActivityLogsAsync(staffId);
     }
 }
