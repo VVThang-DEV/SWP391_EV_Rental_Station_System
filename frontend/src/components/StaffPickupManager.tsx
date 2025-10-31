@@ -80,12 +80,13 @@ const StaffPickupManager: React.FC = () => {
           );
           
           // Determine status based on verifications
+          // NOTE: qrScanned is always false initially, so status will never be "ready" on first load
+          // Status will only become "ready" after all 3 verifications (QR, License, Docs) are completed
           let status: "pending" | "ready" | "incomplete" = "pending";
-          if (allDocsApproved && hasLicense) {
-            status = "ready";
-          } else if (hasDocuments && !allDocsApproved) {
+          if (hasDocuments && !allDocsApproved) {
             status = "incomplete";
           }
+          // Don't set status to "ready" here - it requires QR scan which happens later
           
           // Parse pickup date/time from StartTime
           let pickupDate = "N/A";
@@ -98,7 +99,23 @@ const StaffPickupManager: React.FC = () => {
               const start = new Date(customer.startTime);
               if (!isNaN(start.getTime())) {
                 pickupDate = start.toLocaleDateString('en-CA'); // YYYY-MM-DD format
-                pickupTime = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                
+                // For hourly rental, pickup slot is 30 minutes
+                // Display the END of pickup slot (deadline for customer to arrive)
+                // Check if this is hourly rental (duration < 24 hours and same day)
+                const end = customer.endTime ? new Date(customer.endTime) : null;
+                const isHourlyRental = end && 
+                  start.toDateString() === end.toDateString() && 
+                  (end.getTime() - start.getTime()) < 24 * 60 * 60 * 1000;
+                
+                if (isHourlyRental) {
+                  // Add 30 minutes to show pickup deadline (end of pickup slot)
+                  const pickupDeadline = new Date(start.getTime() + 30 * 60 * 1000);
+                  pickupTime = pickupDeadline.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                } else {
+                  // Daily rental - show start time as-is
+                  pickupTime = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                }
               }
             }
             
