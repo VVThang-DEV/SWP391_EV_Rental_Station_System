@@ -35,6 +35,7 @@ import {
   StaffDashboard,
   AdminDashboard,
 } from "./pages/pages";
+import { FeedbackPage } from "./feedback";
 
 const queryClient = new QueryClient();
 
@@ -190,6 +191,7 @@ const App = () => {
                 />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/bookings" element={<Bookings />} />
+                <Route path="/feedback/:rentalId" element={<FeedbackPage />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/terms" element={<Terms />} />
