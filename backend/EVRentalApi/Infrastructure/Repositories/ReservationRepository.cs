@@ -185,11 +185,17 @@ public class ReservationRepository : IReservationRepository
             await connection.OpenAsync();
 
             var sql = @"
-                SELECT reservation_id, user_id, vehicle_id, station_id, start_time, end_time, status, created_at,
-                       cancellation_reason, cancelled_by, cancelled_at
-                FROM reservations
-                WHERE user_id = @UserId
-                ORDER BY created_at DESC";
+                SELECT 
+                    r.reservation_id, r.user_id, r.vehicle_id, r.station_id, 
+                    r.start_time, r.end_time, r.status, r.created_at,
+                    r.cancellation_reason, r.cancelled_by, r.cancelled_at,
+                    s.name as station_name,
+                    v.model_id as vehicle_model
+                FROM reservations r
+                LEFT JOIN stations s ON r.station_id = s.station_id
+                LEFT JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                WHERE r.user_id = @UserId
+                ORDER BY r.created_at DESC";
 
             using var command = new SqlCommand(sql, connection);
             command.Parameters.AddWithValue("@UserId", userId);
@@ -210,7 +216,9 @@ public class ReservationRepository : IReservationRepository
                     CreatedAt = reader.GetDateTime("created_at"),
                     CancellationReason = reader.IsDBNull(reader.GetOrdinal("cancellation_reason")) ? null : reader.GetString("cancellation_reason"),
                     CancelledBy = reader.IsDBNull(reader.GetOrdinal("cancelled_by")) ? null : reader.GetString("cancelled_by"),
-                    CancelledAt = reader.IsDBNull(reader.GetOrdinal("cancelled_at")) ? null : reader.GetDateTime("cancelled_at")
+                    CancelledAt = reader.IsDBNull(reader.GetOrdinal("cancelled_at")) ? null : reader.GetDateTime("cancelled_at"),
+                    StationName = reader.IsDBNull(reader.GetOrdinal("station_name")) ? null : reader.GetString("station_name"),
+                    VehicleName = reader.IsDBNull(reader.GetOrdinal("vehicle_model")) ? null : reader.GetString("vehicle_model")
                 });
             }
         }

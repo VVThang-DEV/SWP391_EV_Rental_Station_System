@@ -292,7 +292,7 @@ const Bookings = () => {
                       <div>
                         <CardTitle className="flex items-center gap-2">
                           <Car className="h-5 w-5 text-primary" />
-                          Vehicle #{reservation.vehicleId}
+                          {reservation.vehicleName || `Vehicle #${reservation.vehicleId}`}
                         </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
                           Reservation ID: #{reservation.reservationId}
@@ -335,7 +335,7 @@ const Bookings = () => {
                         <div>
                           <div className="text-sm font-medium">Station</div>
                           <div className="text-sm text-muted-foreground">
-                            Station #{reservation.stationId}
+                            {reservation.stationName || `Station #${reservation.stationId}`}
                           </div>
                         </div>
                       </div>
@@ -493,11 +493,11 @@ const Bookings = () => {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">
-                        Station ID
+                        Station
                       </div>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        Station #{selectedBooking.stationId}
+                        {selectedBooking.stationName || `Station #${selectedBooking.stationId}`}
                       </div>
                     </div>
                   </div>

@@ -20,6 +20,7 @@ public interface IUserRepository
     Task<bool> UpsertDocumentAsync(int userId, string documentUrl, string documentType);
     Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType);
     Task<object?> GetUserInfoByIdAsync(int userId);
+    Task<EVRentalApi.Models.UserDto?> GetUserByIdAsync(int userId);
 }
 
 public sealed class UserRepository : IUserRepository
@@ -460,6 +461,47 @@ WHERE u.user_id = @UserId AND u.is_active = 1";
                 roleName = reader["role_name"].ToString(),
                 createdAt = Convert.ToDateTime(reader["created_at"]),
                 updatedAt = Convert.ToDateTime(reader["updated_at"])
+            };
+        }
+        return null;
+    }
+
+    public async Task<EVRentalApi.Models.UserDto?> GetUserByIdAsync(int userId)
+    {
+        const string sql = @"
+SELECT 
+    u.user_id,
+    u.email,
+    u.full_name,
+    u.phone,
+    u.role_id,
+    u.is_active,
+    u.created_at,
+    u.station_id
+FROM users u
+WHERE u.user_id = @UserId AND u.is_active = 1";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn)
+        {
+            CommandType = CommandType.Text
+        };
+        cmd.Parameters.AddWithValue("@UserId", userId);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new EVRentalApi.Models.UserDto
+            {
+                UserId = Convert.ToInt32(reader["user_id"]),
+                Email = reader["email"].ToString() ?? string.Empty,
+                FullName = reader["full_name"].ToString() ?? string.Empty,
+                Phone = reader["phone"]?.ToString() ?? string.Empty,
+                RoleId = Convert.ToInt32(reader["role_id"]),
+                IsActive = Convert.ToBoolean(reader["is_active"]),
+                CreatedAt = Convert.ToDateTime(reader["created_at"]),
+                StationId = reader["station_id"] != DBNull.Value ? Convert.ToInt32(reader["station_id"]) : null
             };
         }
         return null;
