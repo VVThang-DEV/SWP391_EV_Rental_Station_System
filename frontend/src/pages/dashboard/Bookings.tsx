@@ -24,6 +24,7 @@ import {
   Eye,
   RotateCcw,
   Edit,
+  Star,
 } from "lucide-react";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 
@@ -345,6 +346,15 @@ const Bookings = () => {
                             </Button>
                             <Button variant="outline" size="sm">
                               Download Receipt
+                            </Button> 
+                            <Button 
+                              size="sm" 
+                              asChild
+                            >
+                              <Link to={`/feedback/${booking.id}`}>
+                                <Star className="h-4 w-4 mr-1" />
+                                Rate Experience
+                              </Link>
                             </Button>
                             <Button size="sm" asChild>
                               <Link to={`/book/${booking.vehicleId}`}>
