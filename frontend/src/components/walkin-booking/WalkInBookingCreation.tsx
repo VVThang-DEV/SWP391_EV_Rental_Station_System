@@ -390,3 +390,7 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
 };
 
 export default WalkInBookingCreation;
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
