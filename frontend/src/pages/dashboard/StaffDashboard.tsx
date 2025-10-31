@@ -1,4 +1,10 @@
+<<<<<<< Updated upstream
 import { useState } from "react";
+=======
+import { useState, useEffect } from "react";
+import { useStationVehicles } from "@/hooks/useStaffApi";
+import { useFeedbackApi } from "@/feedback";
+>>>>>>> Stashed changes
 import {
   Card,
   CardContent,
@@ -95,6 +101,28 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [selectedTab, setSelectedTab] = useState("vehicles");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+<<<<<<< Updated upstream
+=======
+
+  // API Hook for Vehicle Management only
+  const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
+  
+  // API Hook for Feedback Management
+  const { 
+    loading: feedbacksLoading, 
+    error: feedbacksError, 
+    getFeedbacksByStation, 
+    getFeedbackStats, 
+    getRecentFeedbacks,
+    addStaffResponse 
+  } = useFeedbackApi();
+  
+  // Debug API data
+  console.log('API Vehicles:', apiVehicles);
+  console.log('Vehicles Loading:', vehiclesLoading);
+  console.log('Vehicles Error:', vehiclesError);
+  console.log('Token:', localStorage.getItem('token'));
+>>>>>>> Stashed changes
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [maintenanceNotes, setMaintenanceNotes] = useState("");
@@ -1756,6 +1784,269 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     </div>
   );
 
+  const renderServiceReviews = () => {
+    const [feedbacks, setFeedbacks] = useState<any[]>([]);
+    const [feedbackStats, setFeedbackStats] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Load feedbacks when component mounts
+    useEffect(() => {
+      const loadFeedbacks = async () => {
+        if (!user?.stationId) return;
+        
+        try {
+          setIsLoading(true);
+          const [feedbacksData, statsData] = await Promise.all([
+            getFeedbacksByStation(parseInt(user.stationId)),
+            getFeedbackStats(parseInt(user.stationId))
+          ]);
+          
+          setFeedbacks(feedbacksData);
+          setFeedbackStats(statsData);
+        } catch (error) {
+          console.error('Error loading feedbacks:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load feedbacks. Using mock data.",
+            variant: "destructive",
+          });
+          
+          // Fallback to mock data
+          const mockFeedbacks = [
+            {
+              feedbackId: 1,
+              customerName: "Nguyen Van A",
+              vehicleModel: "Tesla Model 3",
+              rating: 5,
+              comment: "Excellent service! The staff was very helpful and the vehicle was in perfect condition. Will definitely use again.",
+              createdAt: "2024-01-15T00:00:00Z",
+              staffResponse: null,
+            },
+            {
+              feedbackId: 2,
+              customerName: "Tran Thi B",
+              vehicleModel: "VinFast VF8",
+              rating: 4,
+              comment: "Good experience overall. Vehicle was clean and well-maintained. Staff could be more friendly though.",
+              createdAt: "2024-01-14T00:00:00Z",
+              staffResponse: "Thank you for your feedback. We'll work on improving our customer service.",
+            }
+          ];
+          
+          setFeedbacks(mockFeedbacks);
+          setFeedbackStats({
+            averageRating: 4.5,
+            totalReviews: 2,
+            positiveReviews: 2,
+            ratingDistribution: { 5: 1, 4: 1, 3: 0, 2: 0, 1: 0 }
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadFeedbacks();
+    }, [user?.stationId]);
+
+    const handleAddStaffResponse = async (feedbackId: number, response: string) => {
+      try {
+        await addStaffResponse(feedbackId, response);
+        toast({
+          title: "Success",
+          description: "Staff response added successfully.",
+        });
+        
+        // Reload feedbacks to show updated data
+        if (user?.stationId) {
+          const updatedFeedbacks = await getFeedbacksByStation(parseInt(user.stationId));
+          setFeedbacks(updatedFeedbacks);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add staff response.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    if (isLoading) {
+      return (
+        <div className="space-y-6">
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading feedbacks...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const serviceReviews = feedbacks;
+    const stats = feedbackStats || {
+      averageRating: 0,
+      totalReviews: 0,
+      positiveReviews: 0,
+      ratingDistribution: {}
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Review Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-primary-light rounded-full">
+                  <Star className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.averageRating.toFixed(1)}</p>
+                  <p className="text-sm text-muted-foreground">Average Rating</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-success-light rounded-full">
+                  <TrendingUp className="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.totalReviews}</p>
+                  <p className="text-sm text-muted-foreground">Total Reviews</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-warning-light rounded-full">
+                  <Users className="h-6 w-6 text-warning" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">
+                    {stats.positiveReviews}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Positive Reviews</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Rating Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Rating Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[5, 4, 3, 2, 1].map((rating) => (
+                <div key={rating} className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-1 w-8">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-sm font-medium">{rating}</span>
+                  </div>
+                  <div className="flex-1 bg-muted rounded-full h-2">
+                  <div 
+                    className="bg-yellow-400 h-2 rounded-full" 
+                    style={{ 
+                      width: `${((stats.ratingDistribution[rating] || 0) / stats.totalReviews) * 100}%` 
+                    }}
+                  />
+                </div>
+                <span className="text-sm text-muted-foreground w-8">
+                  {stats.ratingDistribution[rating] || 0}
+                </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Reviews */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Service Reviews</CardTitle>
+            <CardDescription>
+              Customer feedback and ratings for your station
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {serviceReviews.map((review) => (
+                <div key={review.id} className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarFallback>
+                          {review.customerName.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h4 className="font-semibold">{review.customerName}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {review.vehicleModel} • {new Date(review.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star 
+                          key={i} 
+                          className={`h-4 w-4 ${
+                            i < review.rating 
+                              ? 'fill-yellow-400 text-yellow-400' 
+                              : 'text-gray-300'
+                          }`} 
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm mb-3">{review.reviewText}</p>
+                  
+                  {review.staffResponse ? (
+                    <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
+                      <div className="flex items-start space-x-2">
+                        <div className="p-1 bg-blue-100 dark:bg-blue-900 rounded-full">
+                          <User className="h-3 w-3 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">
+                            Staff Response
+                          </p>
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            {review.staffResponse}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <Button size="sm" variant="outline">
+                        <Edit className="h-3 w-3 mr-1" />
+                        Respond
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <Eye className="h-3 w-3 mr-1" />
+                        View Details
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-background">
@@ -1871,6 +2162,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 <TabsTrigger value="pickups">Pickup Management</TabsTrigger>
                 <TabsTrigger value="walkin">Walk-in Booking</TabsTrigger>
                 <TabsTrigger value="payments">Payment Processing</TabsTrigger>
+                <TabsTrigger value="reviews">Service Reviews</TabsTrigger>
               </TabsList>
 
               <TabsContent value="vehicles" className="mt-6">
@@ -1891,6 +2183,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               <TabsContent value="payments" className="mt-6">
                 {renderPaymentManagement()}
+              </TabsContent>
+
+              <TabsContent value="reviews" className="mt-6">
+                {renderServiceReviews()}
               </TabsContent>
             </Tabs>
           </FadeIn>
