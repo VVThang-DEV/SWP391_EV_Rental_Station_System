@@ -20,6 +20,7 @@ public interface IUserRepository
     Task<bool> UpsertDocumentAsync(int userId, string documentUrl, string documentType);
     Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType);
     Task<object?> GetUserInfoByIdAsync(int userId);
+    Task<EVRentalApi.Models.UserDto?> GetUserByIdAsync(int userId);
 }
 
 public sealed class UserRepository : IUserRepository
@@ -189,7 +190,7 @@ SELECT SCOPE_IDENTITY();";
     // Check if user exists by email (for forgot password)
     public async Task<bool> UserExistsByEmailAsync(string email)
     {
-        const string sql = "SELECT COUNT(1) FROM users WHERE email = @Email AND is_active = 1";
+        const string sql = "SELECT COUNT(1) FROM users WHERE email = @Email";
 
         await using var conn = _connFactory();
         await conn.OpenAsync();
@@ -236,19 +237,46 @@ WHERE email = @Email AND is_active = 1";
     // Update personal information
     public async Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth, string? phone)
     {
+        Console.WriteLine($"[UserRepository] UpdatePersonalInfoAsync called with email: {email}");
+        
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        // Check if phone is being updated and if it conflicts with existing data
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            const string checkPhoneSql = @"
+SELECT user_id, email, full_name
+FROM users 
+WHERE phone = @Phone AND email != @Email";
+            
+            await using var checkCmd = new SqlCommand(checkPhoneSql, conn);
+            checkCmd.Parameters.AddWithValue("@Phone", phone);
+            checkCmd.Parameters.AddWithValue("@Email", email);
+            
+            await using var reader = await checkCmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                var conflictingUserId = reader.GetInt32(0);
+                var conflictingEmail = reader.GetString(1);
+                var conflictingName = reader.GetString(2);
+                Console.WriteLine($"[UserRepository] ❌ PHONE DUPLICATE: Phone {phone} is already used by user_id={conflictingUserId}, email={conflictingEmail}, name={conflictingName}");
+                return false;
+            }
+        }
+        
+        // Force update by always updating updated_at, even if data hasn't changed
         const string sql = @"
 UPDATE users 
-SET cccd = @Cccd,
-    license_number = @LicenseNumber,
-    address = @Address,
-    gender = @Gender,
-    date_of_birth = @DateOfBirth,
-    phone = @Phone,
+SET cccd = CASE WHEN @Cccd IS NOT NULL THEN @Cccd ELSE cccd END,
+    license_number = CASE WHEN @LicenseNumber IS NOT NULL THEN @LicenseNumber ELSE license_number END,
+    address = CASE WHEN @Address IS NOT NULL THEN @Address ELSE address END,
+    gender = CASE WHEN @Gender IS NOT NULL THEN @Gender ELSE gender END,
+    date_of_birth = CASE WHEN @DateOfBirth IS NOT NULL THEN @DateOfBirth ELSE date_of_birth END,
+    phone = CASE WHEN @Phone IS NOT NULL THEN @Phone ELSE phone END,
     updated_at = @UpdatedAt
 WHERE email = @Email AND is_active = 1";
 
-        await using var conn = _connFactory();
-        await conn.OpenAsync();
         await using var cmd = new SqlCommand(sql, conn)
         {
             CommandType = CommandType.Text
@@ -266,10 +294,33 @@ WHERE email = @Email AND is_active = 1";
         try
         {
             var rowsAffected = await cmd.ExecuteNonQueryAsync();
+            Console.WriteLine($"[UserRepository] UpdatePersonalInfoAsync - rows affected: {rowsAffected}");
+            
+            if (rowsAffected == 0)
+            {
+                Console.WriteLine($"[UserRepository] No user found with email: {email}");
+                
+                // Check if user exists at all
+                var checkSql = "SELECT user_id, is_active FROM users WHERE email = @Email";
+                await using var checkCmd = new SqlCommand(checkSql, conn);
+                checkCmd.Parameters.AddWithValue("@Email", email);
+                var checkResult = await checkCmd.ExecuteScalarAsync();
+                
+                if (checkResult == null)
+                {
+                    Console.WriteLine($"[UserRepository] User does not exist in database");
+                }
+                else
+                {
+                    Console.WriteLine($"[UserRepository] User exists with is_active status");
+                }
+            }
+            
             return rowsAffected > 0;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[UserRepository] UpdatePersonalInfoAsync error: {ex.Message}");
             return false;
         }
     }
@@ -410,6 +461,47 @@ WHERE u.user_id = @UserId AND u.is_active = 1";
                 roleName = reader["role_name"].ToString(),
                 createdAt = Convert.ToDateTime(reader["created_at"]),
                 updatedAt = Convert.ToDateTime(reader["updated_at"])
+            };
+        }
+        return null;
+    }
+
+    public async Task<EVRentalApi.Models.UserDto?> GetUserByIdAsync(int userId)
+    {
+        const string sql = @"
+SELECT 
+    u.user_id,
+    u.email,
+    u.full_name,
+    u.phone,
+    u.role_id,
+    u.is_active,
+    u.created_at,
+    u.station_id
+FROM users u
+WHERE u.user_id = @UserId AND u.is_active = 1";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn)
+        {
+            CommandType = CommandType.Text
+        };
+        cmd.Parameters.AddWithValue("@UserId", userId);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new EVRentalApi.Models.UserDto
+            {
+                UserId = Convert.ToInt32(reader["user_id"]),
+                Email = reader["email"].ToString() ?? string.Empty,
+                FullName = reader["full_name"].ToString() ?? string.Empty,
+                Phone = reader["phone"]?.ToString() ?? string.Empty,
+                RoleId = Convert.ToInt32(reader["role_id"]),
+                IsActive = Convert.ToBoolean(reader["is_active"]),
+                CreatedAt = Convert.ToDateTime(reader["created_at"]),
+                StationId = reader["station_id"] != DBNull.Value ? Convert.ToInt32(reader["station_id"]) : null
             };
         }
         return null;

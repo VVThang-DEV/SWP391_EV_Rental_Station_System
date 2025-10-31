@@ -8,6 +8,6 @@ public interface IReservationRepository
     Task<IEnumerable<ReservationDto>> GetReservationsByUserIdAsync(int userId);
     Task<ReservationDto?> GetReservationByIdAsync(int reservationId);
     Task<bool> UpdateReservationStatusAsync(int reservationId, string status);
-    Task<bool> CancelReservationAsync(int reservationId);
+    Task<bool> CancelReservationAsync(int reservationId, string? reason = null, string? cancelledBy = null);
 }
 
