@@ -614,7 +614,75 @@ const Dashboard = ({ user }: DashboardProps) => {
         </Card>
       </div>
 
+      {/* Report Incident Dialog */}
+<Dialog open={isIncidentDialogOpen} onOpenChange={setIsIncidentDialogOpen}>
+  <DialogContent className="max-w-md">
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2">
+        <AlertTriangle className="h-5 w-5 text-orange-500" />
+        Report Incident
+      </DialogTitle>
+      <DialogDescription>
+        Please describe the issue you're experiencing with your rental.
+      </DialogDescription>
+    </DialogHeader>
 
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="incident-type">Incident Type</Label>
+        <Select value={incidentType} onValueChange={setIncidentType}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select incident type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="battery-empty">Battery Empty</SelectItem>
+            <SelectItem value="vehicle-breakdown">Vehicle Breakdown</SelectItem>
+            <SelectItem value="accident">Minor Accident</SelectItem>
+            <SelectItem value="unlock-issue">Cannot Unlock Vehicle</SelectItem>
+            <SelectItem value="charging-issue">Charging Problem</SelectItem>
+            <SelectItem value="other">Other Technical Issue</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="incident-description">Description</Label>
+        <Textarea
+          id="incident-description"
+          placeholder="Please describe the incident in detail..."
+          value={incidentDescription}
+          onChange={(e) => setIncidentDescription(e.target.value)}
+          rows={4}
+        />
+      </div>
+
+      <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded">
+        <p className="font-medium text-blue-900">Emergency Contact:</p>
+        <p className="text-blue-800">For urgent situations, call: <strong>1900-xxxx</strong></p>
+      </div>
+    </div>
+
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => {
+          setIsIncidentDialogOpen(false);
+          setIncidentType("");
+          setIncidentDescription("");
+        }}
+      >
+        Cancel
+      </Button>
+      <Button
+        onClick={handleReportIncident}
+        disabled={isSubmittingIncident}
+        className="bg-orange-500 hover:bg-orange-600"
+      >
+        {isSubmittingIncident ? "Reporting..." : "Report Incident"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
     </div>
   );
