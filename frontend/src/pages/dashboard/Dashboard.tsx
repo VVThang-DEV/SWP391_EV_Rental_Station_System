@@ -9,6 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
+import {
+   Dialog,
+   DialogContent,
+   DialogDescription,
+   DialogFooter,
+   DialogHeader,
+   DialogTitle,
+ } from "@/components/ui/dialog";
+ import { Textarea } from "@/components/ui/textarea";
+ import { Label } from "@/components/ui/label";
+ import { 
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+ } from "@/components/ui/select";
+ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { bookingStorage } from "@/lib/booking-storage";
 import { useEffect, useState } from "react";
@@ -25,6 +43,7 @@ import {
   Settings,
   ChevronRight,
   Wallet,
+  AlertTriangle,
 } from "lucide-react";
 
 interface DashboardProps {
@@ -37,8 +56,67 @@ interface DashboardProps {
   } | null;
 }
 
+// mock API
+const mockCurrentRental = {
+  id: "RENT001",
+  reservationId: 123,
+  vehicle: "VinFast VF8 Premium",
+  vehicleId: "VF8001",
+  vehicleBrand: "VinFast",
+  vehicleYear: 2024,
+  vehicleImage: "https://vinfastauto.com/sites/default/files/2023-01/VF8%20Plus-1.jpg",
+  startDate: "2024-11-01",
+  endDate: "2024-11-03",
+  startTime: "09:00",
+  endTime: "18:00",
+  pickupLocation: "District 1 Station - HCMC",
+  dropoffLocation: "District 1 Station - HCMC",
+  status: "active",
+  totalCost: 150000, // VND
+  duration: "2 days",
+  batteryLevel: 85,
+  customerInfo: {
+    fullName: "Luu Vu Hung",
+    phone: "0399106850",
+    email: "hung@example.com"
+  },
+  paymentMethod: "wallet",
+  createdAt: "2024-11-01T08:30:00.000Z"
+};
+
+// + Thêm mock recent rentals
+const mockRecentRentals = [
+  {
+    id: "RENT002",
+    vehicle: "Tesla Model 3",
+    startDate: "2024-10-28",
+    endDate: "2024-10-29",
+    duration: "1 day",
+    pickupLocation: "District 3 Station",
+    totalCost: 75000,
+    status: "completed"
+  },
+  {
+    id: "RENT003",
+    vehicle: "BYD Tang",
+    startDate: "2024-10-25",
+    endDate: "2024-10-26",
+    duration: "1 day",
+    pickupLocation: "Thu Duc Station",
+    totalCost: 68000,
+    status: "completed"
+  }
+];
+// END MOCK API
+
+
 const Dashboard = ({ user }: DashboardProps) => {
   const { t } = useTranslation();
+  const { toast } = useToast();
+ const [isIncidentDialogOpen, setIsIncidentDialogOpen] = useState(false);
+ const [incidentType, setIncidentType] = useState("");
+ const [incidentDescription, setIncidentDescription] = useState("");
+ const [isSubmittingIncident, setIsSubmittingIncident] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       totalRentals: 0,
@@ -50,6 +128,21 @@ const Dashboard = ({ user }: DashboardProps) => {
     recentRentals: [] as any[],
   });
 
+  // DATA chính
+  // useEffect(() => {
+  //   // Lấy dữ liệu thực từ storage
+  //   const stats = bookingStorage.getDashboardStats();
+  //   const currentRental = bookingStorage.getCurrentRental();
+  //   const recentRentals = bookingStorage.getRecentRentals(3);
+
+  //   setDashboardData({
+  //     stats,
+  //     currentRental,
+  //     recentRentals,
+  //   });
+  // }, []);
+
+  //DATA MOCK TEST
   useEffect(() => {
     // Lấy dữ liệu thực từ storage
     const stats = bookingStorage.getDashboardStats();
@@ -58,10 +151,14 @@ const Dashboard = ({ user }: DashboardProps) => {
 
     setDashboardData({
       stats,
-      currentRental,
-      recentRentals,
+      // + Sử dụng mock data nếu không có current rental
+      currentRental: currentRental || mockCurrentRental,
+      // + Sử dụng mock data nếu không có recent rentals
+      recentRentals: recentRentals.length > 0 ? recentRentals : mockRecentRentals,
     });
   }, []);
+  // END MOCK TEST
+
 
   if (!user) {
     return (
@@ -89,16 +186,89 @@ const Dashboard = ({ user }: DashboardProps) => {
     });
   };
 
+  // Data chính
+  // const getStatusBadge = (status: string) => {
+  //   switch (status) {
+  //     case "active":
+  //       return <Badge className="badge-available">Active</Badge>;
+  //     case "completed":
+  //       return <Badge variant="secondary">Completed</Badge>;
+  //     default:
+  //       return <Badge variant="outline">{status}</Badge>;
+  //   }
+  // };
+
+  // SStatus mock test
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "active":
-        return <Badge className="badge-available">Active</Badge>;
+      case "in_progress":
+        return <Badge className="bg-green-500">Active</Badge>;
+      case "pending":
+        return <Badge className="bg-yellow-500">Pending</Badge>;
       case "completed":
         return <Badge variant="secondary">Completed</Badge>;
+      case "cancelled":
+        return <Badge variant="destructive">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+  // END MOCK TEST STATUS
+
+  const handleReportIncident = async () => {
+   if (!incidentType || !incidentDescription.trim()) {
+     toast({
+       title: "Incomplete Information",
+       description: "Please select incident type and provide description",
+       variant: "destructive",
+     });
+     return;
+   }
+
+   setIsSubmittingIncident(true);
+   try {
+     const token = localStorage.getItem('token');
+     const response = await fetch('http://localhost:5000/api/incidents', {
+       method: 'POST',
+       headers: {
+         'Authorization': `Bearer ${token}`,
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({
+         rental_id: dashboardData.currentRental?.reservationId,
+         vehicle_id: dashboardData.currentRental?.vehicleId,
+         description: `${incidentType}: ${incidentDescription}`,
+         status: 'reported',
+       }),
+     });
+
+     if (response.ok) {
+       toast({
+         title: "Incident Reported Successfully",
+         description: "Our staff will contact you shortly to assist.",
+       });
+       setIsIncidentDialogOpen(false);
+       setIncidentType("");
+       setIncidentDescription("");
+     } else {
+       toast({
+         title: "Failed to Report Incident",
+         description: "Please try again or contact support directly.",
+         variant: "destructive",
+       });
+     }
+   } catch (error) {
+     console.error('Error reporting incident:', error);
+     toast({
+       title: "Error",
+       description: "An error occurred while reporting the incident.",
+       variant: "destructive",
+     });
+   } finally {
+     setIsSubmittingIncident(false);
+   }
+ };
 
   return (
     <div className="min-h-screen bg-background">
@@ -242,14 +412,14 @@ const Dashboard = ({ user }: DashboardProps) => {
                 </div>
 
                 <div className="flex space-x-2 pt-2">
-                  <Button className="flex-1 btn-success" size="sm">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Track Vehicle
-                  </Button>
-                  <Button variant="outline" className="flex-1" size="sm">
-                    <Clock className="h-4 w-4 mr-2" />
-                    Extend Rental
-                  </Button>
+                  <Button 
+                   className="w-full bg-orange-500 hover:bg-orange-600 text-white" 
+                   size="sm"
+                   onClick={() => setIsIncidentDialogOpen(true)}
+                 >
+                   <AlertTriangle className="h-4 w-4 mr-2" />
+                   Report Incident
+                 </Button>
                 </div>
               </CardContent>
             </Card>
@@ -443,6 +613,9 @@ const Dashboard = ({ user }: DashboardProps) => {
           </CardContent>
         </Card>
       </div>
+
+
+
     </div>
   );
 };
