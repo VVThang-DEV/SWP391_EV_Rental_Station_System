@@ -110,6 +110,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [pendingCustomersLoading, setPendingCustomersLoading] = useState(false);
   const [pendingCustomersError, setPendingCustomersError] = useState<string | null>(null);
   
+  // Reservations / Booking History state
+  const [reservations, setReservations] = useState<any[]>([]);
+  const [reservationsLoading, setReservationsLoading] = useState(false);
+  const [reservationsError, setReservationsError] = useState<string | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<any | null>(null);
+  // History filter state (reuse Wallet.tsx pattern)
+  const [dateFilter, setDateFilter] = useState<string>("today");
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  
   // Activity logs state
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [activityLogsLoading, setActivityLogsLoading] = useState(false);
@@ -162,9 +172,25 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }
   };
 
+  // Fetch all reservations for booking history
+  const fetchReservations = async () => {
+    try {
+      setReservationsLoading(true);
+      setReservationsError(null);
+      const data = await apiService.getReservations();
+      setReservations(data?.reservations || []);
+    } catch (error) {
+      console.error('Error fetching reservations:', error);
+      setReservationsError(error instanceof Error ? error.message : 'Failed to fetch reservations');
+    } finally {
+      setReservationsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPendingCustomers();
     fetchActivityLogs();
+    fetchReservations();
   }, []);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -792,6 +818,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       description: `Vehicle ${vehicleId} is now ${newStatus}`,
       duration: 2000,
     });
+  };
+
+  // Helpers for Booking History
+  const getVehicleInfo = (vehicleId: number) => {
+    const v = apiVehicles?.find((x: any) => x.vehicleId === vehicleId);
+    if (!v) return null;
+    return {
+      name: `${v.modelId} - ${v.uniqueVehicleId || v.vehicleId}`,
+      location: v.location,
+      battery: v.batteryLevel,
+      status: v.status,
+      modelId: v.modelId,
+      uniqueId: v.uniqueVehicleId || v.vehicleId.toString(),
+    };
   };
 
   const handleAddVehicle = async () => {
@@ -2328,6 +2368,229 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     </div>
   );
 
+  const renderBookingHistory = () => {
+    const bookingStatuses = ["active", "in_progress", "confirmed"];
+
+    const withinRange = (dateStr: string) => {
+      const now = new Date();
+      const d = new Date(dateStr);
+      if (dateFilter === "all") return true;
+      if (dateFilter === "today") return d.toDateString() === now.toDateString();
+      if (dateFilter === "week") return d > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      if (dateFilter === "month") return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      if (dateFilter === "specific-month") {
+        return d.getMonth() + 1 === selectedMonth && d.getFullYear() === selectedYear;
+      }
+      return true;
+    };
+
+    const activeBookings = reservations
+      .filter((r: any) => bookingStatuses.includes((r.status || '').toLowerCase()))
+      .filter((r: any) => withinRange(r.createdAt || r.startTime));
+
+    const canceledActivities = activityLogs
+      .filter((a: any) => a.activityType === 'cancellation')
+      .filter((a: any) => withinRange(a.createdAt));
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <CardTitle>Booking History</CardTitle>
+                <CardDescription>
+                  Manage current bookings and view cancellation history
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-40">
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="specific-month">Specific Month</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {dateFilter === 'specific-month' && (
+                  <div className="flex items-center gap-2">
+                    <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                      <SelectTrigger className="w-28">
+                        <SelectValue placeholder="Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">January</SelectItem>
+                        <SelectItem value="2">February</SelectItem>
+                        <SelectItem value="3">March</SelectItem>
+                        <SelectItem value="4">April</SelectItem>
+                        <SelectItem value="5">May</SelectItem>
+                        <SelectItem value="6">June</SelectItem>
+                        <SelectItem value="7">July</SelectItem>
+                        <SelectItem value="8">August</SelectItem>
+                        <SelectItem value="9">September</SelectItem>
+                        <SelectItem value="10">October</SelectItem>
+                        <SelectItem value="11">November</SelectItem>
+                        <SelectItem value="12">December</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                      <SelectTrigger className="w-28">
+                        <SelectValue placeholder="Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 6 }).map((_, idx) => {
+                          const y = new Date().getFullYear() - 3 + idx;
+                          return <SelectItem key={y} value={String(y)}>{y}</SelectItem>;
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="booking">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="booking">Booking</TabsTrigger>
+                <TabsTrigger value="cancel">Cancel</TabsTrigger>
+              </TabsList>
+
+              {/* Booking list */}
+              <TabsContent value="booking" className="mt-4">
+                {reservationsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-2 text-muted-foreground">Loading bookings...</p>
+                  </div>
+                ) : reservationsError ? (
+                  <div className="text-center py-8 text-red-500">
+                    <p>Error loading bookings: {reservationsError}</p>
+                  </div>
+                ) : activeBookings.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No active/confirmed bookings</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeBookings.map((bk: any) => {
+                      const v = getVehicleInfo(bk.vehicleId);
+                      return (
+                        <div
+                          key={bk.reservationId}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => setSelectedReservation({ ...bk, vehicleInfo: v })}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Car className="h-5 w-5 text-primary" />
+                            <div>
+                              <p className="font-medium">
+                                #{bk.reservationId} • {v?.name || `Vehicle ${bk.vehicleId}`}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                User: {bk.userId} • {new Date(bk.startTime).toLocaleString()} → {new Date(bk.endTime).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge className="capitalize" variant="secondary">{bk.status}</Badge>
+                            {v?.battery !== undefined && (
+                              <div className="text-sm text-muted-foreground">🔋 {v.battery}%</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Cancel list */}
+              <TabsContent value="cancel" className="mt-4">
+                {activityLogsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-2 text-muted-foreground">Loading cancellations...</p>
+                  </div>
+                ) : canceledActivities.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <X className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No cancellations</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {canceledActivities.map((act: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <X className="h-5 w-5 text-destructive" />
+                          <div>
+                            <p className="font-medium">{act.customerName || 'Unknown Customer'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {act.vehicleModel || 'Unknown Vehicle'} • {act.details || 'No reason provided'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(act.createdAt).toLocaleString('vi-VN')}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="destructive" className="capitalize">{act.status || 'cancelled'}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Reservation details dialog */}
+        <Dialog open={!!selectedReservation} onOpenChange={(o) => !o && setSelectedReservation(null)}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Booking Details #{selectedReservation?.reservationId}</DialogTitle>
+              <DialogDescription>
+                Detailed information about this booking and vehicle
+              </DialogDescription>
+            </DialogHeader>
+            {selectedReservation && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <p><span className="font-medium">User ID:</span> {selectedReservation.userId}</p>
+                  <p><span className="font-medium">Status:</span> <Badge className="ml-1 capitalize" variant="secondary">{selectedReservation.status}</Badge></p>
+                  <p><span className="font-medium">Start:</span> {new Date(selectedReservation.startTime).toLocaleString()}</p>
+                  <p><span className="font-medium">End:</span> {new Date(selectedReservation.endTime).toLocaleString()}</p>
+                  <p><span className="font-medium">Station:</span> {selectedReservation.stationId}</p>
+                  <p><span className="font-medium">Created:</span> {new Date(selectedReservation.createdAt).toLocaleString()}</p>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Vehicle</h3>
+                  <div className="text-sm">
+                    <p><span className="font-medium">Name:</span> {selectedReservation.vehicleInfo?.name || `Vehicle ${selectedReservation.vehicleId}`}</p>
+                    <p><span className="font-medium">Unique ID:</span> {selectedReservation.vehicleInfo?.uniqueId}</p>
+                    {selectedReservation.vehicleInfo?.location && (
+                      <p><span className="font-medium">Location:</span> {selectedReservation.vehicleInfo.location}</p>
+                    )}
+                    {selectedReservation.vehicleInfo?.battery !== undefined && (
+                      <p><span className="font-medium">Battery:</span> {selectedReservation.vehicleInfo.battery}%</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-background">
@@ -2435,7 +2698,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
@@ -2443,6 +2706,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 <TabsTrigger value="pickups">Pickup Management</TabsTrigger>
                 <TabsTrigger value="walkin">Walk-in Booking</TabsTrigger>
                 <TabsTrigger value="payments">Payment Processing</TabsTrigger>
+                <TabsTrigger value="history">Booking History</TabsTrigger>
               </TabsList>
 
               <TabsContent value="vehicles" className="mt-6">
@@ -2463,6 +2727,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               <TabsContent value="payments" className="mt-6">
                 {renderPaymentManagement()}
+              </TabsContent>
+
+              {/* Booking History */}
+              <TabsContent value="history" className="mt-6">
+                {renderBookingHistory()}
               </TabsContent>
             </Tabs>
           </FadeIn>
