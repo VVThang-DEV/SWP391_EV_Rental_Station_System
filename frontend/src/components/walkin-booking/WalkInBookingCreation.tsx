@@ -26,6 +26,7 @@ interface WalkInBookingCreationProps {
   vehicles: WalkInVehicle[];
   onBookingCreate: (booking: any) => void;
   onCustomerAdd: (customer: WalkInCustomer) => void;
+  staffStationId: number | null;
 }
 
 const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
@@ -33,6 +34,7 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
   vehicles,
   onBookingCreate,
   onCustomerAdd,
+  staffStationId,
 }) => {
   const [bookingForm, setBookingForm] = useState<WalkInBookingForm>({
     customerId: "",
@@ -95,7 +97,7 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
   };
 
 
-  const handleCreateBooking = () => {
+  const handleCreateBooking = async () => {
     // Validate customer information
     if (!newCustomer.fullName || !newCustomer.phone || !newCustomer.licenseNumber) {
       toast({
@@ -126,65 +128,127 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
       return;
     }
 
-    // Create new customer
-    const customer: WalkInCustomer = {
-      id: `C${Date.now()}`,
-      fullName: newCustomer.fullName,
-      phone: newCustomer.phone,
-      email: newCustomer.email,
-      licenseNumber: newCustomer.licenseNumber,
-      idNumber: newCustomer.idNumber,
-      address: newCustomer.address,
-      documentsVerified: false,
-      licenseVerified: false,
-    };
+    // Calculate end time
+    const startTime = new Date(bookingForm.startTime);
+    const endTime = new Date(startTime.getTime() + bookingForm.duration * 60 * 60 * 1000);
 
-    // Add customer to the list
-    onCustomerAdd(customer);
+    try {
+      // Call API to create walk-in booking
+      const token = localStorage.getItem('token');
+      
+      // Use the real vehicleId and stationId from API vehicle data
+      // Priority: staff's station > vehicle's station > default
+      const vehicleIdToSend = vehicle.vehicleId || parseInt(bookingForm.vehicleId) || 1;
+      const stationIdToSend = staffStationId || vehicle.stationId || 1;
+      
+      console.log('Creating walk-in booking with:', {
+        vehicleId: vehicleIdToSend,
+        stationId: stationIdToSend,
+        staffStationId: staffStationId,
+        vehicle: vehicle
+      });
 
-    const booking = {
-      id: `BK${Date.now()}`,
-      customerId: customer.id,
-      vehicleId: bookingForm.vehicleId,
-      vehicleName: vehicle.name,
-      startTime: bookingForm.startTime,
-      endTime: bookingForm.endTime,
-      duration: bookingForm.duration,
-      totalCost: bookingForm.totalCost,
-      deposit: bookingForm.deposit,
-      status: "pending",
-      paymentMethod: bookingForm.paymentMethod,
-      paymentStatus: "pending",
-    };
+      const response = await fetch('http://localhost:5000/api/staff/walkin-bookings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: newCustomer.fullName,
+          phone: newCustomer.phone,
+          email: newCustomer.email || undefined,
+          licenseNumber: newCustomer.licenseNumber,
+          idNumber: newCustomer.idNumber || undefined,
+          address: newCustomer.address || undefined,
+          dateOfBirth: newCustomer.dateOfBirth || undefined,
+          vehicleId: vehicleIdToSend,
+          stationId: stationIdToSend,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          paymentMethod: bookingForm.paymentMethod,
+        }),
+      });
 
-    onBookingCreate(booking);
-    
-    // Reset forms
-    setBookingForm({
-      customerId: "",
-      vehicleId: "",
-      startTime: "",
-      endTime: "",
-      duration: 0,
-      totalCost: 0,
-      deposit: 0,
-      paymentMethod: "cash",
-    });
+      const result = await response.json();
 
-    setNewCustomer({
-      fullName: "",
-      phone: "",
-      email: "",
-      dateOfBirth: "",
-      idNumber: "",
-      licenseNumber: "",
-      address: "",
-    });
+      if (response.ok && result.success) {
+        // Create customer object for local state
+        const customer: WalkInCustomer = {
+          id: result.userId?.toString() || `C${Date.now()}`,
+          fullName: newCustomer.fullName,
+          phone: newCustomer.phone,
+          email: newCustomer.email,
+          licenseNumber: newCustomer.licenseNumber,
+          idNumber: newCustomer.idNumber,
+          address: newCustomer.address,
+          documentsVerified: false,
+          licenseVerified: false,
+        };
 
-    toast({
-      title: "Booking Created",
-      description: `Booking created for ${customer.fullName}`,
-    });
+        // Add customer to the list
+        onCustomerAdd(customer);
+
+        // Create booking object for local state
+        const booking = {
+          id: result.reservation?.reservationId?.toString() || `BK${Date.now()}`,
+          customerId: customer.id,
+          vehicleId: bookingForm.vehicleId,
+          vehicleName: vehicle.name,
+          startTime: bookingForm.startTime,
+          endTime: endTime.toISOString(),
+          duration: bookingForm.duration,
+          totalCost: bookingForm.totalCost,
+          deposit: bookingForm.deposit,
+          status: "pending",
+          paymentMethod: bookingForm.paymentMethod,
+          paymentStatus: "pending",
+        };
+
+        onBookingCreate(booking);
+        
+        // Reset forms
+        setBookingForm({
+          customerId: "",
+          vehicleId: "",
+          startTime: "",
+          endTime: "",
+          duration: 0,
+          totalCost: 0,
+          deposit: 0,
+          paymentMethod: "cash",
+        });
+
+        setNewCustomer({
+          fullName: "",
+          phone: "",
+          email: "",
+          dateOfBirth: "",
+          idNumber: "",
+          licenseNumber: "",
+          address: "",
+        });
+
+        // Don't show toast here - let parent component handle it
+        // toast({
+        //   title: "Booking Created Successfully!",
+        //   description: `Walk-in booking created for ${customer.fullName}. Confirmation email sent to customer.`,
+        // });
+      } else {
+        toast({
+          title: "Failed to Create Booking",
+          description: result.message || "An error occurred while creating the booking",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating walk-in booking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create walk-in booking. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const selectedVehicle = vehicles.find(v => v.id === bookingForm.vehicleId);
@@ -275,7 +339,7 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
               <Label>Payment Method</Label>
               <Select
                 value={bookingForm.paymentMethod}
-                onValueChange={(value: "cash" | "card" | "qr") => 
+                onValueChange={(value: "cash" | "qr") => 
                   setBookingForm(prev => ({ ...prev, paymentMethod: value }))
                 }
               >
@@ -284,7 +348,6 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
                   <SelectItem value="qr">QR Code</SelectItem>
                 </SelectContent>
               </Select>
@@ -315,11 +378,24 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
       </Card>
 
       {/* Vehicle Selection */}
-      <WalkInVehicleSelector
-        vehicles={vehicles}
-        selectedVehicleId={bookingForm.vehicleId}
-        onVehicleSelect={handleVehicleSelect}
-      />
+      {vehicles.length > 0 ? (
+        <WalkInVehicleSelector
+          vehicles={vehicles}
+          selectedVehicleId={bookingForm.vehicleId}
+          onVehicleSelect={handleVehicleSelect}
+        />
+      ) : (
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="text-center py-8">
+            <p className="text-yellow-800 font-medium">
+              No vehicles available at your station at the moment
+            </p>
+            <p className="text-sm text-yellow-700 mt-2">
+              Please check back later or contact your administrator
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cost Summary */}
       {bookingForm.totalCost > 0 && (
@@ -358,13 +434,13 @@ const WalkInBookingCreation: React.FC<WalkInBookingCreationProps> = ({
                 <div>
                   <p className="text-sm text-green-700">Total Cost</p>
                   <p className="text-2xl font-bold text-green-800">
-                    {bookingForm.totalCost.toLocaleString()} VND
+                    ${bookingForm.totalCost.toLocaleString()}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-green-700">Deposit (30%)</p>
                   <p className="text-lg font-semibold text-green-800">
-                    {bookingForm.deposit.toLocaleString()} VND
+                    ${bookingForm.deposit.toLocaleString()}
                   </p>
                 </div>
               </div>

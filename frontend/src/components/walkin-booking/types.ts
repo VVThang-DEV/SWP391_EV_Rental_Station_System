@@ -21,7 +21,7 @@ export interface WalkInBooking {
   totalCost: number;
   deposit: number;
   status: "pending" | "confirmed" | "completed" | "cancelled";
-  paymentMethod: "cash" | "card" | "qr";
+  paymentMethod: "cash" | "qr";
   paymentStatus: "pending" | "paid" | "refunded";
 }
 
@@ -32,6 +32,8 @@ export interface WalkInVehicle {
   location: string;
   pricePerHour: number;
   status: "available" | "rented" | "maintenance";
+  stationId?: number;
+  vehicleId?: number;
 }
 
 export interface WalkInBookingForm {
@@ -42,7 +44,7 @@ export interface WalkInBookingForm {
   duration: number;
   totalCost: number;
   deposit: number;
-  paymentMethod: "cash" | "card" | "qr";
+  paymentMethod: "cash" | "qr";
 }
 
 export interface WalkInCustomerForm {

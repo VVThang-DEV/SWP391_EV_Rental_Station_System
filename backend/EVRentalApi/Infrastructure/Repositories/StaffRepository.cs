@@ -760,7 +760,8 @@ public class StaffRepository : IStaffRepository
             var today = DateTime.Today;
             var tomorrow = today.AddDays(1);
 
-            // Query 1: Payments processed today
+            // Query 1: Payments processed today - ONLY staff-processed payments (walk-in bookings)
+            // Only get payments from reservations at staff's station (walk-in bookings are always from staff station)
             const string paymentsSql = @"
                 SELECT 
                     p.payment_id,
@@ -773,14 +774,19 @@ public class StaffRepository : IStaffRepository
                     p.status
                 FROM payments p
                 INNER JOIN users u ON p.user_id = u.user_id
-                LEFT JOIN reservations r ON p.reservation_id = r.reservation_id
-                LEFT JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                INNER JOIN reservations r ON p.reservation_id = r.reservation_id
+                INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                INNER JOIN stations s ON v.station_id = s.station_id
+                INNER JOIN users staff_user ON staff_user.station_id = s.station_id
                 WHERE p.created_at >= @Today AND p.created_at < @Tomorrow
+                    AND staff_user.user_id = @StaffId
+                    AND p.method_type IN ('cash', 'qr')  -- Only staff-handled payment methods
                 ORDER BY p.created_at DESC";
 
             await using var paymentsCmd = new SqlCommand(paymentsSql, conn);
             paymentsCmd.Parameters.AddWithValue("@Today", today);
             paymentsCmd.Parameters.AddWithValue("@Tomorrow", tomorrow);
+            paymentsCmd.Parameters.AddWithValue("@StaffId", staffId);
 
             await using var paymentsReader = await paymentsCmd.ExecuteReaderAsync();
             while (await paymentsReader.ReadAsync())
@@ -799,7 +805,7 @@ public class StaffRepository : IStaffRepository
             }
             await paymentsReader.CloseAsync();
 
-            // Query 2: Cancellations today
+            // Query 2: Cancellations today - ONLY cancellations from staff's station
             const string cancellationsSql = @"
                 SELECT 
                     r.reservation_id,
@@ -813,14 +819,18 @@ public class StaffRepository : IStaffRepository
                 FROM reservations r
                 INNER JOIN users u ON r.user_id = u.user_id
                 INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                INNER JOIN stations s ON v.station_id = s.station_id
+                INNER JOIN users staff_user ON staff_user.station_id = s.station_id
                 WHERE r.status = 'cancelled' 
                     AND r.cancelled_at >= @Today 
                     AND r.cancelled_at < @Tomorrow
+                    AND staff_user.user_id = @StaffId
                 ORDER BY r.cancelled_at DESC";
 
             await using var cancellationsCmd = new SqlCommand(cancellationsSql, conn);
             cancellationsCmd.Parameters.AddWithValue("@Today", today);
             cancellationsCmd.Parameters.AddWithValue("@Tomorrow", tomorrow);
+            cancellationsCmd.Parameters.AddWithValue("@StaffId", staffId);
 
             await using var cancellationsReader = await cancellationsCmd.ExecuteReaderAsync();
             while (await cancellationsReader.ReadAsync())
@@ -839,7 +849,7 @@ public class StaffRepository : IStaffRepository
             }
             await cancellationsReader.CloseAsync();
 
-            // Query 3: Confirmations today
+            // Query 3: Confirmations today - ONLY staff confirmations (from staff's station)
             const string confirmationsSql = @"
                 SELECT 
                     r.reservation_id,
@@ -853,14 +863,18 @@ public class StaffRepository : IStaffRepository
                 FROM reservations r
                 INNER JOIN users u ON r.user_id = u.user_id
                 INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                INNER JOIN stations s ON v.station_id = s.station_id
+                INNER JOIN users staff_user ON staff_user.station_id = s.station_id
                 WHERE r.status = 'confirmed' 
                     AND r.created_at >= @Today 
                     AND r.created_at < @Tomorrow
+                    AND staff_user.user_id = @StaffId
                 ORDER BY r.created_at DESC";
 
             await using var confirmationsCmd = new SqlCommand(confirmationsSql, conn);
             confirmationsCmd.Parameters.AddWithValue("@Today", today);
             confirmationsCmd.Parameters.AddWithValue("@Tomorrow", tomorrow);
+            confirmationsCmd.Parameters.AddWithValue("@StaffId", staffId);
 
             await using var confirmationsReader = await confirmationsCmd.ExecuteReaderAsync();
             while (await confirmationsReader.ReadAsync())

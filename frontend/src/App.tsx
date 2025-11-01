@@ -39,6 +39,7 @@ import {
 } from "./pages/pages";
 import MoMoPaymentPage from "./pages/payment/MoMoPaymentPage";
 import MoMoSandboxPage from "./pages/payment/MoMoSandboxPage";
+import SetPassword from "./pages/SetPassword";
 
 const queryClient = new QueryClient();
 
@@ -181,6 +182,7 @@ const App = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/wallet" element={<Wallet user={user} />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/set-password" element={<SetPassword />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/contact" element={<Contact />} />

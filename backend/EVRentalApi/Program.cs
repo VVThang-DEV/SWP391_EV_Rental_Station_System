@@ -43,6 +43,7 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<OTPService>();
 builder.Services.AddScoped<ForgotPasswordService>();
 builder.Services.AddScoped<PersonalInfoService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddHostedService<OtpCleanupService>();
 
 // DI: New repositories & services for vehicles and stations
@@ -245,6 +246,49 @@ app.MapPost("/auth/reset-password", async (ResetPasswordRequest req, ForgotPassw
         return Results.Ok(new { success = true, message = result.Message });
     }
     return Results.BadRequest(new { success = false, message = result.Message });
+});
+
+// Set password with token (for walk-in customers)
+app.MapPost("/api/auth/set-password", async (SetPasswordWithTokenRequest req, IPasswordResetService passwordResetService, IUserRepository userRepository) =>
+{
+    Console.WriteLine($"[SetPassword] Received request with token");
+    
+    // Verify token
+    var (isValid, userId, email) = passwordResetService.VerifyResetToken(req.Token);
+    
+    if (!isValid)
+    {
+        Console.WriteLine($"[SetPassword] Invalid or expired token");
+        return Results.BadRequest(new { success = false, message = "Invalid or expired password reset link" });
+    }
+    
+    Console.WriteLine($"[SetPassword] Token valid for user {userId} ({email})");
+    
+    // Validate password
+    if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
+    {
+        return Results.BadRequest(new { success = false, message = "Password must be at least 6 characters" });
+    }
+    
+    // Hash password
+    using var sha = System.Security.Cryptography.SHA256.Create();
+    var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(req.NewPassword));
+    var passwordHash = Convert.ToHexString(bytes).ToLowerInvariant();
+    
+    // Update password
+    var success = await userRepository.UpdatePasswordAsync(email, passwordHash);
+    
+    if (success)
+    {
+        Console.WriteLine($"[SetPassword] ✅ Password set successfully for user {userId}");
+        return Results.Ok(new { 
+            success = true, 
+            message = "Password set successfully! You can now login with your new password." 
+        });
+    }
+    
+    Console.WriteLine($"[SetPassword] ❌ Failed to update password");
+    return Results.BadRequest(new { success = false, message = "Failed to set password" });
 });
 
 // Update personal information endpoint
@@ -600,6 +644,42 @@ app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization
             newBalance = (decimal?)null
         });
     }
+});
+
+// Walk-in Booking endpoint for staff
+app.MapPost("/api/staff/walkin-bookings", [Microsoft.AspNetCore.Authorization.Authorize] async (
+    CreateWalkInBookingRequest req, 
+    IReservationService reservationService, 
+    HttpContext context) =>
+{
+    Console.WriteLine($"[WalkIn API] Received walk-in booking request for {req.FullName}");
+    
+    // Check if user is staff
+    var roleClaim = context.User.FindFirst(ClaimTypes.Role);
+    if (roleClaim == null || roleClaim.Value != "staff")
+    {
+        Console.WriteLine("[WalkIn API] Unauthorized: User is not staff");
+        return Results.Unauthorized();
+    }
+
+    var result = await reservationService.CreateWalkInBookingAsync(req);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[WalkIn API] ✅ Walk-in booking created successfully");
+        return Results.Ok(new { 
+            success = true, 
+            message = result.Message,
+            reservation = result.Reservation,
+            userId = result.UserId
+        });
+    }
+    
+    Console.WriteLine($"[WalkIn API] ❌ Failed to create walk-in booking: {result.Message}");
+    return Results.BadRequest(new { 
+        success = false, 
+        message = result.Message 
+    });
 });
 
 // Payment endpoints

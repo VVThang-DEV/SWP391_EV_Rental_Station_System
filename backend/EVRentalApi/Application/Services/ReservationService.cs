@@ -1,5 +1,7 @@
 using EVRentalApi.Infrastructure.Repositories;
 using EVRentalApi.Models;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace EVRentalApi.Application.Services;
 
@@ -9,6 +11,7 @@ public interface IReservationService
     Task<IEnumerable<ReservationDto>> GetUserReservationsAsync(int userId);
     Task<ReservationDto?> GetReservationByIdAsync(int reservationId);
     Task<bool> CancelReservationAsync(int reservationId, string? reason = null, string? cancelledBy = null);
+    Task<WalkInBookingResponse> CreateWalkInBookingAsync(CreateWalkInBookingRequest request);
 }
 
 public class ReservationService : IReservationService
@@ -18,19 +21,22 @@ public class ReservationService : IReservationService
     private readonly IUserRepository _userRepository;
     private readonly IVehicleRepository _vehicleRepository;
     private readonly IConfiguration _config;
+    private readonly IPasswordResetService _passwordResetService;
 
     public ReservationService(
         IReservationRepository reservationRepository,
         IEmailService emailService,
         IUserRepository userRepository,
         IVehicleRepository vehicleRepository,
-        IConfiguration config)
+        IConfiguration config,
+        IPasswordResetService passwordResetService)
     {
         _reservationRepository = reservationRepository;
         _emailService = emailService;
         _userRepository = userRepository;
         _vehicleRepository = vehicleRepository;
         _config = config;
+        _passwordResetService = passwordResetService;
     }
 
     public async Task<ReservationResponse> CreateReservationAsync(CreateReservationRequest request)
@@ -103,6 +109,130 @@ public class ReservationService : IReservationService
     public async Task<bool> CancelReservationAsync(int reservationId, string? reason = null, string? cancelledBy = null)
     {
         return await _reservationRepository.CancelReservationAsync(reservationId, reason, cancelledBy);
+    }
+
+    public async Task<WalkInBookingResponse> CreateWalkInBookingAsync(CreateWalkInBookingRequest request)
+    {
+        try
+        {
+            Console.WriteLine($"[WalkIn] Creating walk-in booking for {request.FullName}");
+
+            // Check if customer already exists by email or phone
+            int userId = 0;
+            var existingUserByEmail = !string.IsNullOrWhiteSpace(request.Email) 
+                ? await _userRepository.GetUserIdByEmailAsync(request.Email) 
+                : 0;
+
+            if (existingUserByEmail > 0)
+            {
+                userId = existingUserByEmail;
+                Console.WriteLine($"[WalkIn] Found existing customer by email: UserId={userId}");
+            }
+            else
+            {
+                // Create new customer account
+                // Generate a random password for walk-in customer
+                var randomPassword = Guid.NewGuid().ToString().Substring(0, 8);
+                var passwordHash = HashPassword(randomPassword);
+
+                var dateOfBirth = request.DateOfBirth ?? DateTime.Now.AddYears(-25);
+                var email = string.IsNullOrWhiteSpace(request.Email) 
+                    ? $"walkin_{DateTime.Now.Ticks}@evrentals.local"  // Fallback email
+                    : request.Email;
+
+                var (success, newUserId) = await _userRepository.RegisterCustomerAsync(
+                    request.FullName,
+                    email,
+                    request.Phone,
+                    dateOfBirth,
+                    passwordHash
+                );
+
+                if (!success || newUserId == 0)
+                {
+                    return new WalkInBookingResponse
+                    {
+                        Success = false,
+                        Message = "Failed to create customer account"
+                    };
+                }
+
+                userId = newUserId;
+                Console.WriteLine($"[WalkIn] Created new customer: UserId={userId}");
+
+                // Send welcome email with password reset link for new walk-in customer
+                if (!string.IsNullOrWhiteSpace(request.Email) && !request.Email.EndsWith("@evrentals.local"))
+                {
+                    try
+                    {
+                        await SendWalkInCustomerWelcomeEmailAsync(userId, email, request.FullName);
+                        Console.WriteLine($"[WalkIn] Welcome email sent to {email}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[WalkIn] Failed to send welcome email: {ex.Message}");
+                        // Don't fail the booking if email fails
+                    }
+                }
+
+                // Update additional information
+                if (!string.IsNullOrWhiteSpace(request.LicenseNumber) || 
+                    !string.IsNullOrWhiteSpace(request.IdNumber) || 
+                    !string.IsNullOrWhiteSpace(request.Address))
+                {
+                    await _userRepository.UpdatePersonalInfoAsync(
+                        email,
+                        request.IdNumber,
+                        request.LicenseNumber,
+                        request.Address,
+                        null,
+                        request.DateOfBirth,
+                        null // Phone already set during registration
+                    );
+                }
+            }
+
+            // Create reservation
+            var reservationRequest = new CreateReservationRequest
+            {
+                UserId = userId,
+                VehicleId = request.VehicleId,
+                StationId = request.StationId,
+                StartTime = request.StartTime,
+                EndTime = request.EndTime
+            };
+
+            var reservationResult = await CreateReservationAsync(reservationRequest);
+
+            if (!reservationResult.Success)
+            {
+                return new WalkInBookingResponse
+                {
+                    Success = false,
+                    Message = reservationResult.Message,
+                    UserId = userId
+                };
+            }
+
+            Console.WriteLine($"[WalkIn] ✅ Walk-in booking created successfully. ReservationId={reservationResult.Reservation?.ReservationId}, UserId={userId}");
+
+            return new WalkInBookingResponse
+            {
+                Success = true,
+                Message = "Walk-in booking created successfully. Confirmation email sent to customer.",
+                Reservation = reservationResult.Reservation,
+                UserId = userId
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WalkIn] ❌ Error creating walk-in booking: {ex.Message}");
+            return new WalkInBookingResponse
+            {
+                Success = false,
+                Message = $"Error creating walk-in booking: {ex.Message}"
+            };
+        }
     }
 
     private async Task SendBookingConfirmationEmailAsync(ReservationDto reservation)
@@ -250,11 +380,13 @@ public class ReservationService : IReservationService
                 <h3>💰 Payment Summary</h3>
                 <div class='info-row'>
                     <span class='label'>Hourly Rate:</span>
-                    <span class='value'>{pricePerHour:N0} VND</span>
+                    <span class='value'>${pricePerHourUSD:N2} USD ({pricePerHour:N0} VND)</span>
                 </div>
                 <div class='info-row'>
                     <span class='label'>Total Amount:</span>
-                    <span class='value' style='font-size: 18px; font-weight: bold; color: #667eea;'>{totalCost:N0} VND</span>
+                    <span class='value' style='font-size: 18px; font-weight: bold; color: #667eea;'>
+                        ${(totalCost / USD_TO_VND_RATE):N2} USD ({totalCost:N0} VND)
+                    </span>
                 </div>
             </div>
 
@@ -292,6 +424,142 @@ public class ReservationService : IReservationService
             Console.WriteLine($"[Email] ❌ Failed to send booking confirmation email: {ex.Message}");
             throw;
         }
+    }
+
+    private async Task SendWalkInCustomerWelcomeEmailAsync(int userId, string email, string fullName)
+    {
+        try
+        {
+            Console.WriteLine($"[Email] Preparing welcome email for walk-in customer {fullName} ({email})");
+
+            // Generate password reset token
+            var resetToken = _passwordResetService.GenerateResetToken(userId, email);
+            
+            // Build password reset URL
+            var frontendUrl = _config["Frontend:BaseUrl"] ?? "http://localhost:8080";
+            var setPasswordUrl = $"{frontendUrl}/set-password?token={resetToken}";
+
+            var subject = "Welcome to EV Rentals - Set Your Password";
+            var htmlBody = $@"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }}
+        .content {{
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }}
+        .button {{
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }}
+        .info-box {{
+            background: white;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+            border-radius: 5px;
+        }}
+        .footer {{
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 12px;
+        }}
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h1>🚗 Welcome to EV Rentals!</h1>
+    </div>
+    <div class='content'>
+        <h2>Hello {fullName},</h2>
+        <p>
+            Thank you for choosing EV Rentals! Your booking has been successfully created.
+        </p>
+        <p>
+            We've created an account for you to manage your bookings online. To get started, 
+            please set your password by clicking the button below:
+        </p>
+        
+        <div style='text-align: center;'>
+            <a href='{setPasswordUrl}' class='button'>Set Your Password</a>
+        </div>
+
+        <div class='info-box'>
+            <h3>📧 Your Account Details</h3>
+            <p><strong>Email:</strong> {email}</p>
+            <p>After setting your password, you can login to:</p>
+            <ul>
+                <li>View your booking history</li>
+                <li>Manage your profile</li>
+                <li>Make new bookings online</li>
+                <li>Track your rental status</li>
+            </ul>
+        </div>
+
+        <div class='info-box' style='border-left-color: #f59e0b;'>
+            <p><strong>⏰ Important:</strong> This link will expire in 24 hours for security reasons.</p>
+            <p>If you didn't make this booking, please contact us immediately.</p>
+        </div>
+
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <p style='word-break: break-all; color: #667eea;'>{setPasswordUrl}</p>
+
+        <div class='footer'>
+            <p>Thank you for choosing EV Rentals!</p>
+            <p>If you have any questions, feel free to contact our support team.</p>
+            <p>&copy; 2024 EV Rentals. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+            // Send email
+            var overrideTo = _config.GetSection("Smtp")["OverrideToEmail"];
+            var recipient = string.IsNullOrWhiteSpace(overrideTo) ? email : overrideTo;
+            
+            Console.WriteLine($"[Email] Sending welcome email to {email} (recipient: {recipient})");
+            Console.WriteLine($"[Email] Set password URL: {setPasswordUrl}");
+            
+            await _emailService.SendAsync(recipient, subject, htmlBody);
+            Console.WriteLine($"[Email] ✅ Welcome email sent successfully to {email}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Email] ❌ Failed to send welcome email: {ex.Message}");
+            throw;
+        }
+    }
+
+    // Hash password using SHA256
+    private static string HashPassword(string password)
+    {
+        using var sha = SHA256.Create();
+        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(password));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }
 

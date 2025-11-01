@@ -2355,8 +2355,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </FadeIn>{" "}
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Today's Stats */}
-          <SlideIn direction="bottom" delay={200}>
+          {/* Today's Stats - Hidden for now, can be re-enabled later if needed */}
+          {/* <SlideIn direction="bottom" delay={200}>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               <Card>
                 <CardContent className="flex items-center p-6">
@@ -2430,7 +2430,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </CardContent>
               </Card>
             </div>
-          </SlideIn>
+          </SlideIn> */}
 
           {/* Tabs */}
           <FadeIn delay={300}>
