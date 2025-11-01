@@ -319,7 +319,7 @@ const VehicleUnlockConfirmation: React.FC<VehicleUnlockConfirmationProps> = ({
                       Deposit Collected
                     </span>
                     <span className="font-semibold text-green-600">
-                      ${booking.depositAmount.toFixed(2)}
+                      {booking.depositAmount.toLocaleString('vi-VN')} VND
                     </span>
                   </div>
                   <Separator />

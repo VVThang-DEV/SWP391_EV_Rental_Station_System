@@ -53,7 +53,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
   const [personalData, setPersonalData] = useState({
     fullName: user?.name || "",
     email: user?.email || "",
-    phone: "0399106850", // Use correct phone from database
+    phone: "",
     address: "",
     cccd: "",
     licenseNumber: "",
@@ -78,6 +78,50 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
   });
 
   const requiredDocuments = ["nationalId", "driverLicense"];
+
+  // Load user data from backend on component mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.warn("No token found, user data not loaded");
+          return;
+        }
+
+        const response = await fetch("http://localhost:5000/auth/current-user", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.user) {
+            // Update personal data with existing user info
+            setPersonalData(prev => ({
+              ...prev,
+              fullName: result.user.fullName || result.user.full_name || prev.fullName,
+              email: result.user.email || prev.email,
+              phone: result.user.phone || "",
+              address: result.user.address || "",
+              cccd: result.user.cccd || "",
+              licenseNumber: result.user.licenseNumber || result.user.license_number || "",
+              gender: result.user.gender || "",
+              dateOfBirth: result.user.dateOfBirth || result.user.date_of_birth || "",
+            }));
+            console.log("User data loaded successfully:", result.user);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   const handleInputChange = (
     field: keyof typeof personalData,
@@ -193,28 +237,29 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     setIsLoading(true);
 
     try {
-      // Prepare data for API call
+      // Prepare data for API call (backend expects PascalCase)
       const updateData = {
-        email: personalData.email,
-        cccd: personalData.cccd,
+        Email: personalData.email,
+        Cccd: personalData.cccd,
         LicenseNumber: personalData.licenseNumber,
-        address: personalData.address,
-        gender: personalData.gender,
-        dateOfBirth: personalData.dateOfBirth,
-        phone: personalData.phone,
+        Address: personalData.address,
+        Gender: personalData.gender,
+        DateOfBirth: personalData.dateOfBirth,
+        Phone: personalData.phone,
       };
 
       // Debug logging
       console.log("Sending data to API:", updateData);
       console.log("Data types:", {
-        email: typeof updateData.email,
-        cccd: typeof updateData.cccd,
+        email: typeof updateData.Email,
+        cccd: typeof updateData.Cccd,
         LicenseNumber: typeof updateData.LicenseNumber,
-        address: typeof updateData.address,
-        gender: typeof updateData.gender,
-        dateOfBirth: typeof updateData.dateOfBirth,
-        phone: typeof updateData.phone
+        address: typeof updateData.Address,
+        gender: typeof updateData.Gender,
+        dateOfBirth: typeof updateData.DateOfBirth,
+        phone: typeof updateData.Phone
       });
+      console.log("Actual values:", JSON.stringify(updateData, null, 2));
 
       // Call API to update personal information
       const response = await fetch("http://localhost:5000/auth/update-personal-info", {

@@ -70,6 +70,29 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
+    /// Get vehicles by status at staff's station
+    /// </summary>
+    [HttpGet("vehicles/status/{status}")]
+    public async Task<IActionResult> GetVehiclesByStatus(string status)
+    {
+        try
+        {
+            var staffId = GetStaffIdFromToken();
+            if (staffId == null)
+            {
+                return Unauthorized("Invalid staff token");
+            }
+
+            var vehicles = await _staffService.GetVehiclesByStatusAsync(staffId.Value, status);
+            return Ok(vehicles);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get specific vehicle details
     /// </summary>
     [HttpGet("vehicles/{vehicleId}")]
@@ -284,6 +307,37 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
+    /// Confirm reservation and unlock vehicle
+    /// </summary>
+    [HttpPost("reservations/{reservationId}/confirm")]
+    public async Task<IActionResult> ConfirmReservation(int reservationId)
+    {
+        try
+        {
+            var staffId = GetStaffIdFromToken();
+            if (staffId == null)
+            {
+                return Unauthorized("Invalid staff token");
+            }
+
+            Console.WriteLine($"[ConfirmReservation] Staff {staffId} confirming reservation {reservationId}");
+
+            var result = await _staffService.ConfirmReservationAsync(reservationId, staffId.Value);
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+
+            return Ok(new { message = "Reservation confirmed and vehicle unlocked successfully" });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ConfirmReservation] Error: {ex.Message}");
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get handover records
     /// </summary>
     [HttpGet("handovers")]
@@ -327,6 +381,29 @@ public class StaffController : ControllerBase
             }
 
             return Ok(new { message = "Handover recorded successfully", handover = result.Handover });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get today's activity logs
+    /// </summary>
+    [HttpGet("activities/today")]
+    public async Task<IActionResult> GetTodayActivityLogs()
+    {
+        try
+        {
+            var staffId = GetStaffIdFromToken();
+            if (staffId == null)
+            {
+                return Unauthorized("Invalid staff token");
+            }
+
+            var activities = await _staffService.GetTodayActivityLogsAsync(staffId.Value);
+            return Ok(activities);
         }
         catch (Exception ex)
         {

@@ -368,6 +368,50 @@ const Wallet = ({ user }: WalletProps) => {
     .filter((t) => t.type === "refund")
     .reduce((sum, t) => sum + t.amount, 0);
 
+  // Calculate month-over-month growth percentage
+  const calculateMonthlyGrowth = () => {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    // Get current month deposits
+    const currentMonthDeposits = transactions
+      .filter((t) => {
+        const tDate = new Date(t.date);
+        return t.type === "deposit" && tDate >= currentMonthStart;
+      })
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    // Get last month deposits
+    const lastMonthDeposits = transactions
+      .filter((t) => {
+        const tDate = new Date(t.date);
+        return (
+          t.type === "deposit" &&
+          tDate >= lastMonthStart &&
+          tDate < currentMonthStart
+        );
+      })
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    if (lastMonthDeposits === 0) {
+      return currentMonthDeposits > 0
+        ? { value: 100, isPositive: true }
+        : { value: 0, isPositive: true };
+    }
+
+    const growthPercent =
+      ((currentMonthDeposits - lastMonthDeposits) / lastMonthDeposits) * 100;
+
+    return {
+      value: Math.round(growthPercent * 10) / 10,
+      isPositive: growthPercent >= 0,
+    };
+  };
+
+  const monthlyGrowth = calculateMonthlyGrowth();
+
   // Filter transactions
   const filteredTransactions = transactions.filter((transaction) => {
     const matchesSearch = transaction.description
@@ -496,8 +540,15 @@ const Wallet = ({ user }: WalletProps) => {
                   Available for bookings
                 </p>
                 <div className="flex items-center gap-2 text-sm text-white/90">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+12% from last month</span>
+                  {monthlyGrowth.isPositive ? (
+                    <TrendingUp className="h-4 w-4" />
+                  ) : (
+                    <ArrowDownRight className="h-4 w-4" />
+                  )}
+                  <span>
+                    {monthlyGrowth.isPositive ? "+" : ""}
+                    {monthlyGrowth.value}% from last month
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -788,7 +839,7 @@ const Wallet = ({ user }: WalletProps) => {
                                       : "text-red-600 dark:text-red-400"
                                   }`}
                                 >
-                                  {transaction.amount > 0 ? "+" : ""}
+                                  {transaction.amount > 0 ? "+" : "-"}
                                   {formatCurrency(Math.abs(transaction.amount))}
                                 </p>
                                 <Badge

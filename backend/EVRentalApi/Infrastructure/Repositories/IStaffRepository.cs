@@ -10,6 +10,7 @@ public interface IStaffRepository
     
     // Vehicle Management
     Task<List<VehicleDto>> GetStationVehiclesAsync(int staffId);
+    Task<List<VehicleDto>> GetVehiclesByStatusAsync(int staffId, string status);
     Task<VehicleDto?> GetVehicleAsync(int vehicleId, int staffId);
     Task<VehicleDto?> UpdateVehicleAsync(int vehicleId, UpdateVehicleRequest request);
     Task<bool> UpdateVehicleAsync(VehicleDto vehicle);
@@ -26,7 +27,13 @@ public interface IStaffRepository
     Task<List<CustomerVerificationDto>> GetCustomersForVerificationAsync(int staffId);
     Task<bool> VerifyCustomerAsync(int customerId, int staffId, CustomerVerificationRequest request);
     
+    // Reservation Management
+    Task<bool> ConfirmReservationAsync(int reservationId, int staffId);
+    
     // Handover Management
     Task<List<HandoverDto>> GetHandoversAsync(int staffId);
     Task<HandoverDto?> RecordHandoverAsync(int staffId, HandoverRequest request);
+    
+    // Activity Logs
+    Task<List<StaffActivityLogDto>> GetTodayActivityLogsAsync(int staffId);
 }

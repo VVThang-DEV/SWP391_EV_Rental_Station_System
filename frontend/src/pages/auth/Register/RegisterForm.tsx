@@ -157,26 +157,62 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
     }
   };
 
-  const handleOTPVerifySuccess = () => {
-    // Complete the registration process
-    const userData: UserType = {
-      id: `user_${Date.now()}`,
-      name: formData.fullName,
-      email: formData.email,
-      role: "customer",
-    };
-    onRegister(userData);
-    toast({
-      title: t("register.welcome"),
-      description: t("register.accountCreated"),
-    });
-    // Navigate to personal info update instead of dashboard
-    navigate("/personal-info-update", {
-      state: {
-        fromRegistration: true,
-        user: userData,
-      },
-    });
+  const handleOTPVerifySuccess = async () => {
+    try {
+      // Auto-login user after OTP verification
+      const baseUrl = "http://localhost:5000";
+      const res = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email: formData.email, 
+          password: formData.password 
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Auto-login failed");
+      }
+
+      const data = await res.json();
+      
+      // Save token and user info to localStorage
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("role", String(data.role || "customer"));
+        localStorage.setItem("fullName", String(data.fullName || formData.fullName));
+        
+        // Complete the registration process
+        const userData: UserType = {
+          id: `user_${Date.now()}`,
+          name: data.fullName || formData.fullName,
+          email: formData.email,
+          role: "customer",
+        };
+        
+        onRegister(userData);
+        
+        toast({
+          title: t("register.welcome"),
+          description: t("register.accountCreated"),
+        });
+        
+        // Navigate to personal info update with fromRegistration flag
+        navigate("/personal-info-update", {
+          state: {
+            fromRegistration: true,
+            user: userData,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Auto-login error:", error);
+      toast({
+        title: "Registration successful",
+        description: "Please login to continue",
+      });
+      navigate("/login");
+    }
   };
 
   const handleBackToForm = () => {

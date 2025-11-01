@@ -82,6 +82,7 @@ public class MaintenanceRecordDto
 
 public class CustomerVerificationDto
 {
+    public int ReservationId { get; set; }
     public int UserId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
@@ -91,6 +92,13 @@ public class CustomerVerificationDto
     public string? Address { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public string? Gender { get; set; }
+    public int VehicleId { get; set; }
+    public string VehicleModel { get; set; } = string.Empty;
+    public decimal VehiclePricePerHour { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal DepositAmount { get; set; }
     public bool HasDocuments { get; set; }
     public List<DocumentDto> Documents { get; set; } = new();
     public DateTime CreatedAt { get; set; }
@@ -110,8 +118,8 @@ public class DocumentDto
 
 public class CustomerVerificationRequest
 {
-    public string DocumentType { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty; // "approved", "rejected", "pending"
+    public string? DocumentType { get; set; }
+    public string? Status { get; set; } // "approved", "rejected", "pending"
     public string? Notes { get; set; }
 }
 
