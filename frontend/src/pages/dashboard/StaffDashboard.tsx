@@ -49,10 +49,12 @@ import {
 import {
   Car,
   Users,
+  Bell,
   CheckCircle,
   CheckCircle2,
   Clock,
-  MapPin,
+  AlertTriangle,
+  Phone,
   Battery,
   Camera,
   FileText,
@@ -78,6 +80,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { incidentStorage, IncidentData } from "@/lib/incident-storage";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { stations } from "@/data/stations";
 import { getVehicleModels } from "@/lib/vehicle-station-utils";
@@ -104,16 +107,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const { data: stationInfo, loading: stationLoading, error: stationError } = useStationInfo();
   const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
   const { data: pendingVehicles, loading: pendingVehiclesLoading, error: pendingVehiclesError, refetch: refetchPendingVehicles } = usePendingVehicles();
-  
+
   // Pending customers state
   const [pendingCustomers, setPendingCustomers] = useState<any[]>([]);
   const [pendingCustomersLoading, setPendingCustomersLoading] = useState(false);
   const [pendingCustomersError, setPendingCustomersError] = useState<string | null>(null);
-  
+
   // Activity logs state
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [activityLogsLoading, setActivityLogsLoading] = useState(false);
-  
+
   // Debug API data
   console.log('Staff Profile:', staffProfile);
   console.log('Station Info:', stationInfo);
@@ -166,6 +169,24 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     fetchPendingCustomers();
     fetchActivityLogs();
   }, []);
+
+  // Load incidents effect
+  useEffect(() => {
+    const loadIncidents = () => {
+      const stationIncidents = incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
+      setIncidents(stationIncidents);
+       setUnreadIncidents(stationIncidents.filter(i => i.status === 'reported').length); // + CHỈ COUNT pending cho bell notification
+    };
+
+    // Load incidents khi component mount
+    loadIncidents();
+
+    // Auto-refresh mỗi 5 giây
+    const interval = setInterval(loadIncidents, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [maintenanceNotes, setMaintenanceNotes] = useState("");
@@ -225,6 +246,18 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     notes: "",
     damages: [] as string[],
   });
+
+  // Incident notification state
+  const [incidents, setIncidents] = useState<IncidentData[]>([]);
+  const [unreadIncidents, setUnreadIncidents] = useState(0);
+  const [isIncidentPanelOpen, setIsIncidentPanelOpen] = useState(false);
+
+  const [incidentFilter, setIncidentFilter] = useState("all"); // all, reported, in_progress, resolved
+  const [incidentPriorityFilter, setIncidentPriorityFilter] = useState("all"); // all, low, medium, high, urgent
+  const [incidentSearchQuery, setIncidentSearchQuery] = useState("");
+  const [selectedIncidentForDetails, setSelectedIncidentForDetails] = useState<IncidentData | null>(null);
+  const [isIncidentDetailsOpen, setIsIncidentDetailsOpen] = useState(false);
+  const [staffNotes, setStaffNotes] = useState("");
 
   // Load unassigned vehicles when dialog opens
   useEffect(() => {
@@ -302,7 +335,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   // Use API data for station information, fallback to mock data
   // Get station name from vehicles location instead of stationInfo
   const stationName = apiVehicles && apiVehicles.length > 0 ? apiVehicles[0].location : (stationInfo?.name || "");
-  
+
   const stationData = {
     name: stationName,
     vehicles: {
@@ -393,17 +426,17 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const handleVehicleCheckout = async (vehicleId: string, bookingId?: string) => {
     try {
       // Find the booking to get customer ID
-      const booking = pendingBookings.find(b => 
+      const booking = pendingBookings.find(b =>
         (b.reservationId?.toString() === bookingId) || (b.id === bookingId)
       );
-      
+
       if (!booking) {
         throw new Error("Booking not found");
       }
 
       // Get customer ID from booking
       const customerId = booking.customerInfo.userId;
-      
+
       if (!customerId) {
         throw new Error("Customer ID not found");
       }
@@ -414,12 +447,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         status: "approved",
         notes: "Customer verified and checked out"
       });
-      
+
       // Refresh both vehicle lists and pending customers
       await refetchVehicles();
       await refetchPendingVehicles();
       await fetchPendingCustomers();
-      
+
       toast({
         title: "Vehicle Checked Out",
         description: `Vehicle has been successfully checked out.`,
@@ -529,14 +562,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     input.type = 'file';
     input.accept = 'image/*';
     input.capture = 'environment'; // Prefer rear camera on mobile
-    
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       try {
         const docTypeDisplay = formatDocumentType(type);
-        
+
         toast({
           title: "📸 Processing Photo...",
           description: `Uploading ${docTypeDisplay}.`,
@@ -571,11 +604,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         try {
           const customers = await staffApiService.getCustomersForVerification();
           const updatedCustomer = customers.find((c: any) => c.email === booking.email);
-          
+
           if (updatedCustomer) {
             // Update only this customer's documents in state
-            setPendingCustomers((prev: any[]) => 
-              prev.map((c: any) => 
+            setPendingCustomers((prev: any[]) =>
+              prev.map((c: any) =>
                 c.email === booking.email
                   ? { ...c, documents: updatedCustomer.documents, hasDocuments: updatedCustomer.hasDocuments }
                   : c
@@ -606,14 +639,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*,.pdf';
-    
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       try {
         const docTypeDisplay = formatDocumentType(type);
-        
+
         toast({
           title: "Uploading...",
           description: `Uploading ${docTypeDisplay}.`,
@@ -648,11 +681,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         try {
           const customers = await staffApiService.getCustomersForVerification();
           const updatedCustomer = customers.find((c: any) => c.email === booking.email);
-          
+
           if (updatedCustomer) {
             // Update only this customer's documents in state
-            setPendingCustomers((prev: any[]) => 
-              prev.map((c: any) => 
+            setPendingCustomers((prev: any[]) =>
+              prev.map((c: any) =>
                 c.email === booking.email
                   ? { ...c, documents: updatedCustomer.documents, hasDocuments: updatedCustomer.hasDocuments }
                   : c
@@ -686,9 +719,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     setFilterStatus(status);
     toast({
       title: "Filter Applied",
-      description: `Showing ${
-        status === "all" ? "all vehicles" : status + " vehicles"
-      }.`,
+      description: `Showing ${status === "all" ? "all vehicles" : status + " vehicles"
+        }.`,
     });
   };
 
@@ -720,17 +752,17 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     console.log('handleSaveVehicleChanges called');
     console.log('editingVehicle:', editingVehicle);
     console.log('apiVehicles:', apiVehicles);
-    
+
     if (editingVehicle && apiVehicles) {
       try {
         console.log('Saving vehicle changes:', editingVehicle);
-        const apiVehicle = apiVehicles.find(v => 
+        const apiVehicle = apiVehicles.find(v =>
           (v.uniqueVehicleId && v.uniqueVehicleId === editingVehicle.id) ||
           v.vehicleId.toString() === editingVehicle.id
         );
-        
+
         console.log('Found API vehicle:', apiVehicle);
-        
+
         if (apiVehicle) {
           const updateData = {
             batteryLevel: parseInt(batteryLevel) || editingVehicle.batteryLevel,
@@ -738,16 +770,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             mileage: parseInt(vehicleMileage) || editingVehicle.mileage,
             lastMaintenance: editingVehicle.lastMaintenance,
           };
-          
+
           console.log('Updating vehicle with data:', updateData);
           await updateVehicle(apiVehicle.vehicleId, updateData);
           console.log('Vehicle updated successfully');
-          
+
           // Refresh the vehicle list to show updated data
           await refetchVehicles();
           console.log('Vehicle list refreshed');
         }
-        
+
         toast({
           title: "Vehicle Updated",
           description: `${editingVehicle.name} has been successfully updated.`,
@@ -760,7 +792,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           duration: 3000,
         });
       }
-      
+
       setIsEditVehicleDialogOpen(false);
       setEditingVehicle(null);
     }
@@ -828,10 +860,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         7: "st7", // Thu Duc Station
         8: "st8", // District 4 Station
       };
-      
-      const stationName = stationInfo?.name || 
-                         stations.find(s => s.id === stationMap[stationId])?.name || 
-                         `Station ${stationId}`;
+
+      const stationName = stationInfo?.name ||
+        stations.find(s => s.id === stationMap[stationId])?.name ||
+        `Station ${stationId}`;
       const location = stationName;
 
       console.log('Debug assign vehicle:', {
@@ -853,7 +885,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
       // Refresh the vehicle list
       refetchVehicles();
-      
+
       // Refresh unassigned vehicles
       loadUnassignedVehicles();
 
@@ -1011,6 +1043,31 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }));
   };
 
+  // Function xử lý incident
+  const handleIncidentAction = (incidentId: string, action: 'accept' | 'resolve') => {
+    if (action === 'accept') {
+      incidentStorage.updateIncident(incidentId, { status: 'in_progress' });
+      toast({
+        title: "Incident Accepted",
+        description: "You are now handling this incident.",
+      });
+    } else if (action === 'resolve') {
+      incidentStorage.updateIncident(incidentId, {
+        status: 'resolved',
+        resolvedAt: new Date().toISOString(),
+      });
+      toast({
+        title: "Incident Resolved",
+        description: "Incident has been marked as resolved.",
+      });
+    }
+
+    // Refresh incidents
+    const stationIncidents = incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
+    setIncidents(stationIncidents);
+    setUnreadIncidents(stationIncidents.filter(i => i.status === 'reported').length); // + CHỈ COUNT pending cho bell notification
+  };
+
   const renderVehicleManagement = () => (
     <div className="space-y-6">
       {/* Quick Stats */}
@@ -1143,136 +1200,136 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 .filter((vehicle) =>
                   searchQuery
                     ? vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
+                    vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
                     : true
                 )
                 .map((vehicle) => (
-                <div
-                  key={vehicle.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-muted rounded-full">
-                      <Car className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">{vehicle.name}</h4>
-                       <p className="text-sm text-muted-foreground">
-                         ID: {vehicle.id}
-                       </p>
-                      {vehicle.status === "available" && (
-                        <p className="text-sm text-muted-foreground">
-                          Location: {vehicle.location}
-                        </p>
-                      )}
-                      {vehicle.status === "rented" && (
-                        <p className="text-sm text-muted-foreground">
-                          {/* @ts-expect-error - customer may not exist on vehicle type */}
-                          Customer: {vehicle.customer || "N/A"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    {vehicle.battery && (
-                      <div className="flex items-center space-x-1">
-                        <Battery className="h-4 w-4 text-success" />
-                        <span className="text-sm">{vehicle.battery}%</span>
+                  <div
+                    key={vehicle.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-muted rounded-full">
+                        <Car className="h-6 w-6" />
                       </div>
-                    )}
+                      <div>
+                        <h4 className="font-semibold">{vehicle.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          ID: {vehicle.id}
+                        </p>
+                        {vehicle.status === "available" && (
+                          <p className="text-sm text-muted-foreground">
+                            Location: {vehicle.location}
+                          </p>
+                        )}
+                        {vehicle.status === "rented" && (
+                          <p className="text-sm text-muted-foreground">
+                            {/* @ts-expect-error - customer may not exist on vehicle type */}
+                            Customer: {vehicle.customer || "N/A"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
-                    <Badge
-                      variant={
-                        vehicle.status === "available"
-                          ? "default"
-                          : vehicle.status === "rented"
-                          ? "secondary"
-                          : "destructive"
-                      }
-                    >
-                      {vehicle.status}
-                    </Badge>
+                    <div className="flex items-center space-x-4">
+                      {vehicle.battery && (
+                        <div className="flex items-center space-x-1">
+                          <Battery className="h-4 w-4 text-success" />
+                          <span className="text-sm">{vehicle.battery}%</span>
+                        </div>
+                      )}
 
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={vehicle.status === "rented" || vehicle.status === "pending"}
-                        onClick={() => handleEditVehicle(vehicle)}
-                        title={vehicle.status === "rented" || vehicle.status === "pending" ? "Cannot edit vehicle with this status" : "Edit vehicle"}
+                      <Badge
+                        variant={
+                          vehicle.status === "available"
+                            ? "default"
+                            : vehicle.status === "rented"
+                              ? "secondary"
+                              : "destructive"
+                        }
                       >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
+                        {vehicle.status}
+                      </Badge>
 
-                      {vehicle.status === "available" && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleScheduleDetailedMaintenance(vehicle.id)
-                            }
-                          >
-                            <Wrench className="h-3 w-3 mr-1" />
-                            {t("common.scheduleMaintenance")}
-                          </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={vehicle.status === "rented" || vehicle.status === "pending"}
+                          onClick={() => handleEditVehicle(vehicle)}
+                          title={vehicle.status === "rented" || vehicle.status === "pending" ? "Cannot edit vehicle with this status" : "Edit vehicle"}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+
+                        {vehicle.status === "available" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                handleScheduleDetailedMaintenance(vehicle.id)
+                              }
+                            >
+                              <Wrench className="h-3 w-3 mr-1" />
+                              {t("common.scheduleMaintenance")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-primary"
+                              onClick={() =>
+                                handleStartPreRentalInspection(vehicle.id)
+                              }
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Pre-Rental Check
+                            </Button>
+                          </>
+                        )}
+
+                        {vehicle.status === "rented" && (
                           <Button
                             size="sm"
                             className="bg-primary"
                             onClick={() =>
-                              handleStartPreRentalInspection(vehicle.id)
+                              handleStartPostRentalInspection(vehicle.id)
+                            }
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Return Inspection
+                          </Button>
+                        )}
+
+                        {vehicle.status === "pending" && (
+                          <Button
+                            size="sm"
+                            className="bg-primary"
+                            onClick={() =>
+                              handleVehicleStatusUpdate(vehicle.id, "available")
                             }
                           >
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            Pre-Rental Check
+                            Approve Vehicle
                           </Button>
-                        </>
-                      )}
+                        )}
 
-                      {vehicle.status === "rented" && (
-                        <Button
-                          size="sm"
-                          className="bg-primary"
-                          onClick={() =>
-                            handleStartPostRentalInspection(vehicle.id)
-                          }
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Return Inspection
-                        </Button>
-                      )}
-
-                      {vehicle.status === "pending" && (
-                        <Button
-                          size="sm"
-                          className="bg-primary"
-                          onClick={() =>
-                            handleVehicleStatusUpdate(vehicle.id, "available")
-                          }
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Approve Vehicle
-                        </Button>
-                      )}
-
-                      {vehicle.status === "maintenance" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleVehicleStatusUpdate(vehicle.id, "available")
-                          }
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Mark Available
-                        </Button>
-                      )}
+                        {vehicle.status === "maintenance" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleVehicleStatusUpdate(vehicle.id, "available")
+                            }
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Mark Available
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))
             )}
           </div>
         </CardContent>
@@ -1329,9 +1386,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 ) : unassignedVehiclesError ? (
                   <div className="text-center py-8 text-red-500">
                     <p>Error loading vehicles: {unassignedVehiclesError}</p>
-                    <Button 
-                      onClick={loadUnassignedVehicles} 
-                      variant="outline" 
+                    <Button
+                      onClick={loadUnassignedVehicles}
+                      variant="outline"
                       className="mt-2"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -1342,24 +1399,23 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   .filter((vehicle) =>
                     selectedModelToAdd
                       ? vehicle.modelId
-                          .toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase()) ||
-                        vehicle.uniqueVehicleId
-                          ?.toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase()) ||
-                        vehicle.licensePlate
-                          ?.toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase())
+                        .toLowerCase()
+                        .includes(selectedModelToAdd.toLowerCase()) ||
+                      vehicle.uniqueVehicleId
+                        ?.toLowerCase()
+                        .includes(selectedModelToAdd.toLowerCase()) ||
+                      vehicle.licensePlate
+                        ?.toLowerCase()
+                        .includes(selectedModelToAdd.toLowerCase())
                       : true
                   )
                   .map((vehicle) => (
                     <Card
                       key={vehicle.vehicleId}
-                      className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${
-                        newVehicleData.mileage === vehicle.vehicleId.toString()
-                          ? "ring-2 ring-primary bg-primary/5 shadow-md"
-                          : "hover:border-primary/50"
-                      }`}
+                      className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${newVehicleData.mileage === vehicle.vehicleId.toString()
+                        ? "ring-2 ring-primary bg-primary/5 shadow-md"
+                        : "hover:border-primary/50"
+                        }`}
                       onClick={() => {
                         setNewVehicleData({
                           ...newVehicleData,
@@ -1455,15 +1511,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                   vehicle.condition === "excellent"
                                     ? "default"
                                     : vehicle.condition === "good"
-                                    ? "secondary"
-                                    : "outline"
+                                      ? "secondary"
+                                      : "outline"
                                 }
                               >
                                 {vehicle.condition === "excellent"
                                   ? "✅"
                                   : vehicle.condition === "good"
-                                  ? "👍"
-                                  : "⚠️"}{" "}
+                                    ? "👍"
+                                    : "⚠️"}{" "}
                                 {vehicle.condition}
                               </Badge>
                               <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -2011,66 +2067,66 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               </div>
             ) : (
               pendingBookings.map((booking: any) => (
-              <div
-                key={booking.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-primary-light rounded-full">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">{booking.customer}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Vehicle: {booking.vehicle}
-                    </p>
-                    {booking.phone && (
+                <div
+                  key={booking.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-primary-light rounded-full">
+                      <User className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{booking.customer}</h4>
                       <p className="text-sm text-muted-foreground">
-                        Phone: {booking.phone}
+                        Vehicle: {booking.vehicle}
                       </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      Registered: {new Date(booking.registeredAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <div className="flex space-x-2">
-                    <Badge
-                      variant={
-                        booking.licenseVerified ? "default" : "secondary"
-                      }
-                    >
-                      {booking.licenseVerified
-                        ? "License ✓"
-                        : "License Pending"}
-                    </Badge>
-                    <Badge
-                      variant={
-                        booking.documentsUploaded ? "default" : "secondary"
-                      }
-                    >
-                      {booking.documentsUploaded
-                        ? "Documents ✓"
-                        : "Documents Pending"}
-                    </Badge>
+                      {booking.phone && (
+                        <p className="text-sm text-muted-foreground">
+                          Phone: {booking.phone}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        Registered: {new Date(booking.registeredAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex space-x-2">
-                    <Dialog 
-                      open={isVerifyDocumentsOpen && selectedBookingForVerification === booking.id}
-                      onOpenChange={(open) => {
-                        setIsVerifyDocumentsOpen(open);
-                        if (open) {
-                          setSelectedBookingForVerification(booking.id);
-                        } else {
-                          setSelectedBookingForVerification(null);
-                          // Refresh data when dialog closes to show updated documents
-                          fetchPendingCustomers();
+                  <div className="flex items-center space-x-4">
+                    <div className="flex space-x-2">
+                      <Badge
+                        variant={
+                          booking.licenseVerified ? "default" : "secondary"
                         }
-                      }}
-                    >
+                      >
+                        {booking.licenseVerified
+                          ? "License ✓"
+                          : "License Pending"}
+                      </Badge>
+                      <Badge
+                        variant={
+                          booking.documentsUploaded ? "default" : "secondary"
+                        }
+                      >
+                        {booking.documentsUploaded
+                          ? "Documents ✓"
+                          : "Documents Pending"}
+                      </Badge>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <Dialog
+                        open={isVerifyDocumentsOpen && selectedBookingForVerification === booking.id}
+                        onOpenChange={(open) => {
+                          setIsVerifyDocumentsOpen(open);
+                          if (open) {
+                            setSelectedBookingForVerification(booking.id);
+                          } else {
+                            setSelectedBookingForVerification(null);
+                            // Refresh data when dialog closes to show updated documents
+                            fetchPendingCustomers();
+                          }
+                        }}
+                      >
                         <DialogTrigger asChild>
                           <Button size="sm" variant="outline">
                             Verify Documents
@@ -2108,8 +2164,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                           {doc.status || 'Pending'}
                                         </Badge>
                                       </div>
-                                      <img 
-                                        src={`http://localhost:5000${doc.fileUrl}`} 
+                                      <img
+                                        src={`http://localhost:5000${doc.fileUrl}`}
                                         alt={formatDocumentType(doc.documentType)}
                                         className="w-full h-48 object-contain bg-muted rounded border cursor-pointer"
                                         onClick={() => window.open(`http://localhost:5000${doc.fileUrl}`, '_blank')}
@@ -2123,7 +2179,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             {/* Verify Documents Section */}
                             <div className="space-y-4">
                               <h3 className="font-semibold">Verify Documents</h3>
-                              
+
                               {/* National ID - Front */}
                               <div>
                                 <Label>National ID - Front</Label>
@@ -2222,11 +2278,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             </Button>
                           </div>
                         </DialogContent>
-                    </Dialog>
+                      </Dialog>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )))}
+              )))}
           </div>
         </CardContent>
       </Card>
@@ -2328,12 +2384,262 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     </div>
   );
 
+// THÊM: Render Incident Management function
+ const renderIncidentManagement = () => {
+   // Filter incidents based on selected filters
+   const filteredIncidents = incidents.filter(incident => {
+     const matchesStatus = incidentFilter === "all" || incident.status === incidentFilter;
+     const matchesPriority = incidentPriorityFilter === "all" || incident.priority === incidentPriorityFilter;
+     const matchesSearch = incidentSearchQuery === "" || 
+       incident.description.toLowerCase().includes(incidentSearchQuery.toLowerCase()) ||
+       incident.customerName.toLowerCase().includes(incidentSearchQuery.toLowerCase()) ||
+       incident.vehicleId.toLowerCase().includes(incidentSearchQuery.toLowerCase());
+     
+     return matchesStatus && matchesPriority && matchesSearch;
+   });
+ 
+   // Calculate stats
+   const stats = {
+     total: incidents.length,
+     reported: incidents.filter(i => i.status === 'reported').length,
+     inProgress: incidents.filter(i => i.status === 'in_progress').length,
+     resolved: incidents.filter(i => i.status === 'resolved').length,
+     urgent: incidents.filter(i => i.priority === 'urgent').length,
+   };
+ 
+   return (
+     <div className="space-y-6">
+       {/* Stats Overview */}
+       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+         <Card>
+           <CardContent className="flex items-center p-6">
+             <div className="flex items-center space-x-2">
+               <div className="p-3 bg-blue-100 rounded-full">
+                 <AlertTriangle className="h-6 w-6 text-blue-600" />
+               </div>
+               <div>
+                 <p className="text-2xl font-bold">{stats.total}</p>
+                 <p className="text-sm text-muted-foreground">Total Incidents</p>
+               </div>
+             </div>
+           </CardContent>
+         </Card>
+ 
+         <Card>
+           <CardContent className="flex items-center p-6">
+             <div className="flex items-center space-x-2">
+               <div className="p-3 bg-yellow-100 rounded-full">
+                 <Clock className="h-6 w-6 text-yellow-600" />
+               </div>
+               <div>
+                 <p className="text-2xl font-bold">{stats.reported}</p>
+                 <p className="text-sm text-muted-foreground">Pending</p>
+               </div>
+             </div>
+           </CardContent>
+         </Card>
+ 
+         <Card>
+           <CardContent className="flex items-center p-6">
+             <div className="flex items-center space-x-2">
+               <div className="p-3 bg-orange-100 rounded-full">
+                 <Settings className="h-6 w-6 text-orange-600" />
+               </div>
+               <div>
+                 <p className="text-2xl font-bold">{stats.inProgress}</p>
+                 <p className="text-sm text-muted-foreground">In Progress</p>
+               </div>
+             </div>
+           </CardContent>
+         </Card>
+ 
+         <Card>
+           <CardContent className="flex items-center p-6">
+             <div className="flex items-center space-x-2">
+               <div className="p-3 bg-green-100 rounded-full">
+                 <CheckCircle className="h-6 w-6 text-green-600" />
+               </div>
+               <div>
+                 <p className="text-2xl font-bold">{stats.resolved}</p>
+                 <p className="text-sm text-muted-foreground">Resolved</p>
+               </div>
+             </div>
+           </CardContent>
+         </Card>
+ 
+         <Card>
+           <CardContent className="flex items-center p-6">
+             <div className="flex items-center space-x-2">
+               <div className="p-3 bg-red-100 rounded-full">
+                 <AlertCircle className="h-6 w-6 text-red-600" />
+               </div>
+               <div>
+                 <p className="text-2xl font-bold">{stats.urgent}</p>
+                 <p className="text-sm text-muted-foreground">Urgent</p>
+               </div>
+             </div>
+           </CardContent>
+         </Card>
+       </div>
+ 
+       {/* Filters and Search */}
+       <Card>
+         <CardHeader>
+           <div className="flex items-center justify-between">
+             <CardTitle>Incident Management</CardTitle>
+             <div className="flex items-center space-x-2">
+               <div className="relative">
+                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                 <Input
+                   placeholder="Search incidents..."
+                   value={incidentSearchQuery}
+                   onChange={(e) => setIncidentSearchQuery(e.target.value)}
+                   className="pl-10 w-64"
+                 />
+               </div>
+               
+               <Select value={incidentFilter} onValueChange={setIncidentFilter}>
+                 <SelectTrigger className="w-32">
+                   <SelectValue placeholder="Status" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="all">All Status</SelectItem>
+                   <SelectItem value="reported">Reported</SelectItem>
+                   <SelectItem value="in_progress">In Progress</SelectItem>
+                   <SelectItem value="resolved">Resolved</SelectItem>
+                 </SelectContent>
+               </Select>
+ 
+               <Select value={incidentPriorityFilter} onValueChange={setIncidentPriorityFilter}>
+                 <SelectTrigger className="w-32">
+                   <SelectValue placeholder="Priority" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="all">All Priority</SelectItem>
+                   <SelectItem value="low">Low</SelectItem>
+                   <SelectItem value="medium">Medium</SelectItem>
+                   <SelectItem value="high">High</SelectItem>
+                   <SelectItem value="urgent">Urgent</SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
+           </div>
+         </CardHeader>
+
+         <CardContent>
+           <div className="space-y-4">
+             {filteredIncidents.length === 0 ? (
+               <div className="text-center py-8">
+                 <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                 <h3 className="text-lg font-semibold mb-2">No Incidents Found</h3>
+                 <p className="text-muted-foreground">
+                   {incidentFilter !== "all" || incidentPriorityFilter !== "all" || incidentSearchQuery
+                     ? "Try adjusting your filters"
+                     : "All incidents have been resolved"}
+                 </p>
+               </div>
+             ) : (
+               filteredIncidents.map((incident) => (
+                 <div
+                   key={incident.id}
+                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                   onClick={() => {
+                     setSelectedIncidentForDetails(incident);
+                     setStaffNotes(incident.staffNotes || "");
+                     setIsIncidentDetailsOpen(true);
+                   }}
+                   >
+                   <div className="flex items-center space-x-4">
+                     <div className={`p-2 rounded-full ${
+                       incident.priority === 'urgent' ? 'bg-red-100' :
+                       incident.priority === 'high' ? 'bg-orange-100' :
+                       incident.priority === 'medium' ? 'bg-yellow-100' : 'bg-gray-100'
+                     }`}>
+                       <AlertTriangle className={`h-5 w-5 ${
+                         incident.priority === 'urgent' ? 'text-red-600' :
+                         incident.priority === 'high' ? 'text-orange-600' :
+                           incident.priority === 'medium' ? 'text-yellow-600' : 'text-gray-600'
+                       }`} />
+                     </div>
+
+                     <div className="flex-1">
+                       <div className="flex items-center space-x-2 mb-1">
+                         <h4 className="font-semibold">{incident.type.replace('-', ' ').toUpperCase()}</h4>
+                         <Badge variant={
+                           incident.status === 'resolved' ? 'secondary' :
+                           incident.status === 'in_progress' ? 'default' : 'destructive'
+                         }>
+                           {incident.status.replace('_', ' ')}
+                         </Badge>
+                         <Badge variant={
+                           incident.priority === 'urgent' ? 'destructive' :
+                           incident.priority === 'high' ? 'destructive' :
+                           incident.priority === 'medium' ? 'default' : 'secondary'
+                         }>
+                           {incident.priority}
+                         </Badge>
+                       </div>
+
+                       <p className="text-sm text-muted-foreground mb-1">
+                         Customer: {incident.customerName} • Vehicle: {incident.vehicleId}
+                       </p>
+
+                       <p className="text-sm line-clamp-2">{incident.description}</p>
+
+                       <div className="flex items-center text-xs text-muted-foreground mt-2">
+                         <Clock className="h-3 w-3 mr-1" />
+                         {new Date(incident.reportedAt).toLocaleString()}
+                       </div>
+                     </div>
+                   </div>
+
+                   <div className="flex items-center space-x-2">
+                     {incident.status === 'reported' && (
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           handleIncidentAction(incident.id, 'accept');
+                         }}
+                       >
+                         Accept
+                       </Button>
+                     )}
+
+                     {incident.status !== 'resolved' && (
+                       <Button
+                         size="sm"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           handleIncidentAction(incident.id, 'resolve');
+                         }}
+                       >
+                         <CheckCircle className="h-4 w-4 mr-1" />
+                         Resolve
+                       </Button>
+                     )}
+
+                     <Button size="sm" variant="ghost">
+                       <Eye className="h-4 w-4" />
+                     </Button>
+                   </div>
+                 </div>
+               ))
+             )}
+           </div>
+         </CardContent>
+       </Card>
+     </div>
+   );
+};
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-background">
         {/* Header */}
         <FadeIn delay={100}>
-          <div 
+          <div
             className="relative overflow-hidden bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: "url('/src/assets/home-bg.jpg')"
@@ -2342,9 +2648,32 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             <div className="absolute inset-0 bg-black/40"></div>
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
               <div className="text-center">
-                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                {/* <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
                   {t("common.staffDashboard")}
-                </h1>
+                </h1> */}
+
+                <div className="flex items-center justify-center space-x-4 mb-4">
+                  <h1 className="text-4xl md:text-5xl font-bold text-white">
+                    {t("common.staffDashboard")}
+                  </h1>
+
+                  {/* Incident Notification Bell */}
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsIncidentPanelOpen(true)}
+                      className="text-white hover:bg-white/20"
+                    >
+                      <Bell className="h-6 w-6" />
+                      {unreadIncidents > 0 && (
+                        <Badge className="absolute -top-2 -right-2 bg-red-500 text-white min-w-[20px] h-5 flex items-center justify-center text-xs">
+                          {unreadIncidents}
+                        </Badge>
+                      )}
+                    </Button>
+                  </div>
+                </div>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
                   {t("common.welcomeUser")}, {staffProfile?.fullName || currentUser.name}
@@ -2432,10 +2761,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             </div>
           </SlideIn>
 
+
+
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
@@ -2443,6 +2774,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 <TabsTrigger value="pickups">Pickup Management</TabsTrigger>
                 <TabsTrigger value="walkin">Walk-in Booking</TabsTrigger>
                 <TabsTrigger value="payments">Payment Processing</TabsTrigger>
+                <TabsTrigger value="incidents">Incident Management</TabsTrigger>
               </TabsList>
 
               <TabsContent value="vehicles" className="mt-6">
@@ -2451,6 +2783,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               <TabsContent value="customers" className="mt-6">
                 {renderCustomerManagement()}
+              </TabsContent>
+
+              <TabsContent value="incidents" className="mt-6">
+                {renderIncidentManagement()}
               </TabsContent>
 
               <TabsContent value="pickups" className="mt-6">
@@ -2658,7 +2994,281 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           </Dialog>
         </div>
       </div>
+
+
+      {/* Incident Notifications Panel */}
+      <Dialog open={isIncidentPanelOpen} onOpenChange={setIsIncidentPanelOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Incident Reports ({incidents.length})
+            </DialogTitle>
+            <DialogDescription>
+              New incident reports from customers in your station
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {incidents.length > 0 ? (
+              incidents.map((incident) => (
+                <Card key={incident.id} className="border-l-4 border-l-orange-500">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{incident.type.replace('-', ' ').toUpperCase()}</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          Customer: {incident.customerName} • Vehicle: {incident.vehicleId}
+                        </p>
+                      </div>
+                      <Badge variant={incident.priority === 'urgent' ? 'destructive' : 'secondary'}>
+                        {incident.priority}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm mb-4">{incident.description}</p>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {new Date(incident.reportedAt).toLocaleString()}
+                      </div>
+
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleIncidentAction(incident.id, 'accept')}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleIncidentAction(incident.id, 'resolve')}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Resolve
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Active Incidents</h3>
+                <p className="text-muted-foreground">All incidents have been resolved.</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsIncidentPanelOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+{/* THÊM: Incident Details Dialog */}
+<Dialog open={isIncidentDetailsOpen} onOpenChange={setIsIncidentDetailsOpen}>
+  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2">
+        <AlertTriangle className="h-5 w-5 text-orange-500" />
+        Incident Details - {selectedIncidentForDetails?.id}
+      </DialogTitle>
+      <DialogDescription>
+        Manage and resolve customer incident reports
+      </DialogDescription>
+    </DialogHeader>
+
+    {selectedIncidentForDetails && (
+      <div className="space-y-6">
+        {/* Incident Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Incident Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">Type</Label>
+                <p className="text-sm">{selectedIncidentForDetails.type.replace('-', ' ').toUpperCase()}</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Status</Label>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge variant={
+                    selectedIncidentForDetails.status === 'resolved' ? 'secondary' :
+                    selectedIncidentForDetails.status === 'in_progress' ? 'default' : 'destructive'
+                  }>
+                    {selectedIncidentForDetails.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Priority</Label>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge variant={
+                    selectedIncidentForDetails.priority === 'urgent' ? 'destructive' :
+                    selectedIncidentForDetails.priority === 'high' ? 'destructive' :
+                    selectedIncidentForDetails.priority === 'medium' ? 'default' : 'secondary'
+                  }>
+                    {selectedIncidentForDetails.priority}
+                  </Badge>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Reported At</Label>
+                <p className="text-sm">{new Date(selectedIncidentForDetails.reportedAt).toLocaleString()}</p>
+              </div>
+
+              {selectedIncidentForDetails.resolvedAt && (
+                <div>
+                  <Label className="text-sm font-medium">Resolved At</Label>
+                  <p className="text-sm">{new Date(selectedIncidentForDetails.resolvedAt).toLocaleString()}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Customer & Vehicle</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">Customer Name</Label>
+                <p className="text-sm">{selectedIncidentForDetails.customerName}</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Customer ID</Label>
+                <p className="text-sm">{selectedIncidentForDetails.customerId}</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Vehicle ID</Label>
+                <p className="text-sm">{selectedIncidentForDetails.vehicleId}</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Reservation ID</Label>
+                <p className="text-sm">{selectedIncidentForDetails.reservationId}</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Station</Label>
+                <p className="text-sm">{selectedIncidentForDetails.stationId}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Incident Description */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Incident Description</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">{selectedIncidentForDetails.description}</p>
+          </CardContent>
+        </Card>
+
+        {/* Staff Notes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Staff Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Textarea
+                placeholder="Add your notes about this incident..."
+                value={staffNotes}
+                onChange={(e) => setStaffNotes(e.target.value)}
+                rows={4}
+              />
+
+              <Button
+                onClick={() => {
+                  incidentStorage.updateIncident(selectedIncidentForDetails.id, {
+                    staffNotes: staffNotes
+                  });
+                  toast({
+                    title: "Notes Updated",
+                    description: "Staff notes have been saved successfully.",
+                  });
+                }}
+                className="w-full sm:w-auto"
+              >
+                Save Notes
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-3">
+          {selectedIncidentForDetails.status === 'reported' && (
+            <Button
+              onClick={() => {
+                handleIncidentAction(selectedIncidentForDetails.id, 'accept');
+                setSelectedIncidentForDetails({
+                  ...selectedIncidentForDetails,
+                  status: 'in_progress'
+                });
+              }}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Accept Incident
+            </Button>
+          )}
+
+          {selectedIncidentForDetails.status !== 'resolved' && (
+            <Button
+              onClick={() => {
+                handleIncidentAction(selectedIncidentForDetails.id, 'resolve');
+                setIsIncidentDetailsOpen(false);
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Mark as Resolved
+            </Button>
+          )}
+
+          <Button variant="outline">
+            <Phone className="h-4 w-4 mr-2" />
+            Contact Customer
+          </Button>
+
+          <Button variant="outline">
+            <FileText className="h-4 w-4 mr-2" />
+            Generate Report
+          </Button>
+        </div>
+      </div>
+    )}
+
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setIsIncidentDetailsOpen(false)}>
+        Close
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+
     </PageTransition>
+
   );
 };
 
