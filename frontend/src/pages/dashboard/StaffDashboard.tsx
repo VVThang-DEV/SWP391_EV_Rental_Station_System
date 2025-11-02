@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { useStationVehicles, useStaffProfile, useStationInfo, usePendingVehicles } from "@/hooks/useStaffApi";
+import {
+  useStationVehicles,
+  useStaffProfile,
+  useStationInfo,
+  usePendingVehicles,
+} from "@/hooks/useStaffApi";
 import { apiService, Vehicle, staffApiService } from "@/services/api";
 import {
   Card,
@@ -100,39 +105,68 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [filterStatus, setFilterStatus] = useState("all");
 
   // API Hooks for Staff Dashboard
-  const { data: staffProfile, loading: profileLoading, error: profileError } = useStaffProfile();
-  const { data: stationInfo, loading: stationLoading, error: stationError } = useStationInfo();
-  const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
-  const { data: pendingVehicles, loading: pendingVehiclesLoading, error: pendingVehiclesError, refetch: refetchPendingVehicles } = usePendingVehicles();
-  
+  const {
+    data: staffProfile,
+    loading: profileLoading,
+    error: profileError,
+  } = useStaffProfile();
+  const {
+    data: stationInfo,
+    loading: stationLoading,
+    error: stationError,
+  } = useStationInfo();
+  const {
+    data: apiVehicles,
+    updateVehicle,
+    loading: vehiclesLoading,
+    error: vehiclesError,
+    refetch: refetchVehicles,
+  } = useStationVehicles();
+  const {
+    data: pendingVehicles,
+    loading: pendingVehiclesLoading,
+    error: pendingVehiclesError,
+    refetch: refetchPendingVehicles,
+  } = usePendingVehicles();
+
   // Pending customers state
   const [pendingCustomers, setPendingCustomers] = useState<any[]>([]);
   const [pendingCustomersLoading, setPendingCustomersLoading] = useState(false);
-  const [pendingCustomersError, setPendingCustomersError] = useState<string | null>(null);
-  
+  const [pendingCustomersError, setPendingCustomersError] = useState<
+    string | null
+  >(null);
+
   // Reservations / Booking History state
   const [reservations, setReservations] = useState<any[]>([]);
   const [reservationsLoading, setReservationsLoading] = useState(false);
-  const [reservationsError, setReservationsError] = useState<string | null>(null);
-  const [selectedReservation, setSelectedReservation] = useState<any | null>(null);
+  const [reservationsError, setReservationsError] = useState<string | null>(
+    null
+  );
+  const [selectedReservation, setSelectedReservation] = useState<any | null>(
+    null
+  );
   // History filter state (reuse Wallet.tsx pattern)
   const [dateFilter, setDateFilter] = useState<string>("today");
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    new Date().getMonth() + 1
+  );
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear()
+  );
+
   // Activity logs state
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [activityLogsLoading, setActivityLogsLoading] = useState(false);
-  
+
   // Debug API data
-  console.log('Staff Profile:', staffProfile);
-  console.log('Station Info:', stationInfo);
-  console.log('API Vehicles:', apiVehicles);
-  console.log('Pending Vehicles:', pendingVehicles);
-  console.log('Pending Customers:', pendingCustomers);
-  console.log('Vehicles Loading:', vehiclesLoading);
-  console.log('Vehicles Error:', vehiclesError);
-  console.log('Token:', localStorage.getItem('token'));
+  console.log("Staff Profile:", staffProfile);
+  console.log("Station Info:", stationInfo);
+  console.log("API Vehicles:", apiVehicles);
+  console.log("Pending Vehicles:", pendingVehicles);
+  console.log("Pending Customers:", pendingCustomers);
+  console.log("Vehicles Loading:", vehiclesLoading);
+  console.log("Vehicles Error:", vehiclesError);
+  console.log("Token:", localStorage.getItem("token"));
 
   // Fetch pending customers
   const fetchPendingCustomers = async () => {
@@ -141,8 +175,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       const customers = await staffApiService.getCustomersForVerification();
       setPendingCustomers(customers);
     } catch (error) {
-      console.error('Error fetching pending customers:', error);
-      setPendingCustomersError(error instanceof Error ? error.message : 'Failed to fetch customers');
+      console.error("Error fetching pending customers:", error);
+      setPendingCustomersError(
+        error instanceof Error ? error.message : "Failed to fetch customers"
+      );
     } finally {
       setPendingCustomersLoading(false);
     }
@@ -152,21 +188,24 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const fetchActivityLogs = async () => {
     try {
       setActivityLogsLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/staff/activities/today', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        "http://localhost:5000/api/staff/activities/today",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Activity Logs:', data);
+        console.log("Activity Logs:", data);
         setActivityLogs(data);
       }
     } catch (error) {
-      console.error('Error fetching activity logs:', error);
+      console.error("Error fetching activity logs:", error);
     } finally {
       setActivityLogsLoading(false);
     }
@@ -180,8 +219,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       const data = await apiService.getReservations();
       setReservations(data?.reservations || []);
     } catch (error) {
-      console.error('Error fetching reservations:', error);
-      setReservationsError(error instanceof Error ? error.message : 'Failed to fetch reservations');
+      console.error("Error fetching reservations:", error);
+      setReservationsError(
+        error instanceof Error ? error.message : "Failed to fetch reservations"
+      );
     } finally {
       setReservationsLoading(false);
     }
@@ -201,7 +242,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     "nationalId_front" | "nationalId_back" | "driverLicense" | null
   >(null);
   const [isVerifyDocumentsOpen, setIsVerifyDocumentsOpen] = useState(false);
-  const [selectedBookingForVerification, setSelectedBookingForVerification] = useState<string | null>(null);
+  const [selectedBookingForVerification, setSelectedBookingForVerification] =
+    useState<string | null>(null);
 
   // Enhanced state for CRUD operations
   const [isEditVehicleDialogOpen, setIsEditVehicleDialogOpen] = useState(false);
@@ -225,8 +267,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [isAddVehicleDialogOpen, setIsAddVehicleDialogOpen] = useState(false);
   const [selectedModelToAdd, setSelectedModelToAdd] = useState("");
   const [unassignedVehicles, setUnassignedVehicles] = useState<Vehicle[]>([]);
-  const [unassignedVehiclesLoading, setUnassignedVehiclesLoading] = useState(false);
-  const [unassignedVehiclesError, setUnassignedVehiclesError] = useState<string | null>(null);
+  const [unassignedVehiclesLoading, setUnassignedVehiclesLoading] =
+    useState(false);
+  const [unassignedVehiclesError, setUnassignedVehiclesError] = useState<
+    string | null
+  >(null);
   const [newVehicleData, setNewVehicleData] = useState({
     batteryLevel: "100",
     condition: "excellent",
@@ -266,8 +311,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       const vehicles = await apiService.getUnassignedVehicles();
       setUnassignedVehicles(vehicles);
     } catch (error) {
-      console.error('Error loading unassigned vehicles:', error);
-      setUnassignedVehiclesError(error instanceof Error ? error.message : 'Failed to load vehicles');
+      console.error("Error loading unassigned vehicles:", error);
+      setUnassignedVehiclesError(
+        error instanceof Error ? error.message : "Failed to load vehicles"
+      );
     } finally {
       setUnassignedVehiclesLoading(false);
     }
@@ -322,19 +369,24 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   // Use provided user, but prefer API data for station info
   const currentUser = {
     ...user,
-    stationId: staffProfile?.stationId?.toString() || user?.stationId
+    stationId: staffProfile?.stationId?.toString() || user?.stationId,
   };
 
   // Use API data for station information, fallback to mock data
   // Get station name from vehicles location instead of stationInfo
-  const stationName = apiVehicles && apiVehicles.length > 0 ? apiVehicles[0].location : (stationInfo?.name || "");
-  
+  const stationName =
+    apiVehicles && apiVehicles.length > 0
+      ? apiVehicles[0].location
+      : stationInfo?.name || "";
+
   const stationData = {
     name: stationName,
     vehicles: {
-      available: apiVehicles?.filter(v => v.status === 'available').length || 0,
-      rented: apiVehicles?.filter(v => v.status === 'rented').length || 0,
-      maintenance: apiVehicles?.filter(v => v.status === 'maintenance').length || 0,
+      available:
+        apiVehicles?.filter((v) => v.status === "available").length || 0,
+      rented: apiVehicles?.filter((v) => v.status === "rented").length || 0,
+      maintenance:
+        apiVehicles?.filter((v) => v.status === "maintenance").length || 0,
       total: apiVehicles?.length || 0,
     },
     todayStats: {
@@ -346,54 +398,58 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   // Use API data for Vehicle Management, fallback to static data
-  const vehicleList = apiVehicles ? apiVehicles.map(vehicle => ({
-    id: vehicle.uniqueVehicleId || vehicle.vehicleId.toString(),
-    name: `${vehicle.modelId} - ${vehicle.uniqueVehicleId || vehicle.vehicleId}`,
-    status: vehicle.status,
-    battery: vehicle.batteryLevel,
-    location: vehicle.location || "Unknown",
-    lastMaintenance: vehicle.lastMaintenance || "N/A",
-    bookings: [],
-    condition: vehicle.condition,
-    mileage: vehicle.mileage,
-    rating: vehicle.rating,
-    trips: vehicle.trips,
-    stationId: vehicle.stationId,
-    type: "Unknown",
-    year: 2024,
-    seats: 5,
-    range: vehicle.maxRangeKm,
-    brand: "VinFast",
-    model: vehicle.modelId,
-    availability: vehicle.status,
-    image: vehicle.image || "",
-  })) : [
-    {
-      id: "EV001",
-      name: "Tesla Model 3",
-      status: "available",
-      battery: 95,
-      location: "Slot A1",
-      lastMaintenance: "2024-01-10",
-      bookings: [],
-    },
-    {
-      id: "EV002",
-      name: "VinFast VF8",
-      status: "rented",
-      battery: 78,
-      customer: "Nguyen Van A",
-      rentedSince: "2024-01-15T09:00:00",
-      expectedReturn: "2024-01-15T17:00:00",
-    },
-    {
-      id: "EV003",
-      name: "BYD Tang",
-      status: "maintenance",
-      issue: "Battery calibration needed",
-      maintenanceStarted: "2024-01-14T10:00:00",
-    },
-  ];
+  const vehicleList = apiVehicles
+    ? apiVehicles.map((vehicle) => ({
+        id: vehicle.uniqueVehicleId || vehicle.vehicleId.toString(),
+        name: `${vehicle.modelId} - ${
+          vehicle.uniqueVehicleId || vehicle.vehicleId
+        }`,
+        status: vehicle.status,
+        battery: vehicle.batteryLevel,
+        location: vehicle.location || "Unknown",
+        lastMaintenance: vehicle.lastMaintenance || "N/A",
+        bookings: [],
+        condition: vehicle.condition,
+        mileage: vehicle.mileage,
+        rating: vehicle.rating,
+        trips: vehicle.trips,
+        stationId: vehicle.stationId,
+        type: "Unknown",
+        year: 2024,
+        seats: 5,
+        range: vehicle.maxRangeKm,
+        brand: "VinFast",
+        model: vehicle.modelId,
+        availability: vehicle.status,
+        image: vehicle.image || "",
+      }))
+    : [
+        {
+          id: "EV001",
+          name: "Tesla Model 3",
+          status: "available",
+          battery: 95,
+          location: "Slot A1",
+          lastMaintenance: "2024-01-10",
+          bookings: [],
+        },
+        {
+          id: "EV002",
+          name: "VinFast VF8",
+          status: "rented",
+          battery: 78,
+          customer: "Nguyen Van A",
+          rentedSince: "2024-01-15T09:00:00",
+          expectedReturn: "2024-01-15T17:00:00",
+        },
+        {
+          id: "EV003",
+          name: "BYD Tang",
+          status: "maintenance",
+          issue: "Battery calibration needed",
+          maintenanceStarted: "2024-01-14T10:00:00",
+        },
+      ];
 
   // Only show pending customers (NO System Registration / pending vehicles)
   const pendingBookings = pendingCustomers.map((customer) => ({
@@ -412,24 +468,30 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     licenseNumber: customer.licenseNumber,
     hasDocuments: customer.hasDocuments,
     documents: customer.documents || [],
-    licenseVerified: customer.documents?.some((d: any) => d.documentType === 'license' && d.status === 'approved') || false,
+    licenseVerified:
+      customer.documents?.some(
+        (d: any) => d.documentType === "license" && d.status === "approved"
+      ) || false,
     documentsUploaded: customer.hasDocuments,
   }));
 
-  const handleVehicleCheckout = async (vehicleId: string, bookingId?: string) => {
+  const handleVehicleCheckout = async (
+    vehicleId: string,
+    bookingId?: string
+  ) => {
     try {
       // Find the booking to get customer ID
-      const booking = pendingBookings.find(b => 
-        (b.reservationId?.toString() === bookingId) || (b.id === bookingId)
+      const booking = pendingBookings.find(
+        (b) => b.reservationId?.toString() === bookingId || b.id === bookingId
       );
-      
+
       if (!booking) {
         throw new Error("Booking not found");
       }
 
       // Get customer ID from booking
       const customerId = booking.customerInfo.userId;
-      
+
       if (!customerId) {
         throw new Error("Customer ID not found");
       }
@@ -438,14 +500,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       await staffApiService.verifyCustomer(customerId, {
         documentType: "all",
         status: "approved",
-        notes: "Customer verified and checked out"
+        notes: "Customer verified and checked out",
       });
-      
+
       // Refresh both vehicle lists and pending customers
       await refetchVehicles();
       await refetchPendingVehicles();
       await fetchPendingCustomers();
-      
+
       toast({
         title: "Vehicle Checked Out",
         description: `Vehicle has been successfully checked out.`,
@@ -472,33 +534,39 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   // Format document type for display (match registration form names)
   const formatDocumentType = (docType: string): string => {
     const typeMap: Record<string, string> = {
-      'NationalId_front': 'National ID - Front',
-      'NationalId_back': 'National ID - Back',
-      'nationalId_front': 'National ID - Front',
-      'nationalId_back': 'National ID - Back',
-      'DriverLicense': 'Driver\'s License - Front',
-      'driverLicense': 'Driver\'s License - Front',
-      'license': 'Driver\'s License - Front',
-      'driverLicenseBack': 'Driver\'s License - Back',
-      'identity': 'Identity Document (CCCD/CMND)',
+      NationalId_front: "National ID - Front",
+      NationalId_back: "National ID - Back",
+      nationalId_front: "National ID - Front",
+      nationalId_back: "National ID - Back",
+      DriverLicense: "Driver's License - Front",
+      driverLicense: "Driver's License - Front",
+      license: "Driver's License - Front",
+      driverLicenseBack: "Driver's License - Back",
+      identity: "Identity Document (CCCD/CMND)",
     };
-    return typeMap[docType] || docType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return (
+      typeMap[docType] ||
+      docType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+    );
   };
 
   const handleCustomerVerification = async (customerId: string) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/staff/customers/${customerId}/verify`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "approved",
-          notes: "Documents verified by staff",
-        }),
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/staff/customers/${customerId}/verify`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "approved",
+            notes: "Documents verified by staff",
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to verify customer");
@@ -549,43 +617,49 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     });
   };
 
-  const handleTakePhoto = async (bookingId: string, type: "nationalId_front" | "nationalId_back" | "driverLicense") => {
+  const handleTakePhoto = async (
+    bookingId: string,
+    type: "nationalId_front" | "nationalId_back" | "driverLicense"
+  ) => {
     // For simplicity, use file picker with camera preference on mobile
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment'; // Prefer rear camera on mobile
-    
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "environment"; // Prefer rear camera on mobile
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       try {
         const docTypeDisplay = formatDocumentType(type);
-        
+
         toast({
           title: "📸 Processing Photo...",
           description: `Uploading ${docTypeDisplay}.`,
         });
 
         // Find booking to get customer email
-        const booking = pendingBookings.find(b => b.id === bookingId);
+        const booking = pendingBookings.find((b) => b.id === bookingId);
         if (!booking) {
           throw new Error("Booking not found");
         }
 
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('email', booking.email);
-        formData.append('documentType', type);
+        formData.append("file", file);
+        formData.append("email", booking.email);
+        formData.append("documentType", type);
 
-        const response = await fetch('http://localhost:5000/api/documents/upload-document', {
-          method: 'POST',
-          body: formData,
-        });
+        const response = await fetch(
+          "http://localhost:5000/api/documents/upload-document",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
         if (!response.ok) {
-          throw new Error('Photo upload failed');
+          throw new Error("Photo upload failed");
         }
 
         toast({
@@ -596,14 +670,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         // Refresh only the documents for this booking to show uploaded document immediately
         try {
           const customers = await staffApiService.getCustomersForVerification();
-          const updatedCustomer = customers.find((c: any) => c.email === booking.email);
-          
+          const updatedCustomer = customers.find(
+            (c: any) => c.email === booking.email
+          );
+
           if (updatedCustomer) {
             // Update only this customer's documents in state
-            setPendingCustomers((prev: any[]) => 
-              prev.map((c: any) => 
+            setPendingCustomers((prev: any[]) =>
+              prev.map((c: any) =>
                 c.email === booking.email
-                  ? { ...c, documents: updatedCustomer.documents, hasDocuments: updatedCustomer.hasDocuments }
+                  ? {
+                      ...c,
+                      documents: updatedCustomer.documents,
+                      hasDocuments: updatedCustomer.hasDocuments,
+                    }
                   : c
               )
             );
@@ -629,40 +709,43 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     type: "nationalId_front" | "nationalId_back" | "driverLicense"
   ) => {
     // Create file input element
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,.pdf';
-    
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,.pdf";
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       try {
         const docTypeDisplay = formatDocumentType(type);
-        
+
         toast({
           title: "Uploading...",
           description: `Uploading ${docTypeDisplay}.`,
         });
 
         // Find booking to get customer email
-        const booking = pendingBookings.find(b => b.id === bookingId);
+        const booking = pendingBookings.find((b) => b.id === bookingId);
         if (!booking) {
           throw new Error("Booking not found");
         }
 
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('email', booking.email);
-        formData.append('documentType', type);
+        formData.append("file", file);
+        formData.append("email", booking.email);
+        formData.append("documentType", type);
 
-        const response = await fetch('http://localhost:5000/api/documents/upload-document', {
-          method: 'POST',
-          body: formData,
-        });
+        const response = await fetch(
+          "http://localhost:5000/api/documents/upload-document",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
         if (!response.ok) {
-          throw new Error('Upload failed');
+          throw new Error("Upload failed");
         }
 
         toast({
@@ -673,14 +756,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         // Refresh only the documents for this booking to show uploaded document immediately
         try {
           const customers = await staffApiService.getCustomersForVerification();
-          const updatedCustomer = customers.find((c: any) => c.email === booking.email);
-          
+          const updatedCustomer = customers.find(
+            (c: any) => c.email === booking.email
+          );
+
           if (updatedCustomer) {
             // Update only this customer's documents in state
-            setPendingCustomers((prev: any[]) => 
-              prev.map((c: any) => 
+            setPendingCustomers((prev: any[]) =>
+              prev.map((c: any) =>
                 c.email === booking.email
-                  ? { ...c, documents: updatedCustomer.documents, hasDocuments: updatedCustomer.hasDocuments }
+                  ? {
+                      ...c,
+                      documents: updatedCustomer.documents,
+                      hasDocuments: updatedCustomer.hasDocuments,
+                    }
                   : c
               )
             );
@@ -743,20 +832,21 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   const handleSaveVehicleChanges = async () => {
-    console.log('handleSaveVehicleChanges called');
-    console.log('editingVehicle:', editingVehicle);
-    console.log('apiVehicles:', apiVehicles);
-    
+    console.log("handleSaveVehicleChanges called");
+    console.log("editingVehicle:", editingVehicle);
+    console.log("apiVehicles:", apiVehicles);
+
     if (editingVehicle && apiVehicles) {
       try {
-        console.log('Saving vehicle changes:', editingVehicle);
-        const apiVehicle = apiVehicles.find(v => 
-          (v.uniqueVehicleId && v.uniqueVehicleId === editingVehicle.id) ||
-          v.vehicleId.toString() === editingVehicle.id
+        console.log("Saving vehicle changes:", editingVehicle);
+        const apiVehicle = apiVehicles.find(
+          (v) =>
+            (v.uniqueVehicleId && v.uniqueVehicleId === editingVehicle.id) ||
+            v.vehicleId.toString() === editingVehicle.id
         );
-        
-        console.log('Found API vehicle:', apiVehicle);
-        
+
+        console.log("Found API vehicle:", apiVehicle);
+
         if (apiVehicle) {
           const updateData = {
             batteryLevel: parseInt(batteryLevel) || editingVehicle.batteryLevel,
@@ -764,16 +854,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             mileage: parseInt(vehicleMileage) || editingVehicle.mileage,
             lastMaintenance: editingVehicle.lastMaintenance,
           };
-          
-          console.log('Updating vehicle with data:', updateData);
+
+          console.log("Updating vehicle with data:", updateData);
           await updateVehicle(apiVehicle.vehicleId, updateData);
-          console.log('Vehicle updated successfully');
-          
+          console.log("Vehicle updated successfully");
+
           // Refresh the vehicle list to show updated data
           await refetchVehicles();
-          console.log('Vehicle list refreshed');
+          console.log("Vehicle list refreshed");
         }
-        
+
         toast({
           title: "Vehicle Updated",
           description: `${editingVehicle.name} has been successfully updated.`,
@@ -786,7 +876,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           duration: 3000,
         });
       }
-      
+
       setIsEditVehicleDialogOpen(false);
       setEditingVehicle(null);
     }
@@ -860,7 +950,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       // Map database station_id to static data id
       const stationMap: { [key: number]: string } = {
         1: "st1", // District 1 Station
-        2: "st2", // District 7 Station  
+        2: "st2", // District 7 Station
         3: "st3", // Airport Station
         4: "st4", // District 3 Station
         5: "st5", // District 5 Station
@@ -868,19 +958,21 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         7: "st7", // Thu Duc Station
         8: "st8", // District 4 Station
       };
-      
-      const stationName = stationInfo?.name || 
-                         stations.find(s => s.id === stationMap[stationId])?.name || 
-                         `Station ${stationId}`;
+
+      const stationName =
+        stationInfo?.name ||
+        stations.find((s) => s.id === stationMap[stationId])?.name ||
+        `Station ${stationId}`;
       const location = stationName;
 
-      console.log('Debug assign vehicle:', {
+      console.log("Debug assign vehicle:", {
         vehicleId,
         stationId,
         stationInfo: stationInfo?.name,
         mappedStationId: stationMap[stationId],
-        stationFromArray: stations.find(s => s.id === stationMap[stationId])?.name,
-        finalLocation: location
+        stationFromArray: stations.find((s) => s.id === stationMap[stationId])
+          ?.name,
+        finalLocation: location,
       });
 
       await apiService.assignVehicleToStation(vehicleId, stationId, location);
@@ -893,12 +985,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
       // Refresh the vehicle list
       refetchVehicles();
-      
+
       // Refresh unassigned vehicles
       loadUnassignedVehicles();
 
       // Notify other pages that vehicles were updated
-      localStorage.setItem('vehiclesUpdated', 'true');
+      localStorage.setItem("vehiclesUpdated", "true");
 
       // Reset form and close dialog
       setIsAddVehicleDialogOpen(false);
@@ -909,7 +1001,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         mileage: "0",
       });
     } catch (error) {
-      console.error('Error assigning vehicle:', error);
+      console.error("Error assigning vehicle:", error);
       toast({
         title: "Error",
         description: "Failed to assign vehicle to station",
@@ -920,14 +1012,31 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
   // Vehicle Inspection Handlers
   const handleStartPreRentalInspection = (vehicleId: string) => {
-    console.log("Pre-Rental Inspection clicked for vehicle:", vehicleId);
+    console.log("=== PRE-RENTAL INSPECTION DEBUG ===");
+    console.log("1. Received vehicleId:", vehicleId);
+    console.log("2. vehicleId type:", typeof vehicleId);
+    console.log("3. vehicleList length:", vehicleList.length);
+    console.log(
+      "4. All vehicle IDs in list:",
+      vehicleList.map((v: any) => v.id)
+    );
+
     const vehicle = vehicleList.find((v: any) => v.id === vehicleId);
+
     if (vehicle) {
-      console.log("Vehicle found:", vehicle);
+      console.log("✅ Vehicle found successfully!");
+      console.log("5. Vehicle data:", {
+        id: vehicle.id,
+        name: vehicle.name,
+        battery: vehicle.battery,
+        mileage: vehicle.mileage,
+        status: vehicle.status,
+      });
+
       setInspectingVehicleId(vehicleId);
       setInspectionData({
-        batteryLevel: (vehicle as any).battery?.toString() || "100",
-        mileage: (vehicle as any).mileage?.toString() || "0",
+        batteryLevel: vehicle.battery?.toString() || "100",
+        mileage: vehicle.mileage?.toString() || "0",
         condition: "excellent",
         exteriorCondition: "good",
         interiorCondition: "good",
@@ -936,9 +1045,22 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         damages: [],
       });
       setIsPreRentalInspectionOpen(true);
-      console.log("Dialog should open now, state set to true");
+      console.log("6. Modal state set to open");
+      console.log("=== END DEBUG ===");
     } else {
-      console.log("Vehicle not found!");
+      console.error("❌ Vehicle NOT found!");
+      console.log("5. Search attempted with vehicleId:", vehicleId);
+      console.log(
+        "6. Available IDs:",
+        vehicleList.map((v: any) => ({ id: v.id, name: v.name }))
+      );
+      console.log("=== END DEBUG ===");
+
+      toast({
+        title: "Error",
+        description: `Vehicle ${vehicleId} not found in the system`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -977,10 +1099,26 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   const handleStartPostRentalInspection = (vehicleId: string) => {
-    console.log("Post-Rental Inspection clicked for vehicle:", vehicleId);
+    console.log("=== POST-RENTAL INSPECTION DEBUG ===");
+    console.log("1. Received vehicleId:", vehicleId);
+    console.log("2. vehicleId type:", typeof vehicleId);
+    console.log("3. vehicleList length:", vehicleList.length);
+    console.log(
+      "4. All vehicle IDs in list:",
+      vehicleList.map((v: any) => v.id)
+    );
+
     const vehicle = vehicleList.find((v: any) => v.id === vehicleId);
+
     if (vehicle) {
-      console.log("Vehicle found:", vehicle);
+      console.log("✅ Vehicle found successfully!");
+      console.log("5. Vehicle data:", {
+        id: vehicle.id,
+        name: vehicle.name,
+        battery: vehicle.battery,
+        status: vehicle.status,
+      });
+
       setInspectingVehicleId(vehicleId);
       setInspectionData({
         batteryLevel: "",
@@ -993,9 +1131,22 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         damages: [],
       });
       setIsPostRentalInspectionOpen(true);
-      console.log("Post-rental dialog should open now, state set to true");
+      console.log("6. Modal state set to open");
+      console.log("=== END DEBUG ===");
     } else {
-      console.log("Vehicle not found!");
+      console.error("❌ Vehicle NOT found!");
+      console.log("5. Search attempted with vehicleId:", vehicleId);
+      console.log(
+        "6. Available IDs:",
+        vehicleList.map((v: any) => ({ id: v.id, name: v.name }))
+      );
+      console.log("=== END DEBUG ===");
+
+      toast({
+        title: "Error",
+        description: `Vehicle ${vehicleId} not found in the system`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -1167,7 +1318,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             {vehiclesLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-2 text-muted-foreground">Loading vehicles...</p>
+                <p className="mt-2 text-muted-foreground">
+                  Loading vehicles...
+                </p>
               </div>
             ) : vehiclesError ? (
               <div className="text-center py-8 text-red-500">
@@ -1182,137 +1335,177 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               vehicleList
                 .filter((vehicle) =>
                   searchQuery
-                    ? vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
+                    ? vehicle.name
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                      vehicle.id
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase())
                     : true
                 )
-                .map((vehicle) => (
-                <div
-                  key={vehicle.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-muted rounded-full">
-                      <Car className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">{vehicle.name}</h4>
-                       <p className="text-sm text-muted-foreground">
-                         ID: {vehicle.id}
-                       </p>
-                      {vehicle.status === "available" && (
-                        <p className="text-sm text-muted-foreground">
-                          Location: {vehicle.location}
-                        </p>
-                      )}
-                      {vehicle.status === "rented" && (
-                        <p className="text-sm text-muted-foreground">
-                          {/* @ts-expect-error - customer may not exist on vehicle type */}
-                          Customer: {vehicle.customer || "N/A"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    {vehicle.battery && (
-                      <div className="flex items-center space-x-1">
-                        <Battery className="h-4 w-4 text-success" />
-                        <span className="text-sm">{vehicle.battery}%</span>
-                      </div>
-                    )}
-
-                    <Badge
-                      variant={
-                        vehicle.status === "available"
-                          ? "default"
-                          : vehicle.status === "rented"
-                          ? "secondary"
-                          : "destructive"
-                      }
+                .map((vehicle) => {
+                  // Debug: Log vehicle structure
+                  if (process.env.NODE_ENV === "development") {
+                    console.log("🚗 Rendering vehicle:", {
+                      id: vehicle.id,
+                      name: vehicle.name,
+                      status: vehicle.status,
+                      idType: typeof vehicle.id,
+                    });
+                  }
+                  return (
+                    <div
+                      key={vehicle.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                      data-vehicle-id={vehicle.id}
                     >
-                      {vehicle.status}
-                    </Badge>
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-muted rounded-full">
+                          <Car className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold">{vehicle.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            ID: {vehicle.id}
+                          </p>
+                          {vehicle.status === "available" && (
+                            <p className="text-sm text-muted-foreground">
+                              Location: {vehicle.location}
+                            </p>
+                          )}
+                          {vehicle.status === "rented" && (
+                            <p className="text-sm text-muted-foreground">
+                              {/* @ts-expect-error - customer may not exist on vehicle type */}
+                              Customer: {vehicle.customer || "N/A"}
+                            </p>
+                          )}
+                        </div>
+                      </div>
 
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={vehicle.status === "rented" || vehicle.status === "pending"}
-                        onClick={() => handleEditVehicle(vehicle)}
-                        title={vehicle.status === "rented" || vehicle.status === "pending" ? "Cannot edit vehicle with this status" : "Edit vehicle"}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
+                      <div className="flex items-center space-x-4">
+                        {vehicle.battery && (
+                          <div className="flex items-center space-x-1">
+                            <Battery className="h-4 w-4 text-success" />
+                            <span className="text-sm">{vehicle.battery}%</span>
+                          </div>
+                        )}
 
-                      {vehicle.status === "available" && (
-                        <>
+                        <Badge
+                          variant={
+                            vehicle.status === "available"
+                              ? "default"
+                              : vehicle.status === "rented"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {vehicle.status}
+                        </Badge>
+
+                        <div className="flex space-x-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() =>
-                              handleScheduleDetailedMaintenance(vehicle.id)
+                            disabled={
+                              vehicle.status === "rented" ||
+                              vehicle.status === "pending"
+                            }
+                            onClick={() => handleEditVehicle(vehicle)}
+                            title={
+                              vehicle.status === "rented" ||
+                              vehicle.status === "pending"
+                                ? "Cannot edit vehicle with this status"
+                                : "Edit vehicle"
                             }
                           >
-                            <Wrench className="h-3 w-3 mr-1" />
-                            {t("common.scheduleMaintenance")}
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
                           </Button>
-                          <Button
-                            size="sm"
-                            className="bg-primary"
-                            onClick={() =>
-                              handleStartPreRentalInspection(vehicle.id)
-                            }
-                          >
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Pre-Rental Check
-                          </Button>
-                        </>
-                      )}
 
-                      {vehicle.status === "rented" && (
-                        <Button
-                          size="sm"
-                          className="bg-primary"
-                          onClick={() =>
-                            handleStartPostRentalInspection(vehicle.id)
-                          }
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Return Inspection
-                        </Button>
-                      )}
+                          {vehicle.status === "available" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  handleScheduleDetailedMaintenance(vehicle.id)
+                                }
+                              >
+                                <Wrench className="h-3 w-3 mr-1" />
+                                {t("common.scheduleMaintenance")}
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-primary"
+                                onClick={() => {
+                                  console.log(
+                                    "🔵 Pre-Rental button clicked, vehicle.id:",
+                                    vehicle.id
+                                  );
+                                  handleStartPreRentalInspection(vehicle.id);
+                                }}
+                                title={`Inspect vehicle: ${vehicle.id}`}
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Pre-Rental Check
+                              </Button>
+                            </>
+                          )}
 
-                      {vehicle.status === "pending" && (
-                        <Button
-                          size="sm"
-                          className="bg-primary"
-                          onClick={() =>
-                            handleVehicleStatusUpdate(vehicle.id, "available")
-                          }
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Approve Vehicle
-                        </Button>
-                      )}
+                          {vehicle.status === "rented" && (
+                            <Button
+                              size="sm"
+                              className="bg-primary"
+                              onClick={() => {
+                                console.log(
+                                  "🔵 Post-Rental button clicked, vehicle.id:",
+                                  vehicle.id
+                                );
+                                handleStartPostRentalInspection(vehicle.id);
+                              }}
+                              title={`Return inspection for: ${vehicle.id}`}
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Return Inspection
+                            </Button>
+                          )}
 
-                      {vehicle.status === "maintenance" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleVehicleStatusUpdate(vehicle.id, "available")
-                          }
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Mark Available
-                        </Button>
-                      )}
+                          {vehicle.status === "pending" && (
+                            <Button
+                              size="sm"
+                              className="bg-primary"
+                              onClick={() =>
+                                handleVehicleStatusUpdate(
+                                  vehicle.id,
+                                  "available"
+                                )
+                              }
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Approve Vehicle
+                            </Button>
+                          )}
+
+                          {vehicle.status === "maintenance" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                handleVehicleStatusUpdate(
+                                  vehicle.id,
+                                  "available"
+                                )
+                              }
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Mark Available
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))
+                  );
+                })
             )}
           </div>
         </CardContent>
@@ -1332,7 +1525,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             <p className="text-base text-muted-foreground mt-2">
               Select a registered vehicle from the system to assign to{" "}
               <strong className="text-primary">
-                {stationInfo?.name || stations.find((s) => s.id === staffProfile?.stationId?.toString())?.name}
+                {stationInfo?.name ||
+                  stations.find(
+                    (s) => s.id === staffProfile?.stationId?.toString()
+                  )?.name}
               </strong>
             </p>
           </DialogHeader>
@@ -1364,175 +1560,184 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 {unassignedVehiclesLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Loading vehicles...</p>
+                    <p className="mt-2 text-muted-foreground">
+                      Loading vehicles...
+                    </p>
                   </div>
                 ) : unassignedVehiclesError ? (
                   <div className="text-center py-8 text-red-500">
                     <p>Error loading vehicles: {unassignedVehiclesError}</p>
-                    <Button 
-                      onClick={loadUnassignedVehicles} 
-                      variant="outline" 
+                    <Button
+                      onClick={loadUnassignedVehicles}
+                      variant="outline"
                       className="mt-2"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
                       Retry
                     </Button>
                   </div>
-                ) : unassignedVehicles
-                  .filter((vehicle) =>
-                    selectedModelToAdd
-                      ? vehicle.modelId
-                          .toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase()) ||
-                        vehicle.uniqueVehicleId
-                          ?.toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase()) ||
-                        vehicle.licensePlate
-                          ?.toLowerCase()
-                          .includes(selectedModelToAdd.toLowerCase())
-                      : true
-                  )
-                  .map((vehicle) => (
-                    <Card
-                      key={vehicle.vehicleId}
-                      className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${
-                        newVehicleData.mileage === vehicle.vehicleId.toString()
-                          ? "ring-2 ring-primary bg-primary/5 shadow-md"
-                          : "hover:border-primary/50"
-                      }`}
-                      onClick={() => {
-                        setNewVehicleData({
-                          ...newVehicleData,
-                          mileage: vehicle.vehicleId.toString(), // Using mileage field to store selected vehicle ID temporarily
-                        });
-                      }}
-                    >
-                      <CardContent className="p-3 pl-4">
-                        <div className="flex gap-3">
-                          {/* Vehicle Image */}
-                          <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
-                            <img
-                              src={vehicle.image || "/placeholder.svg"}
-                              alt={vehicle.modelId}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
+                ) : (
+                  unassignedVehicles
+                    .filter((vehicle) =>
+                      selectedModelToAdd
+                        ? vehicle.modelId
+                            .toLowerCase()
+                            .includes(selectedModelToAdd.toLowerCase()) ||
+                          vehicle.uniqueVehicleId
+                            ?.toLowerCase()
+                            .includes(selectedModelToAdd.toLowerCase()) ||
+                          vehicle.licensePlate
+                            ?.toLowerCase()
+                            .includes(selectedModelToAdd.toLowerCase())
+                        : true
+                    )
+                    .map((vehicle) => (
+                      <Card
+                        key={vehicle.vehicleId}
+                        className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${
+                          newVehicleData.mileage ===
+                          vehicle.vehicleId.toString()
+                            ? "ring-2 ring-primary bg-primary/5 shadow-md"
+                            : "hover:border-primary/50"
+                        }`}
+                        onClick={() => {
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            mileage: vehicle.vehicleId.toString(), // Using mileage field to store selected vehicle ID temporarily
+                          });
+                        }}
+                      >
+                        <CardContent className="p-3 pl-4">
+                          <div className="flex gap-3">
+                            {/* Vehicle Image */}
+                            <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
+                              <img
+                                src={vehicle.image || "/placeholder.svg"}
+                                alt={vehicle.modelId}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
 
-                          {/* Vehicle Details */}
-                          <div className="flex-1 space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <h4 className="font-bold text-lg text-foreground">
-                                  {vehicle.modelId}
-                                </h4>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  SUV • 2024
-                                </p>
-                                {vehicle.licensePlate && (
-                                  <p className="text-sm font-semibold text-primary mt-1">
-                                    License: {vehicle.licensePlate}
+                            {/* Vehicle Details */}
+                            <div className="flex-1 space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-bold text-lg text-foreground">
+                                    {vehicle.modelId}
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    SUV • 2024
                                   </p>
+                                  {vehicle.licensePlate && (
+                                    <p className="text-sm font-semibold text-primary mt-1">
+                                      License: {vehicle.licensePlate}
+                                    </p>
+                                  )}
+                                </div>
+                                {newVehicleData.mileage ===
+                                  vehicle.vehicleId.toString() && (
+                                  <Badge className="bg-primary text-white text-base px-3 py-1.5 shadow-md">
+                                    ✓ Selected
+                                  </Badge>
                                 )}
                               </div>
-                              {newVehicleData.mileage === vehicle.vehicleId.toString() && (
-                                <Badge className="bg-primary text-white text-base px-3 py-1.5 shadow-md">
-                                  ✓ Selected
-                                </Badge>
-                              )}
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-xs text-muted-foreground">
-                                    VIN
-                                  </span>
-                                  <span className="font-mono text-xs truncate">
-                                    {vehicle.uniqueVehicleId || vehicle.vehicleId.toString()}
-                                  </span>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs text-muted-foreground">
+                                      VIN
+                                    </span>
+                                    <span className="font-mono text-xs truncate">
+                                      {vehicle.uniqueVehicleId ||
+                                        vehicle.vehicleId.toString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-md">
+                                  <Battery className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground">
+                                      Battery
+                                    </span>
+                                    <span className="font-semibold text-green-600">
+                                      {vehicle.batteryLevel}%
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
+                                  <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground">
+                                      Range
+                                    </span>
+                                    <span className="font-semibold">
+                                      {vehicle.maxRangeKm} km
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/20 rounded-md">
+                                  <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground">
+                                      Seats
+                                    </span>
+                                    <span className="font-semibold">5</span>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-md">
-                                <Battery className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">
-                                    Battery
-                                  </span>
-                                  <span className="font-semibold text-green-600">
-                                    {vehicle.batteryLevel}%
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
-                                <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">
-                                    Range
-                                  </span>
-                                  <span className="font-semibold">
-                                    {vehicle.maxRangeKm} km
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/20 rounded-md">
-                                <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">
-                                    Seats
-                                  </span>
-                                  <span className="font-semibold">
-                                    5
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
 
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <Badge
-                                className="text-sm px-3 py-1"
-                                variant={
-                                  vehicle.condition === "excellent"
-                                    ? "default"
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <Badge
+                                  className="text-sm px-3 py-1"
+                                  variant={
+                                    vehicle.condition === "excellent"
+                                      ? "default"
+                                      : vehicle.condition === "good"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                >
+                                  {vehicle.condition === "excellent"
+                                    ? "✅"
                                     : vehicle.condition === "good"
-                                    ? "secondary"
-                                    : "outline"
-                                }
-                              >
-                                {vehicle.condition === "excellent"
-                                  ? "✅"
-                                  : vehicle.condition === "good"
-                                  ? "👍"
-                                  : "⚠️"}{" "}
-                                {vehicle.condition}
-                              </Badge>
-                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                <span className="font-medium">
-                                  ₫{vehicle.pricePerHour.toLocaleString()}/hr
-                                </span>
-                                <span className="text-muted-foreground">•</span>
-                                <span className="font-medium">
-                                  ₫{vehicle.pricePerDay.toLocaleString()}/day
-                                </span>
+                                    ? "👍"
+                                    : "⚠️"}{" "}
+                                  {vehicle.condition}
+                                </Badge>
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                  <span className="font-medium">
+                                    ₫{vehicle.pricePerHour.toLocaleString()}/hr
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    •
+                                  </span>
+                                  <span className="font-medium">
+                                    ₫{vehicle.pricePerDay.toLocaleString()}/day
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-
-                {unassignedVehicles.length === 0 && !unassignedVehiclesLoading && !unassignedVehiclesError && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="font-medium">
-                      No unassigned vehicles available
-                    </p>
-                    <p className="text-sm">
-                      All vehicles have been assigned to stations
-                    </p>
-                  </div>
+                        </CardContent>
+                      </Card>
+                    ))
                 )}
+
+                {unassignedVehicles.length === 0 &&
+                  !unassignedVehiclesLoading &&
+                  !unassignedVehiclesError && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="font-medium">
+                        No unassigned vehicles available
+                      </p>
+                      <p className="text-sm">
+                        All vehicles have been assigned to stations
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -1551,10 +1756,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     <li>
                       Selected vehicle will be assigned to:{" "}
                       <strong>
-                        {
-                          stationInfo?.name || stations.find((s) => s.id === staffProfile?.stationId?.toString())
-                            ?.name
-                        }
+                        {stationInfo?.name ||
+                          stations.find(
+                            (s) => s.id === staffProfile?.stationId?.toString()
+                          )?.name}
                       </strong>
                     </li>
                     <li>
@@ -1605,8 +1810,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           <DialogHeader>
             <DialogTitle>Pre-Rental Vehicle Inspection</DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Vehicle ID: {inspectingVehicleId}
+              Vehicle ID: {inspectingVehicleId || "None"}
             </p>
+            {inspectingVehicleId && (
+              <p className="text-xs text-blue-600 font-mono">
+                Inspecting:{" "}
+                {vehicleList.find((v: any) => v.id === inspectingVehicleId)
+                  ?.name || "Vehicle not found"}
+              </p>
+            )}
           </DialogHeader>
           <div className="space-y-6">
             {/* Vehicle Metrics */}
@@ -1794,8 +2006,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           <DialogHeader>
             <DialogTitle>Post-Rental Vehicle Inspection</DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Vehicle ID: {inspectingVehicleId}
+              Vehicle ID: {inspectingVehicleId || "None"}
             </p>
+            {inspectingVehicleId && (
+              <p className="text-xs text-blue-600 font-mono">
+                Inspecting:{" "}
+                {vehicleList.find((v: any) => v.id === inspectingVehicleId)
+                  ?.name || "Vehicle not found"}
+              </p>
+            )}
           </DialogHeader>
           <div className="space-y-6">
             {/* Vehicle Metrics */}
@@ -2035,12 +2254,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {(pendingCustomersLoading || pendingVehiclesLoading) ? (
+            {pendingCustomersLoading || pendingVehiclesLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                 <p className="mt-2 text-muted-foreground">Loading...</p>
               </div>
-            ) : (pendingCustomersError || pendingVehiclesError) ? (
+            ) : pendingCustomersError || pendingVehiclesError ? (
               <div className="text-center py-8 text-red-500">
                 <p>Error: {pendingCustomersError || pendingVehiclesError}</p>
               </div>
@@ -2051,66 +2270,70 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               </div>
             ) : (
               pendingBookings.map((booking: any) => (
-              <div
-                key={booking.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-primary-light rounded-full">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">{booking.customer}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Vehicle: {booking.vehicle}
-                    </p>
-                    {booking.phone && (
+                <div
+                  key={booking.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-primary-light rounded-full">
+                      <User className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{booking.customer}</h4>
                       <p className="text-sm text-muted-foreground">
-                        Phone: {booking.phone}
+                        Vehicle: {booking.vehicle}
                       </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      Registered: {new Date(booking.registeredAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <div className="flex space-x-2">
-                    <Badge
-                      variant={
-                        booking.licenseVerified ? "default" : "secondary"
-                      }
-                    >
-                      {booking.licenseVerified
-                        ? "License ✓"
-                        : "License Pending"}
-                    </Badge>
-                    <Badge
-                      variant={
-                        booking.documentsUploaded ? "default" : "secondary"
-                      }
-                    >
-                      {booking.documentsUploaded
-                        ? "Documents ✓"
-                        : "Documents Pending"}
-                    </Badge>
+                      {booking.phone && (
+                        <p className="text-sm text-muted-foreground">
+                          Phone: {booking.phone}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        Registered:{" "}
+                        {new Date(booking.registeredAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex space-x-2">
-                    <Dialog 
-                      open={isVerifyDocumentsOpen && selectedBookingForVerification === booking.id}
-                      onOpenChange={(open) => {
-                        setIsVerifyDocumentsOpen(open);
-                        if (open) {
-                          setSelectedBookingForVerification(booking.id);
-                        } else {
-                          setSelectedBookingForVerification(null);
-                          // Refresh data when dialog closes to show updated documents
-                          fetchPendingCustomers();
+                  <div className="flex items-center space-x-4">
+                    <div className="flex space-x-2">
+                      <Badge
+                        variant={
+                          booking.licenseVerified ? "default" : "secondary"
                         }
-                      }}
-                    >
+                      >
+                        {booking.licenseVerified
+                          ? "License ✓"
+                          : "License Pending"}
+                      </Badge>
+                      <Badge
+                        variant={
+                          booking.documentsUploaded ? "default" : "secondary"
+                        }
+                      >
+                        {booking.documentsUploaded
+                          ? "Documents ✓"
+                          : "Documents Pending"}
+                      </Badge>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <Dialog
+                        open={
+                          isVerifyDocumentsOpen &&
+                          selectedBookingForVerification === booking.id
+                        }
+                        onOpenChange={(open) => {
+                          setIsVerifyDocumentsOpen(open);
+                          if (open) {
+                            setSelectedBookingForVerification(booking.id);
+                          } else {
+                            setSelectedBookingForVerification(null);
+                            // Refresh data when dialog closes to show updated documents
+                            fetchPendingCustomers();
+                          }
+                        }}
+                      >
                         <DialogTrigger asChild>
                           <Button size="sm" variant="outline">
                             Verify Documents
@@ -2118,52 +2341,98 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle>Customer Verification: {booking.customer}</DialogTitle>
+                            <DialogTitle>
+                              Customer Verification: {booking.customer}
+                            </DialogTitle>
                             <DialogDescription>
-                              Review and verify customer documents before approving vehicle pickup
+                              Review and verify customer documents before
+                              approving vehicle pickup
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-6">
                             {/* Customer Info */}
                             <div className="space-y-2">
-                              <h3 className="font-semibold">Customer Information</h3>
+                              <h3 className="font-semibold">
+                                Customer Information
+                              </h3>
                               <div className="grid grid-cols-2 gap-2 text-sm">
-                                <p><span className="font-medium">Name:</span> {booking.customer}</p>
-                                {booking.phone && <p><span className="font-medium">Phone:</span> {booking.phone}</p>}
-                                {booking.email && <p><span className="font-medium">Email:</span> {booking.email}</p>}
-                                <p><span className="font-medium">Vehicle:</span> {booking.vehicle}</p>
+                                <p>
+                                  <span className="font-medium">Name:</span>{" "}
+                                  {booking.customer}
+                                </p>
+                                {booking.phone && (
+                                  <p>
+                                    <span className="font-medium">Phone:</span>{" "}
+                                    {booking.phone}
+                                  </p>
+                                )}
+                                {booking.email && (
+                                  <p>
+                                    <span className="font-medium">Email:</span>{" "}
+                                    {booking.email}
+                                  </p>
+                                )}
+                                <p>
+                                  <span className="font-medium">Vehicle:</span>{" "}
+                                  {booking.vehicle}
+                                </p>
                               </div>
                             </div>
 
                             {/* Documents Section */}
-                            {booking.documents && booking.documents.length > 0 && (
-                              <div className="space-y-4">
-                                <h3 className="font-semibold">Uploaded Documents</h3>
-                                <div className="space-y-3">
-                                  {booking.documents.map((doc: any) => (
-                                    <div key={doc.documentId} className="border rounded-lg p-3">
-                                      <div className="flex items-center justify-between mb-2">
-                                        <Label className="font-semibold">{formatDocumentType(doc.documentType)}</Label>
-                                        <Badge variant={doc.status === 'approved' ? 'default' : 'secondary'}>
-                                          {doc.status || 'Pending'}
-                                        </Badge>
+                            {booking.documents &&
+                              booking.documents.length > 0 && (
+                                <div className="space-y-4">
+                                  <h3 className="font-semibold">
+                                    Uploaded Documents
+                                  </h3>
+                                  <div className="space-y-3">
+                                    {booking.documents.map((doc: any) => (
+                                      <div
+                                        key={doc.documentId}
+                                        className="border rounded-lg p-3"
+                                      >
+                                        <div className="flex items-center justify-between mb-2">
+                                          <Label className="font-semibold">
+                                            {formatDocumentType(
+                                              doc.documentType
+                                            )}
+                                          </Label>
+                                          <Badge
+                                            variant={
+                                              doc.status === "approved"
+                                                ? "default"
+                                                : "secondary"
+                                            }
+                                          >
+                                            {doc.status || "Pending"}
+                                          </Badge>
+                                        </div>
+                                        <img
+                                          src={`http://localhost:5000${doc.fileUrl}`}
+                                          alt={formatDocumentType(
+                                            doc.documentType
+                                          )}
+                                          className="w-full h-48 object-contain bg-muted rounded border cursor-pointer"
+                                          onClick={() =>
+                                            window.open(
+                                              `http://localhost:5000${doc.fileUrl}`,
+                                              "_blank"
+                                            )
+                                          }
+                                        />
                                       </div>
-                                      <img 
-                                        src={`http://localhost:5000${doc.fileUrl}`} 
-                                        alt={formatDocumentType(doc.documentType)}
-                                        className="w-full h-48 object-contain bg-muted rounded border cursor-pointer"
-                                        onClick={() => window.open(`http://localhost:5000${doc.fileUrl}`, '_blank')}
-                                      />
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
                             {/* Verify Documents Section */}
                             <div className="space-y-4">
-                              <h3 className="font-semibold">Verify Documents</h3>
-                              
+                              <h3 className="font-semibold">
+                                Verify Documents
+                              </h3>
+
                               {/* National ID - Front */}
                               <div>
                                 <Label>National ID - Front</Label>
@@ -2173,7 +2442,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleTakePhoto(booking.id, "nationalId_front")
+                                      handleTakePhoto(
+                                        booking.id,
+                                        "nationalId_front"
+                                      )
                                     }
                                   >
                                     <Camera className="h-4 w-4 mr-2" />
@@ -2184,7 +2456,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleUploadDocument(booking.id, "nationalId_front")
+                                      handleUploadDocument(
+                                        booking.id,
+                                        "nationalId_front"
+                                      )
                                     }
                                   >
                                     <Upload className="h-4 w-4 mr-2" />
@@ -2202,7 +2477,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleTakePhoto(booking.id, "nationalId_back")
+                                      handleTakePhoto(
+                                        booking.id,
+                                        "nationalId_back"
+                                      )
                                     }
                                   >
                                     <Camera className="h-4 w-4 mr-2" />
@@ -2213,7 +2491,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleUploadDocument(booking.id, "nationalId_back")
+                                      handleUploadDocument(
+                                        booking.id,
+                                        "nationalId_back"
+                                      )
                                     }
                                   >
                                     <Upload className="h-4 w-4 mr-2" />
@@ -2231,7 +2512,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleTakePhoto(booking.id, "driverLicense")
+                                      handleTakePhoto(
+                                        booking.id,
+                                        "driverLicense"
+                                      )
                                     }
                                   >
                                     <Camera className="h-4 w-4 mr-2" />
@@ -2242,7 +2526,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleUploadDocument(booking.id, "driverLicense")
+                                      handleUploadDocument(
+                                        booking.id,
+                                        "driverLicense"
+                                      )
                                     }
                                   >
                                     <Upload className="h-4 w-4 mr-2" />
@@ -2262,11 +2549,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             </Button>
                           </div>
                         </DialogContent>
-                    </Dialog>
+                      </Dialog>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -2279,7 +2567,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {documentType ? formatDocumentType(documentType) : "Document"} Capture
+              {documentType ? formatDocumentType(documentType) : "Document"}{" "}
+              Capture
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -2325,36 +2614,55 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           ) : (
             <div className="space-y-3">
               {activityLogs.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
                   <div className="flex items-center space-x-3">
-                    {activity.activityType === 'payment' && <CreditCard className="h-5 w-5 text-green-600" />}
-                    {activity.activityType === 'cancellation' && <X className="h-5 w-5 text-red-600" />}
-                    {activity.activityType === 'confirmation' && <CheckCircle2 className="h-5 w-5 text-blue-600" />}
+                    {activity.activityType === "payment" && (
+                      <CreditCard className="h-5 w-5 text-green-600" />
+                    )}
+                    {activity.activityType === "cancellation" && (
+                      <X className="h-5 w-5 text-red-600" />
+                    )}
+                    {activity.activityType === "confirmation" && (
+                      <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                    )}
                     <div className="flex-1">
                       <p className="font-medium">
-                        {activity.activityType === 'payment' && `💳 Payment - ${activity.customerName}`}
-                        {activity.activityType === 'cancellation' && `❌ Cancelled - ${activity.customerName}`}
-                        {activity.activityType === 'confirmation' && `✅ Confirmed - ${activity.customerName}`}
+                        {activity.activityType === "payment" &&
+                          `💳 Payment - ${activity.customerName}`}
+                        {activity.activityType === "cancellation" &&
+                          `❌ Cancelled - ${activity.customerName}`}
+                        {activity.activityType === "confirmation" &&
+                          `✅ Confirmed - ${activity.customerName}`}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {activity.vehicleModel || 'Unknown Vehicle'} • {activity.details}
+                        {activity.vehicleModel || "Unknown Vehicle"} •{" "}
+                        {activity.details}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(activity.createdAt).toLocaleString('vi-VN')}
+                        {new Date(activity.createdAt).toLocaleString("vi-VN")}
                       </p>
                     </div>
                   </div>
                   {activity.amount && (
                     <div className="text-right">
                       <p className="font-semibold text-lg">
-                        {activity.amount.toLocaleString('vi-VN')} VND
+                        {activity.amount.toLocaleString("vi-VN")} VND
                       </p>
-                      <Badge variant={activity.status === 'success' ? 'default' : 'secondary'}>
+                      <Badge
+                        variant={
+                          activity.status === "success"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
                         {activity.status}
                       </Badge>
                     </div>
                   )}
-                  {activity.activityType === 'cancellation' && (
+                  {activity.activityType === "cancellation" && (
                     <Badge variant="destructive" className="ml-2">
                       {activity.status}
                     </Badge>
@@ -2375,21 +2683,28 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       const now = new Date();
       const d = new Date(dateStr);
       if (dateFilter === "all") return true;
-      if (dateFilter === "today") return d.toDateString() === now.toDateString();
-      if (dateFilter === "week") return d > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      if (dateFilter === "month") return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      if (dateFilter === "today")
+        return d.toDateString() === now.toDateString();
+      if (dateFilter === "week")
+        return d > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      if (dateFilter === "month")
+        return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       if (dateFilter === "specific-month") {
-        return d.getMonth() + 1 === selectedMonth && d.getFullYear() === selectedYear;
+        return (
+          d.getMonth() + 1 === selectedMonth && d.getFullYear() === selectedYear
+        );
       }
       return true;
     };
 
     const activeBookings = reservations
-      .filter((r: any) => bookingStatuses.includes((r.status || '').toLowerCase()))
+      .filter((r: any) =>
+        bookingStatuses.includes((r.status || "").toLowerCase())
+      )
       .filter((r: any) => withinRange(r.createdAt || r.startTime));
 
     const canceledActivities = activityLogs
-      .filter((a: any) => a.activityType === 'cancellation')
+      .filter((a: any) => a.activityType === "cancellation")
       .filter((a: any) => withinRange(a.createdAt));
 
     return (
@@ -2413,14 +2728,19 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="week">This Week</SelectItem>
                       <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="specific-month">Specific Month</SelectItem>
+                      <SelectItem value="specific-month">
+                        Specific Month
+                      </SelectItem>
                       <SelectItem value="all">All Time</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                {dateFilter === 'specific-month' && (
+                {dateFilter === "specific-month" && (
                   <div className="flex items-center gap-2">
-                    <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                    <Select
+                      value={String(selectedMonth)}
+                      onValueChange={(v) => setSelectedMonth(parseInt(v))}
+                    >
                       <SelectTrigger className="w-28">
                         <SelectValue placeholder="Month" />
                       </SelectTrigger>
@@ -2439,14 +2759,21 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <SelectItem value="12">December</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                    <Select
+                      value={String(selectedYear)}
+                      onValueChange={(v) => setSelectedYear(parseInt(v))}
+                    >
                       <SelectTrigger className="w-28">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
                       <SelectContent>
                         {Array.from({ length: 6 }).map((_, idx) => {
                           const y = new Date().getFullYear() - 3 + idx;
-                          return <SelectItem key={y} value={String(y)}>{y}</SelectItem>;
+                          return (
+                            <SelectItem key={y} value={String(y)}>
+                              {y}
+                            </SelectItem>
+                          );
                         })}
                       </SelectContent>
                     </Select>
@@ -2467,7 +2794,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 {reservationsLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Loading bookings...</p>
+                    <p className="mt-2 text-muted-foreground">
+                      Loading bookings...
+                    </p>
                   </div>
                 ) : reservationsError ? (
                   <div className="text-center py-8 text-red-500">
@@ -2486,23 +2815,32 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <div
                           key={bk.reservationId}
                           className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => setSelectedReservation({ ...bk, vehicleInfo: v })}
+                          onClick={() =>
+                            setSelectedReservation({ ...bk, vehicleInfo: v })
+                          }
                         >
                           <div className="flex items-center space-x-3">
                             <Car className="h-5 w-5 text-primary" />
                             <div>
                               <p className="font-medium">
-                                #{bk.reservationId} • {v?.name || `Vehicle ${bk.vehicleId}`}
+                                #{bk.reservationId} •{" "}
+                                {v?.name || `Vehicle ${bk.vehicleId}`}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                User: {bk.userId} • {new Date(bk.startTime).toLocaleString()} → {new Date(bk.endTime).toLocaleString()}
+                                User: {bk.userId} •{" "}
+                                {new Date(bk.startTime).toLocaleString()} →{" "}
+                                {new Date(bk.endTime).toLocaleString()}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge className="capitalize" variant="secondary">{bk.status}</Badge>
+                            <Badge className="capitalize" variant="secondary">
+                              {bk.status}
+                            </Badge>
                             {v?.battery !== undefined && (
-                              <div className="text-sm text-muted-foreground">🔋 {v.battery}%</div>
+                              <div className="text-sm text-muted-foreground">
+                                🔋 {v.battery}%
+                              </div>
                             )}
                           </div>
                         </div>
@@ -2517,7 +2855,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 {activityLogsLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Loading cancellations...</p>
+                    <p className="mt-2 text-muted-foreground">
+                      Loading cancellations...
+                    </p>
                   </div>
                 ) : canceledActivities.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -2527,20 +2867,28 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 ) : (
                   <div className="space-y-3">
                     {canceledActivities.map((act: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
                         <div className="flex items-center space-x-3">
                           <X className="h-5 w-5 text-destructive" />
                           <div>
-                            <p className="font-medium">{act.customerName || 'Unknown Customer'}</p>
+                            <p className="font-medium">
+                              {act.customerName || "Unknown Customer"}
+                            </p>
                             <p className="text-sm text-muted-foreground">
-                              {act.vehicleModel || 'Unknown Vehicle'} • {act.details || 'No reason provided'}
+                              {act.vehicleModel || "Unknown Vehicle"} •{" "}
+                              {act.details || "No reason provided"}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(act.createdAt).toLocaleString('vi-VN')}
+                              {new Date(act.createdAt).toLocaleString("vi-VN")}
                             </p>
                           </div>
                         </div>
-                        <Badge variant="destructive" className="capitalize">{act.status || 'cancelled'}</Badge>
+                        <Badge variant="destructive" className="capitalize">
+                          {act.status || "cancelled"}
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -2551,10 +2899,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </Card>
 
         {/* Reservation details dialog */}
-        <Dialog open={!!selectedReservation} onOpenChange={(o) => !o && setSelectedReservation(null)}>
+        <Dialog
+          open={!!selectedReservation}
+          onOpenChange={(o) => !o && setSelectedReservation(null)}
+        >
           <DialogContent className="max-w-xl">
             <DialogHeader>
-              <DialogTitle>Booking Details #{selectedReservation?.reservationId}</DialogTitle>
+              <DialogTitle>
+                Booking Details #{selectedReservation?.reservationId}
+              </DialogTitle>
               <DialogDescription>
                 Detailed information about this booking and vehicle
               </DialogDescription>
@@ -2562,24 +2915,57 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             {selectedReservation && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <p><span className="font-medium">User ID:</span> {selectedReservation.userId}</p>
-                  <p><span className="font-medium">Status:</span> <Badge className="ml-1 capitalize" variant="secondary">{selectedReservation.status}</Badge></p>
-                  <p><span className="font-medium">Start:</span> {new Date(selectedReservation.startTime).toLocaleString()}</p>
-                  <p><span className="font-medium">End:</span> {new Date(selectedReservation.endTime).toLocaleString()}</p>
-                  <p><span className="font-medium">Station:</span> {selectedReservation.stationId}</p>
-                  <p><span className="font-medium">Created:</span> {new Date(selectedReservation.createdAt).toLocaleString()}</p>
+                  <p>
+                    <span className="font-medium">User ID:</span>{" "}
+                    {selectedReservation.userId}
+                  </p>
+                  <p>
+                    <span className="font-medium">Status:</span>{" "}
+                    <Badge className="ml-1 capitalize" variant="secondary">
+                      {selectedReservation.status}
+                    </Badge>
+                  </p>
+                  <p>
+                    <span className="font-medium">Start:</span>{" "}
+                    {new Date(selectedReservation.startTime).toLocaleString()}
+                  </p>
+                  <p>
+                    <span className="font-medium">End:</span>{" "}
+                    {new Date(selectedReservation.endTime).toLocaleString()}
+                  </p>
+                  <p>
+                    <span className="font-medium">Station:</span>{" "}
+                    {selectedReservation.stationId}
+                  </p>
+                  <p>
+                    <span className="font-medium">Created:</span>{" "}
+                    {new Date(selectedReservation.createdAt).toLocaleString()}
+                  </p>
                 </div>
                 <Separator />
                 <div className="space-y-2">
                   <h3 className="font-semibold">Vehicle</h3>
                   <div className="text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedReservation.vehicleInfo?.name || `Vehicle ${selectedReservation.vehicleId}`}</p>
-                    <p><span className="font-medium">Unique ID:</span> {selectedReservation.vehicleInfo?.uniqueId}</p>
+                    <p>
+                      <span className="font-medium">Name:</span>{" "}
+                      {selectedReservation.vehicleInfo?.name ||
+                        `Vehicle ${selectedReservation.vehicleId}`}
+                    </p>
+                    <p>
+                      <span className="font-medium">Unique ID:</span>{" "}
+                      {selectedReservation.vehicleInfo?.uniqueId}
+                    </p>
                     {selectedReservation.vehicleInfo?.location && (
-                      <p><span className="font-medium">Location:</span> {selectedReservation.vehicleInfo.location}</p>
+                      <p>
+                        <span className="font-medium">Location:</span>{" "}
+                        {selectedReservation.vehicleInfo.location}
+                      </p>
                     )}
                     {selectedReservation.vehicleInfo?.battery !== undefined && (
-                      <p><span className="font-medium">Battery:</span> {selectedReservation.vehicleInfo.battery}%</p>
+                      <p>
+                        <span className="font-medium">Battery:</span>{" "}
+                        {selectedReservation.vehicleInfo.battery}%
+                      </p>
                     )}
                   </div>
                 </div>
@@ -2596,10 +2982,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <FadeIn delay={100}>
-          <div 
+          <div
             className="relative overflow-hidden bg-cover bg-center bg-no-repeat"
             style={{
-              backgroundImage: "url('/src/assets/home-bg.jpg')"
+              backgroundImage: "url('/src/assets/home-bg.jpg')",
             }}
           >
             <div className="absolute inset-0 bg-black/40"></div>
@@ -2610,7 +2996,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </h1>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
-                  {t("common.welcomeUser")}, {staffProfile?.fullName || currentUser.name}
+                  {t("common.welcomeUser")},{" "}
+                  {staffProfile?.fullName || currentUser.name}
                 </p>
               </div>
             </div>
