@@ -29,6 +29,7 @@ import {
  import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { bookingStorage } from "@/lib/booking-storage";
+import { incidentStorage } from "@/lib/incident-storage";
 import { useEffect, useState } from "react";
 import {
   Car,
@@ -228,22 +229,38 @@ const Dashboard = ({ user }: DashboardProps) => {
 
    setIsSubmittingIncident(true);
    try {
-     const token = localStorage.getItem('token');
-     const response = await fetch('http://localhost:5000/api/incidents', {
-       method: 'POST',
-       headers: {
-         'Authorization': `Bearer ${token}`,
-         'Content-Type': 'application/json',
-       },
-       body: JSON.stringify({
-         rental_id: dashboardData.currentRental?.reservationId,
-         vehicle_id: dashboardData.currentRental?.vehicleId,
-         description: `${incidentType}: ${incidentDescription}`,
-         status: 'reported',
-       }),
-     });
+    //  const token = localStorage.getItem('token');
+    //  const response = await fetch('http://localhost:5000/api/incidents', {
+    //    method: 'POST',
+    //    headers: {
+    //      'Authorization': `Bearer ${token}`,
+    //      'Content-Type': 'application/json',
+    //    },
+    //    body: JSON.stringify({
+    //      rental_id: dashboardData.currentRental?.reservationId,
+    //      vehicle_id: dashboardData.currentRental?.vehicleId,
+    //      description: `${incidentType}: ${incidentDescription}`,
+    //      status: 'reported',
+    //    }),
+    //  });
+    //  if (response.ok) {
 
-     if (response.ok) {
+    // Mock: Lưu vào localStorage trước
+     const newIncident = incidentStorage.addIncident({
+       reservationId: dashboardData.currentRental?.reservationId || 123,
+       vehicleId: dashboardData.currentRental?.vehicleId || "VF8001",
+       stationId: "district-1", // Mock station ID
+       customerId: user?.id || "customer-1",
+       customerName: user?.name || "Customer Name",
+       type: incidentType,
+       description: incidentDescription,
+       status: 'reported',
+       priority: incidentType.includes('accident') || incidentType.includes('battery-empty') ? 'urgent' : 'medium',
+    });
+
+     console.log('Incident created:', newIncident);
+     // Giả lập thành công
+     
        toast({
          title: "Incident Reported Successfully",
          description: "Our staff will contact you shortly to assist.",
@@ -251,13 +268,13 @@ const Dashboard = ({ user }: DashboardProps) => {
        setIsIncidentDialogOpen(false);
        setIncidentType("");
        setIncidentDescription("");
-     } else {
-       toast({
-         title: "Failed to Report Incident",
-         description: "Please try again or contact support directly.",
-         variant: "destructive",
-       });
-     }
+    //  } else {
+    //    toast({
+    //      title: "Failed to Report Incident",
+    //      description: "Please try again or contact support directly.",
+    //      variant: "destructive",
+    //    });
+    //  }
    } catch (error) {
      console.error('Error reporting incident:', error);
      toast({
