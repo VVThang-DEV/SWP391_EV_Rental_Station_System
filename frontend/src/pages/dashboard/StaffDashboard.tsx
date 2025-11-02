@@ -124,6 +124,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [activityLogsLoading, setActivityLogsLoading] = useState(false);
   
+  // Payment history state
+  const [payments, setPayments] = useState<any[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
+  
   // Debug API data
   console.log('Staff Profile:', staffProfile);
   console.log('Station Info:', stationInfo);
@@ -172,12 +178,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }
   };
 
-  // Fetch all reservations for booking history
+  // Fetch all reservations for booking history (from staff's station)
   const fetchReservations = async () => {
     try {
       setReservationsLoading(true);
       setReservationsError(null);
-      const data = await apiService.getReservations();
+      const data = await staffApiService.getStationReservations();
+      console.log('Station Reservations:', data);
       setReservations(data?.reservations || []);
     } catch (error) {
       console.error('Error fetching reservations:', error);
@@ -187,10 +194,27 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }
   };
 
+  // Fetch payment history for station
+  const fetchPayments = async () => {
+    try {
+      setPaymentsLoading(true);
+      setPaymentsError(null);
+      const data = await staffApiService.getStationPayments();
+      console.log('Station Payments:', data);
+      setPayments(data?.payments || []);
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      setPaymentsError(error instanceof Error ? error.message : 'Failed to fetch payments');
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPendingCustomers();
     fetchActivityLogs();
     fetchReservations();
+    fetchPayments();
   }, []);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -2304,93 +2328,256 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     </div>
   );
 
-  const renderPaymentManagement = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Today's Transactions</CardTitle>
-          <CardDescription>
-            Payment processing and cash handling
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {activityLogsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Loading activities...</p>
+  const renderPaymentManagement = () => {
+    // Helper to get transaction icon and color
+    const getTransactionIcon = (transactionType: string) => {
+      switch (transactionType?.toLowerCase()) {
+        case 'payment':
+          return { icon: <DollarSign className="h-5 w-5 text-red-600" />, label: 'Payment', color: 'text-red-600' };
+        case 'refund':
+          return { icon: <RefreshCw className="h-5 w-5 text-green-600" />, label: 'Refund', color: 'text-green-600' };
+        case 'deposit':
+          return { icon: <DollarSign className="h-5 w-5 text-blue-600" />, label: 'Deposit', color: 'text-blue-600' };
+        default:
+          return { icon: <CreditCard className="h-5 w-5" />, label: 'Transaction', color: '' };
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Payment History</CardTitle>
+                <CardDescription>
+                  View all payment transactions at this station
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchPayments}
+                disabled={paymentsLoading}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${paymentsLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
-          ) : activityLogs.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No activities today</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activityLogs.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    {activity.activityType === 'payment' && <CreditCard className="h-5 w-5 text-green-600" />}
-                    {activity.activityType === 'cancellation' && <X className="h-5 w-5 text-red-600" />}
-                    {activity.activityType === 'confirmation' && <CheckCircle2 className="h-5 w-5 text-blue-600" />}
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {activity.activityType === 'payment' && `💳 Payment - ${activity.customerName}`}
-                        {activity.activityType === 'cancellation' && `❌ Cancelled - ${activity.customerName}`}
-                        {activity.activityType === 'confirmation' && `✅ Confirmed - ${activity.customerName}`}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.vehicleModel || 'Unknown Vehicle'} • {activity.details}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(activity.createdAt).toLocaleString('vi-VN')}
-                      </p>
+          </CardHeader>
+          <CardContent>
+            {paymentsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading payments...</p>
+              </div>
+            ) : paymentsError ? (
+              <div className="text-center py-8 text-red-500">
+                <p>Error: {paymentsError}</p>
+              </div>
+            ) : payments.length === 0 ? (
+              <div className="text-center py-8">
+                <CreditCard className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">No payment transactions</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {payments.map((payment: any) => {
+                  const transactionInfo = getTransactionIcon(payment.transactionType);
+                  const isRefund = payment.transactionType?.toLowerCase() === 'refund';
+                  
+                  return (
+                    <div key={payment.paymentId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center space-x-3 flex-1">
+                        {transactionInfo.icon}
+                        <div className="flex-1">
+                          <p className="font-medium flex items-center gap-2">
+                            <span className={transactionInfo.color}>{transactionInfo.label}</span>
+                            <span className="text-muted-foreground">• #{payment.paymentId}</span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {payment.customerName || 'Unknown'} 
+                            {payment.vehicleModel && ` • ${payment.vehicleModel}`}
+                            {payment.vehicleUniqueId && ` (${payment.vehicleUniqueId})`}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                            <span>{new Date(payment.createdAt).toLocaleString('vi-VN')}</span>
+                            <span>•</span>
+                            <span className="capitalize">{payment.methodType}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right flex items-center gap-3">
+                        <div>
+                          <p className={`font-semibold text-lg ${isRefund ? 'text-green-600' : 'text-red-600'}`}>
+                            {isRefund ? '+' : '-'}{payment.amount.toLocaleString('vi-VN')} VND
+                          </p>
+                          <Badge variant={payment.status === 'success' ? 'default' : payment.status === 'refunded' ? 'outline' : 'secondary'} className="capitalize">
+                            {payment.status}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedPayment(payment)}
+                          className="gap-2"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View Details
+                        </Button>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment Details Dialog */}
+        <Dialog open={!!selectedPayment} onOpenChange={(o) => !o && setSelectedPayment(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Payment Details #{selectedPayment?.paymentId}</DialogTitle>
+              <DialogDescription>
+                Complete transaction information
+              </DialogDescription>
+            </DialogHeader>
+            {selectedPayment && (
+              <div className="space-y-4">
+                {/* Transaction Info */}
+                <div className="space-y-2">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Transaction Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+                    <p><span className="font-medium">Payment ID:</span> #{selectedPayment.paymentId}</p>
+                    <p><span className="font-medium">Type:</span> <span className="capitalize">{selectedPayment.transactionType || 'Payment'}</span></p>
+                    <p><span className="font-medium">Method:</span> <span className="capitalize">{selectedPayment.methodType}</span></p>
+                    <p><span className="font-medium">Status:</span> <Badge className="ml-1 capitalize" variant={selectedPayment.status === 'success' ? 'default' : 'secondary'}>{selectedPayment.status}</Badge></p>
+                    <p className="col-span-2">
+                      <span className="font-medium">Amount:</span> 
+                      <span className={`ml-2 text-lg font-semibold ${selectedPayment.transactionType?.toLowerCase() === 'refund' ? 'text-green-600' : 'text-red-600'}`}>
+                        {selectedPayment.transactionType?.toLowerCase() === 'refund' ? '+' : '-'}{selectedPayment.amount.toLocaleString('vi-VN')} VND
+                      </span>
+                    </p>
+                    <p className="col-span-2"><span className="font-medium">Transaction ID:</span> {selectedPayment.transactionId || 'N/A'}</p>
+                    <p className="col-span-2"><span className="font-medium">Created At:</span> {new Date(selectedPayment.createdAt).toLocaleString('vi-VN')}</p>
                   </div>
-                  {activity.amount && (
-                    <div className="text-right">
-                      <p className="font-semibold text-lg">
-                        {activity.amount.toLocaleString('vi-VN')} VND
-                      </p>
-                      <Badge variant={activity.status === 'success' ? 'default' : 'secondary'}>
-                        {activity.status}
-                      </Badge>
-                    </div>
-                  )}
-                  {activity.activityType === 'cancellation' && (
-                    <Badge variant="destructive" className="ml-2">
-                      {activity.status}
-                    </Badge>
-                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+
+                <Separator />
+
+                {/* Customer Info */}
+                {selectedPayment.customerName && (
+                  <>
+                    <div className="space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Customer Information
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+                        <p><span className="font-medium">Name:</span> {selectedPayment.customerName}</p>
+                        <p><span className="font-medium">User ID:</span> {selectedPayment.userId || 'N/A'}</p>
+                        <p><span className="font-medium">Email:</span> {selectedPayment.customerEmail || 'N/A'}</p>
+                        <p><span className="font-medium">Phone:</span> {selectedPayment.customerPhone || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Vehicle Info */}
+                {selectedPayment.vehicleModel && (
+                  <>
+                    <div className="space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Car className="h-4 w-4" />
+                        Vehicle Information
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+                        <p><span className="font-medium">Model:</span> {selectedPayment.vehicleModel}</p>
+                        <p><span className="font-medium">Unique ID:</span> {selectedPayment.vehicleUniqueId || 'N/A'}</p>
+                        {selectedPayment.reservationId && (
+                          <p><span className="font-medium">Reservation ID:</span> #{selectedPayment.reservationId}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Additional Notes */}
+                {selectedPayment.isDeposit && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      This is a deposit transaction
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
 
   const renderBookingHistory = () => {
-    const bookingStatuses = ["active", "in_progress", "confirmed"];
+    const bookingStatuses = ["active", "in_progress", "confirmed", "rented"];
 
-    const withinRange = (dateStr: string) => {
-      const now = new Date();
-      const d = new Date(dateStr);
-      if (dateFilter === "all") return true;
-      if (dateFilter === "today") return d.toDateString() === now.toDateString();
-      if (dateFilter === "week") return d > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      if (dateFilter === "month") return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      if (dateFilter === "specific-month") {
-        return d.getMonth() + 1 === selectedMonth && d.getFullYear() === selectedYear;
+    const withinRange = (dateStr: string | null | undefined) => {
+      if (!dateStr) return dateFilter === "all"; // If no date, only show in "all" filter
+      
+      try {
+        const now = new Date();
+        const d = new Date(dateStr);
+        
+        // Check if date is valid
+        if (isNaN(d.getTime())) return dateFilter === "all";
+        
+        if (dateFilter === "all") return true;
+        if (dateFilter === "today") {
+          // Compare date parts only (ignore time)
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const compareDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          return today.getTime() === compareDate.getTime();
+        }
+        if (dateFilter === "week") {
+          const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          return d >= weekAgo;
+        }
+        if (dateFilter === "month") {
+          const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          return d >= monthAgo;
+        }
+        if (dateFilter === "specific-month") {
+          return d.getMonth() + 1 === selectedMonth && d.getFullYear() === selectedYear;
+        }
+        return true;
+      } catch (error) {
+        console.error('Error parsing date:', dateStr, error);
+        return dateFilter === "all";
       }
-      return true;
     };
 
     const activeBookings = reservations
       .filter((r: any) => bookingStatuses.includes((r.status || '').toLowerCase()))
       .filter((r: any) => withinRange(r.createdAt || r.startTime));
 
-    const canceledActivities = activityLogs
-      .filter((a: any) => a.activityType === 'cancellation')
-      .filter((a: any) => withinRange(a.createdAt));
+    const canceledBookings = reservations
+      .filter((r: any) => {
+        const status = (r.status || '').toLowerCase();
+        return status === 'cancelled' || status === 'canceled';
+      })
+      .filter((r: any) => withinRange(r.cancelledAt || r.createdAt));
+    
+    console.log('All reservations:', reservations);
+    console.log('Canceled bookings:', canceledBookings);
+    console.log('Date filter:', dateFilter);
 
     return (
       <div className="space-y-6">
@@ -2404,6 +2591,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchReservations}
+                  disabled={reservationsLoading}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${reservationsLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
                 <div className="w-40">
                   <Select value={dateFilter} onValueChange={setDateFilter}>
                     <SelectTrigger>
@@ -2485,17 +2682,19 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       return (
                         <div
                           key={bk.reservationId}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => setSelectedReservation({ ...bk, vehicleInfo: v })}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                         >
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-3 flex-1">
                             <Car className="h-5 w-5 text-primary" />
-                            <div>
+                            <div className="flex-1">
                               <p className="font-medium">
-                                #{bk.reservationId} • {v?.name || `Vehicle ${bk.vehicleId}`}
+                                #{bk.reservationId} • {bk.vehicleModel || bk.vehicleUniqueId || v?.name || `Vehicle ${bk.vehicleId}`}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                User: {bk.userId} • {new Date(bk.startTime).toLocaleString()} → {new Date(bk.endTime).toLocaleString()}
+                                {bk.userName || `User ${bk.userId}`} {bk.userPhone && `• ${bk.userPhone}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(bk.startTime).toLocaleString('vi-VN')} → {new Date(bk.endTime).toLocaleString('vi-VN')}
                               </p>
                             </div>
                           </div>
@@ -2504,6 +2703,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             {v?.battery !== undefined && (
                               <div className="text-sm text-muted-foreground">🔋 {v.battery}%</div>
                             )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedReservation({ ...bk, vehicleInfo: v })}
+                              className="gap-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View Details
+                            </Button>
                           </div>
                         </div>
                       );
@@ -2514,35 +2722,58 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
               {/* Cancel list */}
               <TabsContent value="cancel" className="mt-4">
-                {activityLogsLoading ? (
+                {reservationsLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                     <p className="mt-2 text-muted-foreground">Loading cancellations...</p>
                   </div>
-                ) : canceledActivities.length === 0 ? (
+                ) : canceledBookings.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <X className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No cancellations</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {canceledActivities.map((act: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <X className="h-5 w-5 text-destructive" />
-                          <div>
-                            <p className="font-medium">{act.customerName || 'Unknown Customer'}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {act.vehicleModel || 'Unknown Vehicle'} • {act.details || 'No reason provided'}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(act.createdAt).toLocaleString('vi-VN')}
-                            </p>
+                    {canceledBookings.map((bk: any) => {
+                      const v = getVehicleInfo(bk.vehicleId);
+                      return (
+                        <div 
+                          key={bk.reservationId} 
+                          className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center space-x-3 flex-1">
+                            <X className="h-5 w-5 text-destructive" />
+                            <div className="flex-1">
+                              <p className="font-medium">
+                                #{bk.reservationId} • {bk.vehicleModel || bk.vehicleUniqueId || v?.name || `Vehicle ${bk.vehicleId}`}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {bk.userName || `User ${bk.userId}`} {bk.userPhone && `• ${bk.userPhone}`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Reason: {bk.cancellationReason || 'No reason provided'}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Cancelled: {bk.cancelledAt ? new Date(bk.cancelledAt).toLocaleString('vi-VN') : 'Unknown'}
+                                {bk.cancelledBy && ` by ${bk.cancelledBy}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="destructive" className="capitalize">{bk.status}</Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedReservation({ ...bk, vehicleInfo: v })}
+                              className="gap-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View Details
+                            </Button>
                           </div>
                         </div>
-                        <Badge variant="destructive" className="capitalize">{act.status || 'cancelled'}</Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>
@@ -2561,28 +2792,78 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             </DialogHeader>
             {selectedReservation && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <p><span className="font-medium">User ID:</span> {selectedReservation.userId}</p>
-                  <p><span className="font-medium">Status:</span> <Badge className="ml-1 capitalize" variant="secondary">{selectedReservation.status}</Badge></p>
-                  <p><span className="font-medium">Start:</span> {new Date(selectedReservation.startTime).toLocaleString()}</p>
-                  <p><span className="font-medium">End:</span> {new Date(selectedReservation.endTime).toLocaleString()}</p>
-                  <p><span className="font-medium">Station:</span> {selectedReservation.stationId}</p>
-                  <p><span className="font-medium">Created:</span> {new Date(selectedReservation.createdAt).toLocaleString()}</p>
+                <div className="space-y-2">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Customer Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+                    <p><span className="font-medium">Name:</span> {selectedReservation.userName || 'N/A'}</p>
+                    <p><span className="font-medium">User ID:</span> {selectedReservation.userId}</p>
+                    <p><span className="font-medium">Email:</span> {selectedReservation.userEmail || 'N/A'}</p>
+                    <p><span className="font-medium">Phone:</span> {selectedReservation.userPhone || 'N/A'}</p>
+                  </div>
                 </div>
                 <Separator />
                 <div className="space-y-2">
-                  <h3 className="font-semibold">Vehicle</h3>
-                  <div className="text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedReservation.vehicleInfo?.name || `Vehicle ${selectedReservation.vehicleId}`}</p>
-                    <p><span className="font-medium">Unique ID:</span> {selectedReservation.vehicleInfo?.uniqueId}</p>
-                    {selectedReservation.vehicleInfo?.location && (
-                      <p><span className="font-medium">Location:</span> {selectedReservation.vehicleInfo.location}</p>
-                    )}
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Car className="h-4 w-4" />
+                    Vehicle Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+                    <p><span className="font-medium">Model:</span> {selectedReservation.vehicleModel || selectedReservation.vehicleInfo?.name || `Vehicle ${selectedReservation.vehicleId}`}</p>
+                    <p><span className="font-medium">Unique ID:</span> {selectedReservation.vehicleUniqueId || selectedReservation.vehicleInfo?.uniqueId || 'N/A'}</p>
+                    <p><span className="font-medium">License Plate:</span> {selectedReservation.licensePlate || 'N/A'}</p>
                     {selectedReservation.vehicleInfo?.battery !== undefined && (
                       <p><span className="font-medium">Battery:</span> {selectedReservation.vehicleInfo.battery}%</p>
                     )}
                   </div>
                 </div>
+                <Separator />
+                <div className="space-y-2">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Booking Details
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+                    <p><span className="font-medium">Status:</span> <Badge className="ml-1 capitalize" variant={(selectedReservation.status || '').toLowerCase() === 'cancelled' ? 'destructive' : 'secondary'}>{selectedReservation.status}</Badge></p>
+                    <p><span className="font-medium">Station:</span> {selectedReservation.stationName || stationData.name || stationInfo?.name || `Station ${selectedReservation.stationId}`}</p>
+                    <p className="col-span-2"><span className="font-medium">Start:</span> {new Date(selectedReservation.startTime).toLocaleString('vi-VN')}</p>
+                    <p className="col-span-2"><span className="font-medium">End:</span> {new Date(selectedReservation.endTime).toLocaleString('vi-VN')}</p>
+                    <p className="col-span-2"><span className="font-medium">Created:</span> {new Date(selectedReservation.createdAt).toLocaleString('vi-VN')}</p>
+                  </div>
+                </div>
+                
+                {/* Cancellation Information - Only show if cancelled */}
+                {((selectedReservation.status || '').toLowerCase() === 'cancelled' || (selectedReservation.status || '').toLowerCase() === 'canceled') && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <h3 className="font-semibold flex items-center gap-2 text-destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        Cancellation Information
+                      </h3>
+                      <div className="bg-destructive/5 border border-destructive/20 p-4 rounded-lg space-y-2 text-sm">
+                        <div className="flex items-start gap-2">
+                          <span className="font-medium min-w-[100px]">Reason:</span>
+                          <span className="text-muted-foreground flex-1">{selectedReservation.cancellationReason || 'No reason provided'}</span>
+                        </div>
+                        {selectedReservation.cancelledBy && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[100px]">Cancelled By:</span>
+                            <span className="text-muted-foreground flex-1 capitalize">{selectedReservation.cancelledBy}</span>
+                          </div>
+                        )}
+                        {selectedReservation.cancelledAt && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[100px]">Cancelled At:</span>
+                            <span className="text-muted-foreground flex-1">{new Date(selectedReservation.cancelledAt).toLocaleString('vi-VN')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </DialogContent>

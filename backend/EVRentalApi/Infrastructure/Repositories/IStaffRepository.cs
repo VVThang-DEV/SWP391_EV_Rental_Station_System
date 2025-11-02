@@ -29,6 +29,7 @@ public interface IStaffRepository
     
     // Reservation Management
     Task<bool> ConfirmReservationAsync(int reservationId, int staffId);
+    Task<List<ReservationDto>> GetStationReservationsAsync(int staffId);
     
     // Handover Management
     Task<List<HandoverDto>> GetHandoversAsync(int staffId);
@@ -36,4 +37,7 @@ public interface IStaffRepository
     
     // Activity Logs
     Task<List<StaffActivityLogDto>> GetTodayActivityLogsAsync(int staffId);
+    
+    // Payment History
+    Task<List<StaffPaymentDto>> GetStationPaymentsAsync(int staffId);
 }

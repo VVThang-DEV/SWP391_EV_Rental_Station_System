@@ -353,4 +353,14 @@ public class StaffService : IStaffService
     {
         return await _staffRepository.GetTodayActivityLogsAsync(staffId);
     }
+
+    public async Task<List<ReservationDto>> GetStationReservationsAsync(int staffId)
+    {
+        return await _staffRepository.GetStationReservationsAsync(staffId);
+    }
+
+    public async Task<List<StaffPaymentDto>> GetStationPaymentsAsync(int staffId)
+    {
+        return await _staffRepository.GetStationPaymentsAsync(staffId);
+    }
 }

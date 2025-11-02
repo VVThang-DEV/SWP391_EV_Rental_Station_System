@@ -803,6 +803,34 @@ class StaffApiService {
     const result = await response.json();
     return result.handover;
   }
+
+  // Reservation Management
+  async getStationReservations(): Promise<any> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/reservations`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch station reservations');
+    }
+    return response.json();
+  }
+
+  // Payment Management
+  async getStationPayments(): Promise<any> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/payments`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch station payments');
+    }
+    return response.json();
+  }
 }
 
 // Admin API Service

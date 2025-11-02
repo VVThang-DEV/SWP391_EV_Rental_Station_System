@@ -905,4 +905,173 @@ public class StaffRepository : IStaffRepository
             return activities;
         }
     }
+
+    public async Task<List<ReservationDto>> GetStationReservationsAsync(int staffId)
+    {
+        var reservations = new List<ReservationDto>();
+        
+        try
+        {
+            const string sql = @"
+                SELECT 
+                    r.reservation_id,
+                    r.user_id,
+                    r.vehicle_id,
+                    r.station_id,
+                    r.start_time,
+                    r.end_time,
+                    r.status,
+                    r.created_at,
+                    r.cancellation_reason,
+                    r.cancelled_by,
+                    r.cancelled_at,
+                    u.full_name as user_name,
+                    u.email as user_email,
+                    u.phone as user_phone,
+                    v.model_id as vehicle_model,
+                    v.unique_vehicle_id,
+                    v.license_plate,
+                    s.name as station_name
+                FROM reservations r
+                INNER JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                INNER JOIN users u ON r.user_id = u.user_id
+                INNER JOIN stations s ON r.station_id = s.station_id
+                INNER JOIN users staff_user ON v.station_id = staff_user.station_id
+                WHERE staff_user.user_id = @StaffId
+                ORDER BY r.created_at DESC";
+
+            await using var conn = _connFactory();
+            await conn.OpenAsync();
+
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@StaffId", staffId);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                reservations.Add(new ReservationDto
+                {
+                    ReservationId = reader.GetInt32(reader.GetOrdinal("reservation_id")),
+                    UserId = reader.GetInt32(reader.GetOrdinal("user_id")),
+                    VehicleId = reader.GetInt32(reader.GetOrdinal("vehicle_id")),
+                    StationId = reader.GetInt32(reader.GetOrdinal("station_id")),
+                    StartTime = reader.GetDateTime(reader.GetOrdinal("start_time")),
+                    EndTime = reader.GetDateTime(reader.GetOrdinal("end_time")),
+                    Status = reader.GetString(reader.GetOrdinal("status")),
+                    CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
+                    CancellationReason = reader.IsDBNull(reader.GetOrdinal("cancellation_reason")) 
+                        ? null : reader.GetString(reader.GetOrdinal("cancellation_reason")),
+                    CancelledBy = reader.IsDBNull(reader.GetOrdinal("cancelled_by")) 
+                        ? null : reader.GetString(reader.GetOrdinal("cancelled_by")),
+                    CancelledAt = reader.IsDBNull(reader.GetOrdinal("cancelled_at")) 
+                        ? null : reader.GetDateTime(reader.GetOrdinal("cancelled_at")),
+                    UserName = reader.GetString(reader.GetOrdinal("user_name")),
+                    UserEmail = reader.GetString(reader.GetOrdinal("user_email")),
+                    UserPhone = reader.GetString(reader.GetOrdinal("user_phone")),
+                    VehicleModel = reader.GetString(reader.GetOrdinal("vehicle_model")),
+                    VehicleUniqueId = reader.GetString(reader.GetOrdinal("unique_vehicle_id")),
+                    LicensePlate = reader.IsDBNull(reader.GetOrdinal("license_plate")) 
+                        ? null : reader.GetString(reader.GetOrdinal("license_plate")),
+                    StationName = reader.GetString(reader.GetOrdinal("station_name"))
+                });
+            }
+
+            Console.WriteLine($"[GetStationReservations] Found {reservations.Count} reservations for staff {staffId}");
+            return reservations;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GetStationReservations] Error: {ex.Message}");
+            return reservations;
+        }
+    }
+
+    public async Task<List<StaffPaymentDto>> GetStationPaymentsAsync(int staffId)
+    {
+        var payments = new List<StaffPaymentDto>();
+        
+        try
+        {
+            const string sql = @"
+                SELECT 
+                    p.payment_id,
+                    p.reservation_id,
+                    p.rental_id,
+                    p.user_id,
+                    p.method_type,
+                    p.amount,
+                    p.status,
+                    p.transaction_type,
+                    p.transaction_id,
+                    p.is_deposit,
+                    p.created_at,
+                    u.full_name as customer_name,
+                    u.email as customer_email,
+                    u.phone as customer_phone,
+                    v.vehicle_id,
+                    v.model_id as vehicle_model,
+                    v.unique_vehicle_id
+                FROM payments p
+                LEFT JOIN users u ON p.user_id = u.user_id OR u.user_id = (
+                    SELECT r.user_id FROM reservations r WHERE r.reservation_id = p.reservation_id
+                )
+                LEFT JOIN reservations r ON p.reservation_id = r.reservation_id
+                LEFT JOIN vehicles v ON r.vehicle_id = v.vehicle_id
+                INNER JOIN users staff_user ON v.station_id = staff_user.station_id OR v.station_id = (
+                    SELECT station_id FROM users WHERE user_id = @StaffId
+                )
+                WHERE staff_user.user_id = @StaffId
+                ORDER BY p.created_at DESC";
+
+            await using var conn = _connFactory();
+            await conn.OpenAsync();
+
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@StaffId", staffId);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                payments.Add(new StaffPaymentDto
+                {
+                    PaymentId = reader.GetInt32(reader.GetOrdinal("payment_id")),
+                    ReservationId = reader.IsDBNull(reader.GetOrdinal("reservation_id")) 
+                        ? null : reader.GetInt32(reader.GetOrdinal("reservation_id")),
+                    RentalId = reader.IsDBNull(reader.GetOrdinal("rental_id")) 
+                        ? null : reader.GetInt32(reader.GetOrdinal("rental_id")),
+                    UserId = reader.IsDBNull(reader.GetOrdinal("user_id")) 
+                        ? null : reader.GetInt32(reader.GetOrdinal("user_id")),
+                    CustomerName = reader.IsDBNull(reader.GetOrdinal("customer_name")) 
+                        ? null : reader.GetString(reader.GetOrdinal("customer_name")),
+                    CustomerEmail = reader.IsDBNull(reader.GetOrdinal("customer_email")) 
+                        ? null : reader.GetString(reader.GetOrdinal("customer_email")),
+                    CustomerPhone = reader.IsDBNull(reader.GetOrdinal("customer_phone")) 
+                        ? null : reader.GetString(reader.GetOrdinal("customer_phone")),
+                    VehicleId = reader.IsDBNull(reader.GetOrdinal("vehicle_id")) 
+                        ? null : reader.GetInt32(reader.GetOrdinal("vehicle_id")),
+                    VehicleModel = reader.IsDBNull(reader.GetOrdinal("vehicle_model")) 
+                        ? null : reader.GetString(reader.GetOrdinal("vehicle_model")),
+                    VehicleUniqueId = reader.IsDBNull(reader.GetOrdinal("unique_vehicle_id")) 
+                        ? null : reader.GetString(reader.GetOrdinal("unique_vehicle_id")),
+                    MethodType = reader.GetString(reader.GetOrdinal("method_type")),
+                    Amount = reader.GetDecimal(reader.GetOrdinal("amount")),
+                    Status = reader.GetString(reader.GetOrdinal("status")),
+                    TransactionType = reader.IsDBNull(reader.GetOrdinal("transaction_type")) 
+                        ? null : reader.GetString(reader.GetOrdinal("transaction_type")),
+                    TransactionId = reader.IsDBNull(reader.GetOrdinal("transaction_id")) 
+                        ? null : reader.GetString(reader.GetOrdinal("transaction_id")),
+                    IsDeposit = reader.GetBoolean(reader.GetOrdinal("is_deposit")),
+                    CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"))
+                });
+            }
+
+            Console.WriteLine($"[GetStationPayments] Found {payments.Count} payments for staff {staffId}");
+            return payments;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GetStationPayments] Error: {ex.Message}");
+            return payments;
+        }
+    }
 }
