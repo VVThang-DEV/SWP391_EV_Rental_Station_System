@@ -65,38 +65,30 @@ const BookingPage = () => {
   const { toast } = useToast();
   const { chargingVehicles } = useChargingContext();
   const [isCheckingActiveBooking, setIsCheckingActiveBooking] = useState(true);
-
+  
   // Use API data with fallback to static data
   const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
   const staticVehicle = id ? getVehicleById(id) : null;
-
+  
   // ⚠️ VALIDATION: Check if user has active booking before allowing new booking
   useEffect(() => {
     const checkActiveBooking = async () => {
       try {
         const reservations = await apiService.getReservations();
-        const activeReservations =
-          reservations.reservations?.filter(
-            (r) =>
-              !["completed", "cancelled", "finished"].includes(
-                r.status?.toLowerCase() || ""
-              )
-          ) || [];
-
+        const activeReservations = reservations.reservations?.filter(r => 
+          !['completed', 'cancelled', 'finished'].includes(r.status?.toLowerCase() || '')
+        ) || [];
+        
         if (activeReservations.length > 0) {
-          console.log(
-            "[BookingPage] ❌ User has active booking:",
-            activeReservations
-          );
+          console.log("[BookingPage] ❌ User has active booking:", activeReservations);
           toast({
             title: "Cannot Book",
-            description:
-              "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+            description: "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
             variant: "destructive",
           });
-
+          
           // Navigate back to vehicles page immediately
-          navigate("/vehicles");
+          navigate('/vehicles');
         } else {
           console.log("[BookingPage] ✅ No active bookings - allowing booking");
         }
@@ -107,83 +99,65 @@ const BookingPage = () => {
         setIsCheckingActiveBooking(false);
       }
     };
-
+    
     checkActiveBooking();
   }, [toast, navigate]);
-
+  
   // Find vehicle from API data or fallback to static
   console.log("[BookingPage] Looking for vehicle with id:", id);
-  console.log(
-    "[BookingPage] Available apiVehicles:",
-    apiVehicles?.map((v) => ({
-      vehicleId: v.vehicleId,
-      uniqueVehicleId: v.uniqueVehicleId,
-    }))
-  );
-
+  console.log("[BookingPage] Available apiVehicles:", apiVehicles?.map(v => ({ vehicleId: v.vehicleId, uniqueVehicleId: v.uniqueVehicleId })));
+  
   // First try to find by uniqueVehicleId matching the id
-  let apiVehicle = apiVehicles?.find((v) => v.uniqueVehicleId === id);
-
+  let apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === id);
+  
   // If not found, try to find by matching with static data
   if (!apiVehicle && staticVehicle) {
-    console.log(
-      "[BookingPage] Not found by uniqueVehicleId, trying to match with static data"
-    );
-    console.log(
-      "[BookingPage] Static vehicle uniqueVehicleId:",
-      staticVehicle.uniqueVehicleId
-    );
-    apiVehicle = apiVehicles?.find(
-      (v) => v.uniqueVehicleId === staticVehicle.uniqueVehicleId
-    );
+    console.log("[BookingPage] Not found by uniqueVehicleId, trying to match with static data");
+    console.log("[BookingPage] Static vehicle uniqueVehicleId:", staticVehicle.uniqueVehicleId);
+    apiVehicle = apiVehicles?.find(v => v.uniqueVehicleId === staticVehicle.uniqueVehicleId);
   }
-
+  
   console.log("[BookingPage] Found apiVehicle:", apiVehicle);
-  const vehicle = apiVehicle
-    ? {
-        // Map API data to expected format
-        id: apiVehicle.uniqueVehicleId,
-        name: `${apiVehicle.modelId} Vehicle`,
-        brand: "VinFast",
-        model: apiVehicle.modelId,
-        type: "Scooter",
-        year: 2024,
-        seats: 2,
-        range: apiVehicle.maxRangeKm,
-        batteryLevel: apiVehicle.batteryLevel,
-        pricePerHour: apiVehicle.pricePerHour,
-        pricePerDay: apiVehicle.pricePerDay,
-        rating: apiVehicle.rating,
-        reviewCount: apiVehicle.reviewCount,
-        trips: apiVehicle.trips,
-        mileage: apiVehicle.mileage,
-        availability: apiVehicle.status,
-        condition: apiVehicle.condition,
-        image: apiVehicle.image || "",
-        location: apiVehicle.location,
-        stationId: apiVehicle.stationId.toString(),
-        stationName: "Unknown Station",
-        stationAddress: "",
-        features: [],
-        description: "",
-        fuelEfficiency: apiVehicle.fuelEfficiency,
-        lastMaintenance: apiVehicle.lastMaintenance,
-        inspectionDate: apiVehicle.inspectionDate,
-        insuranceExpiry: apiVehicle.insuranceExpiry,
-        createdAt: apiVehicle.createdAt,
-        updatedAt: apiVehicle.updatedAt,
-      }
-    : staticVehicle;
+  const vehicle = apiVehicle ? {
+    // Map API data to expected format
+    id: apiVehicle.uniqueVehicleId,
+    name: `${apiVehicle.modelId} Vehicle`,
+    brand: "VinFast",
+    model: apiVehicle.modelId,
+    type: "Scooter",
+    year: 2024,
+    seats: 2,
+    range: apiVehicle.maxRangeKm,
+    batteryLevel: apiVehicle.batteryLevel,
+    pricePerHour: apiVehicle.pricePerHour,
+    pricePerDay: apiVehicle.pricePerDay,
+    rating: apiVehicle.rating,
+    reviewCount: apiVehicle.reviewCount,
+    trips: apiVehicle.trips,
+    mileage: apiVehicle.mileage,
+    availability: apiVehicle.status,
+    condition: apiVehicle.condition,
+    image: apiVehicle.image || "",
+    location: apiVehicle.location,
+    stationId: apiVehicle.stationId.toString(),
+    stationName: "Unknown Station",
+    stationAddress: "",
+    features: [],
+    description: "",
+    fuelEfficiency: apiVehicle.fuelEfficiency,
+    lastMaintenance: apiVehicle.lastMaintenance,
+    inspectionDate: apiVehicle.inspectionDate,
+    insuranceExpiry: apiVehicle.insuranceExpiry,
+    createdAt: apiVehicle.createdAt,
+    updatedAt: apiVehicle.updatedAt
+  } : staticVehicle;
 
   // Check if vehicle is currently charging
-  const isCharging =
-    vehicle &&
-    (chargingVehicles.has(vehicle.id) ||
-      chargingVehicles.has(vehicle.uniqueVehicleId || ""));
-
+  const isCharging = vehicle && (chargingVehicles.has(vehicle.id) || chargingVehicles.has(vehicle.uniqueVehicleId || ''));
+  
   // Check if vehicle has low battery
   const hasLowBattery = vehicle && isLowBattery(vehicle.batteryLevel);
-
+  
   // Redirect if vehicle is charging or has low battery
   useEffect(() => {
     if (isCharging) {
@@ -216,15 +190,15 @@ const BookingPage = () => {
 
   // THÊM MỚI: Helper function để tính End Time tối thiểu (Start Time + 1 giờ)
   const calculateMinimumEndTime = (startTime: string) => {
-    const [hours, minutes] = startTime.split(":").map(Number);
+    const [hours, minutes] = startTime.split(':').map(Number);
     const startDate = new Date();
     startDate.setHours(hours, minutes, 0, 0);
 
     // Thêm 1 giờ
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
-    const endHours = endDate.getHours().toString().padStart(2, "0");
-    const endMinutes = endDate.getMinutes().toString().padStart(2, "0");
+    const endHours = endDate.getHours().toString().padStart(2, '0');
+    const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
 
     return `${endHours}:${endMinutes}`;
   };
@@ -239,14 +213,11 @@ const BookingPage = () => {
   };
 
   // THÊM MỚI: Function tính thời gian còn lại để pickup
-  const calculateTimeToPickup = (
-    selectedDate: string,
-    selectedTime: string
-  ) => {
+  const calculateTimeToPickup = (selectedDate: string, selectedTime: string) => {
     if (!selectedDate || !selectedTime) return null;
 
     const now = new Date();
-    const [hours, minutes] = selectedTime.split(":").map(Number);
+    const [hours, minutes] = selectedTime.split(':').map(Number);
 
     // Tính thời gian kết thúc của pickup slot
     let pickupEndHour = hours;
@@ -277,20 +248,12 @@ const BookingPage = () => {
 
     if (diffHours > 0) {
       if (remainingMinutes > 0) {
-        return `You have ${diffHours} hour${
-          diffHours !== 1 ? "s" : ""
-        } and ${remainingMinutes} minute${
-          remainingMinutes !== 1 ? "s" : ""
-        } to pick up the vehicle`;
+        return `You have ${diffHours} hour${diffHours !== 1 ? 's' : ''} and ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} to pick up the vehicle`;
       } else {
-        return `You have ${diffHours} hour${
-          diffHours !== 1 ? "s" : ""
-        } to pick up the vehicle`;
+        return `You have ${diffHours} hour${diffHours !== 1 ? 's' : ''} to pick up the vehicle`;
       }
     } else {
-      return `You have ${remainingMinutes} minute${
-        remainingMinutes !== 1 ? "s" : ""
-      } to pick up the vehicle`;
+      return `You have ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} to pick up the vehicle`;
     }
   };
 
@@ -318,9 +281,7 @@ const BookingPage = () => {
       } else {
         const today = new Date();
         const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-        const tomorrowStr = `${tomorrow.getFullYear()}-${pad(
-          tomorrow.getMonth() + 1
-        )}-${pad(tomorrow.getDate())}`;
+        const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
         const bestSlot = getBestAvailableSlot();
         const pickupSlot = bestSlot ? bestSlot.value : "09:00";
         return {
@@ -349,7 +310,7 @@ const BookingPage = () => {
     const loadUserData = async () => {
       try {
         setIsLoadingUserData(true);
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem('token');
         if (!token) {
           // If not logged in, use default values
           setUserData({
@@ -401,9 +362,9 @@ const BookingPage = () => {
       const currentMinute = today.getMinutes();
 
       if (currentMinute >= 30) {
-        return `${(currentHour + 1).toString().padStart(2, "0")}:00`;
+        return `${(currentHour + 1).toString().padStart(2, '0')}:00`;
       } else {
-        return `${currentHour.toString().padStart(2, "0")}:30`;
+        return `${currentHour.toString().padStart(2, '0')}:30`;
       }
     }
     return "09:00"; // Default cho ngày tương lai
@@ -413,9 +374,7 @@ const BookingPage = () => {
   const getTomorrowStr = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(
-      tomorrow.getDate()
-    )}`;
+    return `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
   };
 
   const [bookingData, setBookingData] = useState({
@@ -437,7 +396,7 @@ const BookingPage = () => {
   // Update bookingData when userData is loaded
   useEffect(() => {
     if (!isLoadingUserData && userData.fullName) {
-      setBookingData((prev) => ({
+      setBookingData(prev => ({
         ...prev,
         customerInfo: {
           fullName: userData.fullName,
@@ -450,7 +409,6 @@ const BookingPage = () => {
   }, [isLoadingUserData, userData]);
 
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
-  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Show loading while fetching API data
   if (vehiclesLoading) {
@@ -485,10 +443,8 @@ const BookingPage = () => {
 
     if (bookingData.rentalDuration === "hourly") {
       // FIX: Tính toán đúng cho hourly rental dựa trên slot system
-      const [startHour, startMinute] = bookingData.startTime
-        .split(":")
-        .map(Number);
-      const [endHour, endMinute] = bookingData.endTime.split(":").map(Number);
+      const [startHour, startMinute] = bookingData.startTime.split(':').map(Number);
+      const [endHour, endMinute] = bookingData.endTime.split(':').map(Number);
 
       // Tính thời gian kết thúc của pickup slot
       let pickupEndHour = startHour;
@@ -513,9 +469,7 @@ const BookingPage = () => {
       return Math.max(hours, 1) * vehicle.pricePerHour;
     } else {
       // DAILY: tính theo ngày, từ startTime ngày đầu đến endTime ngày cuối
-      const start = new Date(
-        `${bookingData.startDate}T${bookingData.startTime}`
-      );
+      const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
       const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
       const diffMs = end.getTime() - start.getTime();
       const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24)); // Tính số ngày
@@ -556,31 +510,31 @@ const BookingPage = () => {
       startSlot = 0;
     }
 
-    // Tạo các slots từ thời điểm hiện tại đến 23h
+    // Tạo các slots từ thời điểm hiện tại đến 23h 
     for (let hour = startHour; hour < 23; hour++) {
       const minuteStart = hour === startHour ? startSlot : 0;
 
       // Slot 1: XX:00 - XX:30
       if (minuteStart === 0) {
-        const timeStart = `${hour.toString().padStart(2, "0")}:00`;
-        const timeEnd = `${hour.toString().padStart(2, "0")}:30`;
+        const timeStart = `${hour.toString().padStart(2, '0')}:00`;
+        const timeEnd = `${hour.toString().padStart(2, '0')}:30`;
         slots.push({
           value: timeStart,
           label: `${timeStart} - ${timeEnd}`,
           pickupStart: timeStart,
-          pickupEnd: timeEnd,
+          pickupEnd: timeEnd
         });
       }
 
       // Slot 2: XX:30 - (XX+1):00
       if (hour <= 22) {
-        const timeStart = `${hour.toString().padStart(2, "0")}:30`;
-        const timeEnd = `${(hour + 1).toString().padStart(2, "0")}:00`;
+        const timeStart = `${hour.toString().padStart(2, '0')}:30`;
+        const timeEnd = `${(hour + 1).toString().padStart(2, '0')}:00`;
         slots.push({
           value: timeStart,
           label: `${timeStart} - ${timeEnd}`,
           pickupStart: timeStart,
-          pickupEnd: timeEnd,
+          pickupEnd: timeEnd
         });
       }
     }
@@ -591,7 +545,7 @@ const BookingPage = () => {
   const getReturnTimeOptions = (pickupSlotStart: string) => {
     if (!pickupSlotStart) return [];
 
-    const [startHour, startMinute] = pickupSlotStart.split(":").map(Number);
+    const [startHour, startMinute] = pickupSlotStart.split(':').map(Number);
 
     // Tính thời gian kết thúc của pickup slot
     let pickupEndHour = startHour;
@@ -622,16 +576,14 @@ const BookingPage = () => {
       } else if (returnHour === 24) {
         break;
       } else {
-        timeStr = `${returnHour.toString().padStart(2, "0")}:${returnMinute
-          .toString()
-          .padStart(2, "0")}`;
+        timeStr = `${returnHour.toString().padStart(2, '0')}:${returnMinute.toString().padStart(2, '0')}`;
         timeValue = timeStr;
       }
 
       options.push({
         value: timeValue,
         label: timeStr,
-        duration: `${i} hour${i !== 1 ? "s" : ""}`,
+        duration: `${i} hour${i !== 1 ? 's' : ''}`
       });
     }
 
@@ -647,23 +599,23 @@ const BookingPage = () => {
     const returnOptions = getReturnTimeOptions(value);
     const defaultReturnTime = returnOptions[0]?.value || "";
 
-    setBookingData((prev) => ({
+    setBookingData(prev => ({
       ...prev,
       startTime: value,
-      endTime: defaultReturnTime,
+      endTime: defaultReturnTime
     }));
   };
 
   const handleDailyPickupSlotChange = (value: string) => {
-    setBookingData((prev) => ({
+    setBookingData(prev => ({
       ...prev,
       startTime: value,
-      endTime: value,
+      endTime: value
     }));
   };
 
   const handleStartDateChange = (newStartDate: string) => {
-    setBookingData((prev) => {
+    setBookingData(prev => {
       if (prev.rentalDuration === "hourly") {
         const bestSlot = getBestAvailableSlot();
         if (bestSlot) {
@@ -690,9 +642,7 @@ const BookingPage = () => {
         let newEndDate = prev.endDate;
         if (currentEndDate <= startDate) {
           const nextDay = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-          newEndDate = `${nextDay.getFullYear()}-${pad(
-            nextDay.getMonth() + 1
-          )}-${pad(nextDay.getDate())}`;
+          newEndDate = `${nextDay.getFullYear()}-${pad(nextDay.getMonth() + 1)}-${pad(nextDay.getDate())}`;
         }
 
         return {
@@ -705,24 +655,26 @@ const BookingPage = () => {
   };
 
   const handleEndDateChange = (newEndDate: string) => {
-    setBookingData((prev) => ({
+    setBookingData(prev => ({
       ...prev,
-      endDate: newEndDate,
+      endDate: newEndDate
     }));
   };
+
 
   const baseCost = calculateCost();
 
   const totalCost = baseCost;
 
+
   const handleInputChange = (field: string, value: string | boolean) => {
-    setBookingData((prev) => {
-      const keys = field.split(".");
+    setBookingData(prev => {
+      const keys = field.split('.');
       if (keys.length === 1) {
         // Simple field update
         return {
           ...prev,
-          [field]: value,
+          [field]: value
         };
       } else if (keys.length === 2) {
         // Nested field update (e.g., customerInfo.fullName)
@@ -730,13 +682,15 @@ const BookingPage = () => {
           ...prev,
           [keys[0]]: {
             ...prev[keys[0]],
-            [keys[1]]: value,
-          },
+            [keys[1]]: value
+          }
         };
       }
       return prev;
     });
   };
+
+
 
   const renderBookingDetails = () => (
     <div className="space-y-6">
@@ -770,15 +724,9 @@ const BookingPage = () => {
               </Select>
               <div className="mt-2 text-sm text-muted-foreground">
                 {bookingData.rentalDuration === "hourly" ? (
-                  <span>
-                    Selected: Hourly Rental - ${vehicle.pricePerHour} per hour
-                    for {vehicle.name}
-                  </span>
+                  <span>Selected: Hourly Rental - ${vehicle.pricePerHour} per hour for {vehicle.name}</span>
                 ) : (
-                  <span>
-                    Selected: Daily Rental - ${vehicle.pricePerDay} per day for{" "}
-                    {vehicle.name}
-                  </span>
+                  <span>Selected: Daily Rental - ${vehicle.pricePerDay} per day for {vehicle.name}</span>
                 )}
               </div>
             </div>
@@ -806,14 +754,10 @@ const BookingPage = () => {
                   min={
                     bookingData.rentalDuration === "daily"
                       ? (() => {
-                          const startDate = new Date(bookingData.startDate);
-                          const nextDay = new Date(
-                            startDate.getTime() + 24 * 60 * 60 * 1000
-                          );
-                          return `${nextDay.getFullYear()}-${pad(
-                            nextDay.getMonth() + 1
-                          )}-${pad(nextDay.getDate())}`;
-                        })()
+                        const startDate = new Date(bookingData.startDate);
+                        const nextDay = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+                        return `${nextDay.getFullYear()}-${pad(nextDay.getMonth() + 1)}-${pad(nextDay.getDate())}`;
+                      })()
                       : bookingData.startDate
                   }
                   className="text-black"
@@ -839,9 +783,7 @@ const BookingPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="startTime">
-                  {bookingData.rentalDuration === "hourly"
-                    ? "Pickup Time Slot *"
-                    : "Pickup Time Slot *"}
+                  {bookingData.rentalDuration === "hourly" ? "Pickup Time Slot *" : "Pickup Time Slot *"}
                 </Label>
                 {bookingData.rentalDuration === "hourly" ? (
                   <Select
@@ -878,129 +820,107 @@ const BookingPage = () => {
                 )}
 
                 {/* ✨ THÊM MỚI: Countdown timer cho hourly rental */}
-                {bookingData.rentalDuration === "hourly" &&
-                  bookingData.startTime && (
-                    <div className="mt-2">
-                      {(() => {
-                        const timeToPickup = calculateTimeToPickup(
-                          bookingData.startDate,
-                          bookingData.startTime
+                {bookingData.rentalDuration === "hourly" && bookingData.startTime && (
+                  <div className="mt-2">
+                    {(() => {
+                      const timeToPickup = calculateTimeToPickup(bookingData.startDate, bookingData.startTime);
+                      if (timeToPickup) {
+                        return (
+                          <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                            <Clock className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm text-blue-700 font-medium">
+                              {timeToPickup}
+                            </span>
+                          </div>
                         );
-                        if (timeToPickup) {
-                          return (
-                            <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                              <Clock className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm text-blue-700 font-medium">
-                                {timeToPickup}
-                              </span>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  )}
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
 
                 {bookingData.rentalDuration === "hourly" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Select a pick up time - the car must be picked up within
-                    this time
+                    Select a pick up time - the car must be picked up within this time
                   </p>
                 )}
 
                 {/* ✨ THÊM MỚI: Countdown timer cho daily rental */}
-                {bookingData.rentalDuration === "daily" &&
-                  bookingData.startTime && (
-                    <div className="mt-2">
-                      {(() => {
-                        const timeToPickup = calculateTimeToPickup(
-                          bookingData.startDate,
-                          bookingData.startTime
+                {bookingData.rentalDuration === "daily" && bookingData.startTime && (
+                  <div className="mt-2">
+                    {(() => {
+                      const timeToPickup = calculateTimeToPickup(bookingData.startDate, bookingData.startTime);
+                      if (timeToPickup) {
+                        return (
+                          <div className="flex items-center space-x-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                            <Clock className="h-4 w-4 text-green-600" />
+                            <span className="text-sm text-green-700 font-medium">
+                              {timeToPickup}
+                            </span>
+                          </div>
                         );
-                        if (timeToPickup) {
-                          return (
-                            <div className="flex items-center space-x-2 p-2 bg-green-50 border border-green-200 rounded-md">
-                              <Clock className="h-4 w-4 text-green-600" />
-                              <span className="text-sm text-green-700 font-medium">
-                                {timeToPickup}
-                              </span>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  )}
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
 
                 {bookingData.rentalDuration === "daily" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Select a pick up time - the car must be picked up within
-                    this time
+                    Select a pick up time - the car must be picked up within this time
                   </p>
                 )}
               </div>
 
               <div>
                 <Label htmlFor="endTime">
-                  {bookingData.rentalDuration === "hourly"
-                    ? "Return Time *"
-                    : "Return Time Slot *"}
+                  {bookingData.rentalDuration === "hourly" ? "Return Time *" : "Return Time Slot *"}
                 </Label>
                 {bookingData.rentalDuration === "hourly" ? (
                   <Select
                     value={bookingData.endTime}
-                    onValueChange={(value) =>
-                      handleInputChange("endTime", value)
-                    }
+                    onValueChange={(value) => handleInputChange("endTime", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select return time" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getReturnTimeOptions(bookingData.startTime).map(
-                        (option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label} ({option.duration})
-                          </SelectItem>
-                        )
-                      )}
+                      {getReturnTimeOptions(bookingData.startTime).map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label} ({option.duration})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 ) : (
                   <div className="flex items-center space-x-2 px-3 py-2 border rounded-md bg-secondary/50">
                     <span className="text-sm text-muted-foreground">
-                      {bookingData.startTime
-                        ? (() => {
-                            const [hour, minute] = bookingData.startTime
-                              .split(":")
-                              .map(Number);
-                            const endHour = minute === 0 ? hour : hour + 1;
-                            const endMinute = minute === 0 ? 30 : 0;
-                            const endTime = `${endHour
-                              .toString()
-                              .padStart(2, "0")}:${endMinute
-                              .toString()
-                              .padStart(2, "0")}`;
-                            return `${bookingData.startTime} - ${endTime}`;
-                          })()
-                        : "Select pickup slot first"}
+                      {bookingData.startTime ? (
+                        (() => {
+                          const [hour, minute] = bookingData.startTime.split(':').map(Number);
+                          const endHour = minute === 0 ? hour : hour + 1;
+                          const endMinute = minute === 0 ? 30 : 0;
+                          const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                          return `${bookingData.startTime} - ${endTime}`;
+                        })()
+                      ) : 'Select pickup slot first'}
                     </span>
                   </div>
                 )}
                 {bookingData.rentalDuration === "hourly" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Choose your rental duration - minimum 1 hour after pickup
-                    slot ends
+                    Choose your rental duration - minimum 1 hour after pickup slot ends
                   </p>
                 )}
                 {bookingData.rentalDuration === "daily" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Vehicle must be returned during the same time slot on the
-                    end date
+                    Vehicle must be returned during the same time slot on the end date
                   </p>
                 )}
               </div>
             </div>
+
+
           </CardContent>
         </Card>
       </div>
@@ -1020,17 +940,12 @@ const BookingPage = () => {
           ) : userData.fullName ? (
             <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
               <CheckCircle className="h-4 w-4" />
-              <span>
-                Information automatically filled from your profile. You can edit
-                if needed.
-              </span>
+              <span>Information automatically filled from your profile. You can edit if needed.</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2 text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
               <Clock className="h-4 w-4" />
-              <span>
-                Please fill in your information to complete the booking.
-              </span>
+              <span>Please fill in your information to complete the booking.</span>
             </div>
           )}
         </CardHeader>
@@ -1097,6 +1012,7 @@ const BookingPage = () => {
               />
             </div>
           </div>
+
         </CardContent>
       </Card>
 
@@ -1117,146 +1033,8 @@ const BookingPage = () => {
         </CardContent>
       </Card>
 
-      {/* Terms & Conditions Agreement */}
-      <Card className="border-amber-200 bg-amber-50">
-        <CardHeader>
-          <CardTitle className="flex items-center text-amber-900">
-            <Shield className="h-5 w-5 mr-2" />
-            Rental Agreement & Terms
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3 text-sm text-amber-900 max-h-64 overflow-y-auto border border-amber-200 rounded-lg p-4 bg-white">
-            <div>
-              <h4 className="font-semibold mb-2">1. Customer Responsibility</h4>
-              <p className="text-gray-700">
-                By accepting this agreement, you acknowledge and agree that you
-                are fully responsible for the vehicle during the entire rental
-                period. Any damage, theft, loss, or incident involving the
-                vehicle is your sole responsibility.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">2. Damage & Repair Costs</h4>
-              <p className="text-gray-700">
-                You agree to pay the full cost of any repairs required due to
-                damages incurred during your rental period. This includes but is
-                not limited to: scratches, dents, broken parts, interior damage,
-                tire damage, windshield cracks, and any mechanical issues
-                arising from misuse or negligence.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">3. Theft & Total Loss</h4>
-              <p className="text-gray-700">
-                In the event of vehicle theft or total loss during your rental
-                period, you are liable for the full replacement value of the
-                vehicle unless you have purchased additional insurance coverage.
-                You must report any theft to local authorities within 24 hours.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">
-                4. Traffic Violations & Fines
-              </h4>
-              <p className="text-gray-700">
-                All traffic violations, parking tickets, tolls, and fines
-                incurred during the rental period are your responsibility. We
-                will charge your account for any fines received plus an
-                administrative processing fee.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">
-                5. Vehicle Condition Inspection
-              </h4>
-              <p className="text-gray-700">
-                You agree to conduct a thorough inspection of the vehicle at
-                pickup and report any existing damage immediately. Vehicle
-                condition will be inspected again at return. Any new damage will
-                be charged to your account.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">6. Prohibited Activities</h4>
-              <p className="text-gray-700">
-                The following activities are strictly prohibited: driving under
-                the influence of alcohol or drugs, allowing unauthorized drivers
-                to operate the vehicle, using the vehicle for illegal purposes,
-                racing, off-road driving, and smoking inside the vehicle.
-                Violation results in immediate termination of rental and
-                forfeiture of deposit.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">7. Battery & Charging</h4>
-              <p className="text-gray-700">
-                You must return the vehicle with at least 20% battery charge.
-                Failure to do so will result in a recharging fee. Any damage to
-                the charging port or battery system due to misuse will be
-                charged at full replacement cost.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">
-                8. Late Return & Overage Fees
-              </h4>
-              <p className="text-gray-700">
-                Late returns will be charged at 150% of the regular hourly/daily
-                rate. Vehicles not returned within 24 hours of the scheduled
-                return time without notification may be reported as stolen.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">9. Payment & Deposits</h4>
-              <p className="text-gray-700">
-                A security deposit will be held on your payment method for the
-                duration of the rental. This deposit will be released after
-                vehicle inspection, minus any charges for damages, violations,
-                or additional fees. Full payment is due at the time of booking.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">10. Cancellation & Refunds</h4>
-              <p className="text-gray-700">
-                Cancellations made more than 48 hours before pickup receive a
-                full refund. Cancellations within 48 hours are subject to a 50%
-                cancellation fee. No-shows forfeit the entire payment.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start space-x-3 p-4 bg-white rounded-lg border border-amber-200">
-            <Checkbox
-              id="terms-checkbox"
-              checked={termsAccepted}
-              onCheckedChange={(checked) =>
-                setTermsAccepted(checked as boolean)
-              }
-              className="mt-1"
-            />
-            <Label
-              htmlFor="terms-checkbox"
-              className="text-sm font-medium leading-relaxed cursor-pointer text-gray-900"
-            >
-              I have read and agree to all terms and conditions stated above. I
-              understand that I am fully responsible for the vehicle and any
-              damages, losses, or incidents that occur during my rental period,
-              and I agree to pay all associated costs.
-            </Label>
-          </div>
-        </CardContent>
-      </Card>
     </div>
+
   );
 
   const renderPaymentStep = () => (
@@ -1268,65 +1046,45 @@ const BookingPage = () => {
         vehicleName={vehicle.name}
         customerInfo={bookingData.customerInfo}
         onPaymentComplete={async (paymentData) => {
+
           // ✅ TẠO RESERVATION ID VÀ LƯU VÀO SQL DATABASE
           try {
             // Gọi API để tạo reservation trong database
-            const startDateTime = new Date(
-              `${bookingData.startDate}T${bookingData.startTime}`
-            );
-            const endDateTime = new Date(
-              `${bookingData.endDate}T${bookingData.endTime}`
-            );
+            const startDateTime = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+            const endDateTime = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
 
             // ✅ FIX: Ensure start time is in the future (with 15 min buffer)
             const now = new Date();
             const minAllowedTime = new Date(now.getTime() - 15 * 60 * 1000); // 15 minutes in the past
-
+            
             console.log("[Booking] Current time:", now.toISOString());
             console.log("[Booking] Start time:", startDateTime.toISOString());
-            console.log(
-              "[Booking] Min allowed time:",
-              minAllowedTime.toISOString()
-            );
-
+            console.log("[Booking] Min allowed time:", minAllowedTime.toISOString());
+            
             if (startDateTime < minAllowedTime) {
-              console.warn(
-                "[Booking] Start time is too far in the past, adjusting to future time"
-              );
+              console.warn("[Booking] Start time is too far in the past, adjusting to future time");
               // Add 2 hours to current time to ensure it's in the future
-              const adjustedStart = new Date(
-                now.getTime() + 2 * 60 * 60 * 1000
-              );
+              const adjustedStart = new Date(now.getTime() + 2 * 60 * 60 * 1000);
               const duration = endDateTime.getTime() - startDateTime.getTime();
               startDateTime.setTime(adjustedStart.getTime());
               endDateTime.setTime(adjustedStart.getTime() + duration);
-              console.log(
-                "[Booking] Adjusted start time:",
-                startDateTime.toISOString()
-              );
-              console.log(
-                "[Booking] Adjusted end time:",
-                endDateTime.toISOString()
-              );
+              console.log("[Booking] Adjusted start time:", startDateTime.toISOString());
+              console.log("[Booking] Adjusted end time:", endDateTime.toISOString());
             }
 
             // Use the actual vehicleId from API data
             let vehicleId: number;
-
+            
             if (apiVehicle && apiVehicle.vehicleId) {
               // Use the actual vehicleId from API
               vehicleId = apiVehicle.vehicleId;
               console.log("[Booking] Using API vehicleId:", vehicleId);
             } else {
               // No API data available - this should not happen
-              console.error(
-                "[Booking] No API vehicle data available for vehicle.id:",
-                vehicle.id
-              );
+              console.error("[Booking] No API vehicle data available for vehicle.id:", vehicle.id);
               toast({
                 title: "Error",
-                description:
-                  "Vehicle data not found. Please refresh the page and try again.",
+                description: "Vehicle data not found. Please refresh the page and try again.",
                 variant: "destructive",
               });
               return;
@@ -1334,12 +1092,7 @@ const BookingPage = () => {
 
             // Validate vehicle ID
             if (isNaN(vehicleId) || vehicleId <= 0) {
-              console.error(
-                "[Booking] Invalid vehicle ID:",
-                vehicle.id,
-                "->",
-                vehicleId
-              );
+              console.error("[Booking] Invalid vehicle ID:", vehicle.id, "->", vehicleId);
               toast({
                 title: "Error",
                 description: "Invalid vehicle ID. Please try again.",
@@ -1352,17 +1105,17 @@ const BookingPage = () => {
             // Format: YYYY-MM-DDTHH:mm:ss (without timezone info to preserve local time)
             const formatLocalDateTime = (date: Date) => {
               const year = date.getFullYear();
-              const month = String(date.getMonth() + 1).padStart(2, "0");
-              const day = String(date.getDate()).padStart(2, "0");
-              const hours = String(date.getHours()).padStart(2, "0");
-              const minutes = String(date.getMinutes()).padStart(2, "0");
-              const seconds = String(date.getSeconds()).padStart(2, "0");
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              const hours = String(date.getHours()).padStart(2, '0');
+              const minutes = String(date.getMinutes()).padStart(2, '0');
+              const seconds = String(date.getSeconds()).padStart(2, '0');
               return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
             };
 
             const reservationData = {
               vehicleId: vehicleId,
-              stationId: parseInt(vehicle.stationId || "1"),
+              stationId: parseInt(vehicle.stationId || '1'),
               startTime: formatLocalDateTime(startDateTime),
               endTime: formatLocalDateTime(endDateTime),
             };
@@ -1370,118 +1123,74 @@ const BookingPage = () => {
             console.log("[Booking] Raw Vehicle ID:", vehicle.id);
             console.log("[Booking] Parsed Vehicle ID:", vehicleId);
             console.log("[Booking] Station ID:", vehicle.stationId);
-            console.log(
-              "[Booking] Creating reservation with data:",
-              reservationData
-            );
-            console.log(
-              "[Booking] Start Time (Local):",
-              formatLocalDateTime(startDateTime)
-            );
-            console.log(
-              "[Booking] End Time (Local):",
-              formatLocalDateTime(endDateTime)
-            );
+            console.log("[Booking] Creating reservation with data:", reservationData);
+            console.log("[Booking] Start Time (Local):", formatLocalDateTime(startDateTime));
+            console.log("[Booking] End Time (Local):", formatLocalDateTime(endDateTime));
 
             let reservationId: number | null = null;
             try {
               console.log("[Booking] Calling API to create reservation...");
-              console.log(
-                "[Booking] Reservation data:",
-                JSON.stringify(reservationData, null, 2)
-              );
-
-              const reservationResponse = await apiService.createReservation(
-                reservationData
-              );
-
+              console.log("[Booking] Reservation data:", JSON.stringify(reservationData, null, 2));
+              
+              const reservationResponse = await apiService.createReservation(reservationData);
+              
               console.log("[Booking] API Response:", reservationResponse);
-
-              if (
-                reservationResponse.success &&
-                reservationResponse.reservation
-              ) {
+              
+              if (reservationResponse.success && reservationResponse.reservation) {
                 reservationId = reservationResponse.reservation.reservationId;
-                console.log(
-                  "✅ Reservation created in database:",
-                  reservationResponse.reservation
-                );
-                console.log(
-                  "[Booking] Saved Start Time:",
-                  reservationResponse.reservation.startTime
-                );
-                console.log(
-                  "[Booking] Saved End Time:",
-                  reservationResponse.reservation.endTime
-                );
-
+                console.log("✅ Reservation created in database:", reservationResponse.reservation);
+                console.log("[Booking] Saved Start Time:", reservationResponse.reservation.startTime);
+                console.log("[Booking] Saved End Time:", reservationResponse.reservation.endTime);
+                
                 // Store reservationId in bookingData
-                setBookingData((prev) => ({
+                setBookingData(prev => ({
                   ...prev,
-                  reservationId: reservationId,
+                  reservationId: reservationId
                 }));
 
                 // ✅ UPDATE PAYMENT VỚI RESERVATION_ID
-                if (reservationId && bookingData.paymentMethod === "wallet") {
+                if (reservationId && bookingData.paymentMethod === 'wallet') {
                   try {
-                    console.log(
-                      "[Payment] Updating payment with reservation_id:",
-                      reservationId
-                    );
-
+                    console.log("[Payment] Updating payment with reservation_id:", reservationId);
+                    
                     // Update payment record that doesn't have reservation_id yet
-                    const token = localStorage.getItem("token");
-                    const updateResponse = await fetch(
-                      "http://localhost:5000/api/wallet/update-payment",
-                      {
-                        method: "PUT",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({
-                          reservationId: reservationId,
-                          amount: totalCost,
-                        }),
-                      }
-                    );
+                    const token = localStorage.getItem('token');
+                    const updateResponse = await fetch('http://localhost:5000/api/wallet/update-payment', {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        reservationId: reservationId,
+                        amount: totalCost,
+                      }),
+                    });
 
                     if (updateResponse.ok) {
-                      console.log(
-                        "[Payment] Payment updated successfully with reservation_id"
-                      );
+                      console.log("[Payment] Payment updated successfully with reservation_id");
                     } else {
                       console.log("[Payment] Update failed, but continuing...");
                     }
                   } catch (paymentError) {
-                    console.error(
-                      "Error updating payment in database:",
-                      paymentError
-                    );
+                    console.error("Error updating payment in database:", paymentError);
                     // Continue even if payment update fails
                   }
                 }
               } else {
                 // API returned success=false
-                throw new Error(
-                  reservationResponse.message || "Failed to create reservation"
-                );
+                throw new Error(reservationResponse.message || "Failed to create reservation");
               }
             } catch (apiError: any) {
-              console.error(
-                "❌ Error creating reservation in database:",
-                apiError
-              );
-
+              console.error("❌ Error creating reservation in database:", apiError);
+              
               // Show error message to user and stop booking process
               toast({
                 title: "Booking Failed",
-                description:
-                  apiError.message ||
-                  "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
+                description: apiError.message || "You already have an active booking. Please complete or cancel your existing booking before making a new one.",
                 variant: "destructive",
               });
-
+              
               // Stop here - don't continue with local storage
               return;
             }
@@ -1514,39 +1223,25 @@ const BookingPage = () => {
               totalCost: totalCost,
               baseCost: baseCost,
               deposit: 0,
-              duration:
-                bookingData.rentalDuration === "hourly"
-                  ? (() => {
-                      const start = new Date(
-                        `${bookingData.startDate}T${bookingData.startTime}`
-                      );
-                      const end = new Date(
-                        `${bookingData.endDate}T${bookingData.endTime}`
-                      );
-                      const hours = Math.ceil(
-                        (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-                      );
-                      return `${hours} hour${hours !== 1 ? "s" : ""}`;
-                    })()
-                  : (() => {
-                      const start = new Date(
-                        `${bookingData.startDate}T${bookingData.startTime}`
-                      );
-                      const end = new Date(
-                        `${bookingData.endDate}T${bookingData.endTime}`
-                      );
-                      const days = Math.ceil(
-                        (end.getTime() - start.getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      );
-                      return `${days} day${days !== 1 ? "s" : ""}`;
-                    })(),
+              duration: bookingData.rentalDuration === "hourly"
+                ? (() => {
+                  const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+                  const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+                  const hours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                  return `${hours} hour${hours !== 1 ? 's' : ''}`;
+                })()
+                : (() => {
+                  const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+                  const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+                  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                  return `${days} day${days !== 1 ? 's' : ''}`;
+                })(),
               customerInfo: bookingData.customerInfo,
               paymentMethod: bookingData.paymentMethod,
             });
 
             console.log("Booking saved successfully:", newBooking);
-
+            
             // Show success message with reservation ID if available
             if (reservationId) {
               toast({
@@ -1665,9 +1360,7 @@ const BookingPage = () => {
                     <span className="text-muted-foreground">Start Date:</span>
                     <div className="font-medium">{bookingData.startDate}</div>
                     <div className="text-xs text-muted-foreground">
-                      {bookingData.rentalDuration === "hourly"
-                        ? bookingData.startTime
-                        : "All day"}
+                      {bookingData.rentalDuration === "hourly" ? bookingData.startTime : "All day"}
                     </div>
                   </div>
                   <div>
@@ -1685,9 +1378,7 @@ const BookingPage = () => {
                     <span className="text-muted-foreground">End Date:</span>
                     <div className="font-medium">{bookingData.endDate}</div>
                     <div className="text-xs text-muted-foreground">
-                      {bookingData.rentalDuration === "hourly"
-                        ? bookingData.endTime
-                        : "All day"}
+                      {bookingData.rentalDuration === "hourly" ? bookingData.endTime : "All day"}
                     </div>
                   </div>
                   <div>
@@ -1799,9 +1490,7 @@ const BookingPage = () => {
         <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-lg text-muted-foreground">
-              Checking availability...
-            </p>
+            <p className="text-lg text-muted-foreground">Checking availability...</p>
           </div>
         </div>
       </PageTransition>
@@ -1832,19 +1521,17 @@ const BookingPage = () => {
                 {[1, 2, 3].map((stepNumber) => (
                   <div key={stepNumber} className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step >= stepNumber
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= stepNumber
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                        }`}
                     >
                       {stepNumber}
                     </div>
                     {stepNumber < 3 && (
                       <div
-                        className={`w-12 h-0.5 mx-2 ${
-                          step > stepNumber ? "bg-primary" : "bg-secondary"
-                        }`}
+                        className={`w-12 h-0.5 mx-2 ${step > stepNumber ? "bg-primary" : "bg-secondary"
+                          }`}
                       />
                     )}
                   </div>
@@ -1916,19 +1603,7 @@ const BookingPage = () => {
                               ) {
                                 toast({
                                   title: "Missing Information",
-                                  description:
-                                    "Please fill in all required fields.",
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-
-                              // Validate terms acceptance
-                              if (!termsAccepted) {
-                                toast({
-                                  title: "Terms Not Accepted",
-                                  description:
-                                    "Please read and accept the rental agreement terms and conditions to proceed.",
+                                  description: "Please fill in all required fields.",
                                   variant: "destructive",
                                 });
                                 return;
@@ -1936,27 +1611,20 @@ const BookingPage = () => {
 
                               // VALIDATION CHO HOURLY RENTAL
                               if (bookingData.rentalDuration === "hourly") {
-                                if (
-                                  bookingData.startDate !== bookingData.endDate
-                                ) {
+                                if (bookingData.startDate !== bookingData.endDate) {
                                   toast({
                                     title: "Invalid Date Range",
-                                    description:
-                                      "For hourly rental, start and end date must be the same.",
+                                    description: "For hourly rental, start and end date must be the same.",
                                     variant: "destructive",
                                   });
                                   return;
                                 }
 
-                                const isValidTime = validateHourlyRental(
-                                  bookingData.startTime,
-                                  bookingData.endTime
-                                );
+                                const isValidTime = validateHourlyRental(bookingData.startTime, bookingData.endTime);
                                 if (!isValidTime) {
                                   toast({
                                     title: "Invalid Time Range",
-                                    description:
-                                      "Minimum rental duration is 1 hour.",
+                                    description: "Minimum rental duration is 1 hour.",
                                     variant: "destructive",
                                   });
                                   return;
@@ -1965,22 +1633,12 @@ const BookingPage = () => {
 
                               // VALIDATION CHO DAILY RENTAL
                               if (bookingData.rentalDuration === "daily") {
-                                const start = new Date(
-                                  `${bookingData.startDate}T${bookingData.startTime}`
-                                );
-                                const end = new Date(
-                                  `${bookingData.endDate}T${bookingData.endTime}`
-                                );
+                                const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+                                const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
                                 // ✅ FIX: Tính số ngày chính xác
-                                const startDateOnly = new Date(
-                                  bookingData.startDate
-                                );
-                                const endDateOnly = new Date(
-                                  bookingData.endDate
-                                );
-                                const diffMs =
-                                  endDateOnly.getTime() -
-                                  startDateOnly.getTime();
+                                const startDateOnly = new Date(bookingData.startDate);
+                                const endDateOnly = new Date(bookingData.endDate);
+                                const diffMs = endDateOnly.getTime() - startDateOnly.getTime();
                                 const days = diffMs / (1000 * 60 * 60 * 24);
 
                                 // ✅     Cho phép từ 1 ngày trở lên (không tính giờ)
@@ -1997,20 +1655,11 @@ const BookingPage = () => {
                               // Chuyển sang payment step
                               setStep(2);
                             }}
-                            disabled={!termsAccepted}
                           >
-                            {termsAccepted
-                              ? "Continue to Payment"
-                              : "Please Accept Terms to Continue"}
+                            Continue to Payment
                           </Button>
                         )}
 
-                        {step === 1 && !termsAccepted && (
-                          <p className="text-sm text-amber-600 text-center mt-2 flex items-center justify-center">
-                            <Shield className="h-4 w-4 mr-1" />
-                            You must accept the rental agreement to proceed
-                          </p>
-                        )}
                       </CardContent>
                     </Card>
                   </div>
