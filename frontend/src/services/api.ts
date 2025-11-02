@@ -1,5 +1,6 @@
 // API Service for EV Rental System
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 // Types
 export interface Vehicle {
@@ -78,14 +79,14 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     // Get token from localStorage
-    const token = localStorage.getItem('token');
-    
+    const token = localStorage.getItem("token");
+
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
-        ...(token && { "Authorization": `Bearer ${token}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -93,12 +94,13 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || errorData.success === false 
-          ? errorData.message || `HTTP error! status: ${response.status}` 
-          : `HTTP error! status: ${response.status}`;
+        const errorMessage =
+          errorData.message || errorData.success === false
+            ? errorData.message || `HTTP error! status: ${response.status}`
+            : `HTTP error! status: ${response.status}`;
         const error = new Error(errorMessage) as any;
         error.status = response.status;
         error.data = errorData;
@@ -246,11 +248,18 @@ class ApiService {
     return this.request<Vehicle[]>("/api/vehicles/unassigned");
   }
 
-  async assignVehicleToStation(vehicleId: number, stationId: number, location: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>("/api/vehicles/assign-to-station", {
-      method: "POST",
-      body: JSON.stringify({ vehicleId, stationId, location }),
-    });
+  async assignVehicleToStation(
+    vehicleId: number,
+    stationId: number,
+    location: string
+  ): Promise<{ message: string }> {
+    return this.request<{ message: string }>(
+      "/api/vehicles/assign-to-station",
+      {
+        method: "POST",
+        body: JSON.stringify({ vehicleId, stationId, location }),
+      }
+    );
   }
 
   // Vehicle Models
@@ -283,9 +292,12 @@ class ApiService {
   }
 
   async updateStationAvailableVehicles(id: number): Promise<Station> {
-    return this.request<Station>(`/api/stations/${id}/update-available-vehicles`, {
-      method: "PUT",
-    });
+    return this.request<Station>(
+      `/api/stations/${id}/update-available-vehicles`,
+      {
+        method: "PUT",
+      }
+    );
   }
 
   // Health check
@@ -616,88 +628,91 @@ export interface Handover {
 
 // Staff API Service
 class StaffApiService {
-  private baseUrl = 'http://localhost:5000/api/staff';
+  private baseUrl = "http://localhost:5000/api/staff";
 
   // Staff Profile
   async getStaffProfile(): Promise<StaffProfile> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/profile`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch staff profile');
+      throw new Error("Failed to fetch staff profile");
     }
     return response.json();
   }
 
   // Station Info
   async getStationInfo(): Promise<StationInfo> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/station`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch station info');
+      throw new Error("Failed to fetch station info");
     }
     return response.json();
   }
 
   // Vehicle Management
   async getStationVehicles(): Promise<Vehicle[]> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/vehicles`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch station vehicles');
+      throw new Error("Failed to fetch station vehicles");
     }
     return response.json();
   }
 
   async getVehiclesByStatus(status: string): Promise<Vehicle[]> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/vehicles/status/${status}`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch vehicles by status');
+      throw new Error("Failed to fetch vehicles by status");
     }
     return response.json();
   }
 
   async getVehicle(vehicleId: number): Promise<Vehicle> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/vehicles/${vehicleId}`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch vehicle');
+      throw new Error("Failed to fetch vehicle");
     }
     return response.json();
   }
 
-  async updateVehicle(vehicleId: number, data: UpdateVehicleRequest): Promise<Vehicle> {
-    const token = localStorage.getItem('token');
+  async updateVehicle(
+    vehicleId: number,
+    data: UpdateVehicleRequest
+  ): Promise<Vehicle> {
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/vehicles/${vehicleId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error('Failed to update vehicle');
+      throw new Error("Failed to update vehicle");
     }
     const result = await response.json();
     return result.vehicle;
@@ -705,30 +720,36 @@ class StaffApiService {
 
   async addVehicle(data: AddVehicleRequest): Promise<Vehicle> {
     const response = await fetch(`${this.baseUrl}/vehicles`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error('Failed to add vehicle');
+      throw new Error("Failed to add vehicle");
     }
     const result = await response.json();
     return result.vehicle;
   }
 
   // Maintenance Management
-  async recordMaintenance(vehicleId: number, data: MaintenanceRecordRequest): Promise<MaintenanceRecord> {
-    const response = await fetch(`${this.baseUrl}/vehicles/${vehicleId}/maintenance`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+  async recordMaintenance(
+    vehicleId: number,
+    data: MaintenanceRecordRequest
+  ): Promise<MaintenanceRecord> {
+    const response = await fetch(
+      `${this.baseUrl}/vehicles/${vehicleId}/maintenance`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      }
+    );
     if (!response.ok) {
-      throw new Error('Failed to record maintenance');
+      throw new Error("Failed to record maintenance");
     }
     const result = await response.json();
     return result.record;
@@ -737,46 +758,42 @@ class StaffApiService {
   async getMaintenanceRecords(): Promise<MaintenanceRecord[]> {
     const response = await fetch(`${this.baseUrl}/maintenance`);
     if (!response.ok) {
-      throw new Error('Failed to fetch maintenance records');
+      throw new Error("Failed to fetch maintenance records");
     }
     return response.json();
   }
-
-  // Station Information
-  async getStationInfo(): Promise<StationInfo> {
-    const response = await fetch(`${this.baseUrl}/station`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch station info');
-    }
-    return response.json();
-  }
-
   // Customer Verification
   async getCustomersForVerification(): Promise<CustomerVerification[]> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/customers`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch customers for verification');
+      throw new Error("Failed to fetch customers for verification");
     }
     return response.json();
   }
 
-  async verifyCustomer(customerId: number, data: CustomerVerificationRequest): Promise<void> {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${this.baseUrl}/customers/${customerId}/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
+  async verifyCustomer(
+    customerId: number,
+    data: CustomerVerificationRequest
+  ): Promise<void> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(
+      `${this.baseUrl}/customers/${customerId}/verify`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      }
+    );
     if (!response.ok) {
-      throw new Error('Failed to verify customer');
+      throw new Error("Failed to verify customer");
     }
   }
 
@@ -784,21 +801,21 @@ class StaffApiService {
   async getHandovers(): Promise<Handover[]> {
     const response = await fetch(`${this.baseUrl}/handovers`);
     if (!response.ok) {
-      throw new Error('Failed to fetch handovers');
+      throw new Error("Failed to fetch handovers");
     }
     return response.json();
   }
 
   async recordHandover(data: HandoverRequest): Promise<Handover> {
     const response = await fetch(`${this.baseUrl}/handovers`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      throw new Error('Failed to record handover');
+      throw new Error("Failed to record handover");
     }
     const result = await response.json();
     return result.handover;
@@ -806,28 +823,28 @@ class StaffApiService {
 
   // Reservation Management
   async getStationReservations(): Promise<any> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/reservations`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch station reservations');
+      throw new Error("Failed to fetch station reservations");
     }
     return response.json();
   }
 
   // Payment Management
   async getStationPayments(): Promise<any> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/payments`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch station payments');
+      throw new Error("Failed to fetch station payments");
     }
     return response.json();
   }
@@ -835,23 +852,23 @@ class StaffApiService {
 
 // Admin API Service
 class AdminApiService {
-  private baseUrl = 'http://localhost:5000/api/admin';
+  private baseUrl = "http://localhost:5000/api/admin";
 
   // Create Vehicle (Admin only)
   async createVehicle(data: AdminCreateVehicleRequest): Promise<any> {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const response = await fetch(`${this.baseUrl}/vehicles`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(data),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Failed to create vehicle');
+      throw new Error(error.message || "Failed to create vehicle");
     }
 
     return response.json();
