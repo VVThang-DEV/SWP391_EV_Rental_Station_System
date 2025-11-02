@@ -72,3 +72,25 @@ public class ConfirmPaymentResponse
     public string? TransactionId { get; set; }
     public decimal? NewBalance { get; set; }
 }
+
+// Staff Payment History DTO with customer and vehicle info
+public class StaffPaymentDto
+{
+    public int PaymentId { get; set; }
+    public int? ReservationId { get; set; }
+    public int? RentalId { get; set; }
+    public int? UserId { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerEmail { get; set; }
+    public string? CustomerPhone { get; set; }
+    public int? VehicleId { get; set; }
+    public string? VehicleModel { get; set; }
+    public string? VehicleUniqueId { get; set; }
+    public string MethodType { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? TransactionType { get; set; } // payment, deposit, refund, withdrawal
+    public string? TransactionId { get; set; }
+    public bool IsDeposit { get; set; }
+    public DateTime CreatedAt { get; set; }
+}

@@ -548,39 +548,63 @@ const Bookings = () => {
                   </div>
                 </div>
 
-                {/* QR Code Section */}
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                    <QrCode className="h-5 w-5 text-amber-700" />
-                    Vehicle Access QR Code
-                  </h3>
-                  <p className="text-sm text-amber-700 mb-4">
-                    Scan this code when you arrive at the vehicle
-                  </p>
-                  <div className="flex justify-center p-4 bg-white rounded-xl border-2 border-amber-200">
-                    <QRCodeSVG
-                      value={JSON.stringify({
-                        reservationId: selectedBooking.reservationId,
-                        vehicleId: selectedBooking.vehicleId,
-                        stationId: selectedBooking.stationId,
-                        userId: selectedBooking.userId,
-                        startTime: selectedBooking.startTime,
-                        endTime: selectedBooking.endTime,
-                        status: selectedBooking.status,
-                        accessCode: `ACCESS_${selectedBooking.reservationId}_${Date.now()}`,
-                        timestamp: new Date().toISOString(),
-                      })}
-                      size={180}
-                      level="M"
-                      includeMargin={true}
-                      fgColor="#1f2937"
-                      bgColor="#ffffff"
-                    />
+                {/* QR Code Section - Only show for pending bookings (before unlock) */}
+                {selectedBooking.status?.toLowerCase() === 'pending' && (
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <QrCode className="h-5 w-5 text-amber-700" />
+                      Vehicle Access QR Code
+                    </h3>
+                    <p className="text-sm text-amber-700 mb-4">
+                      Scan this code when you arrive at the vehicle
+                    </p>
+                    <div className="flex justify-center p-4 bg-white rounded-xl border-2 border-amber-200">
+                      <QRCodeSVG
+                        value={JSON.stringify({
+                          reservationId: selectedBooking.reservationId,
+                          vehicleId: selectedBooking.vehicleId,
+                          stationId: selectedBooking.stationId,
+                          userId: selectedBooking.userId,
+                          startTime: selectedBooking.startTime,
+                          endTime: selectedBooking.endTime,
+                          status: selectedBooking.status,
+                          accessCode: `ACCESS_${selectedBooking.reservationId}_${Date.now()}`,
+                          timestamp: new Date().toISOString(),
+                        })}
+                        size={180}
+                        level="M"
+                        includeMargin={true}
+                        fgColor="#1f2937"
+                        bgColor="#ffffff"
+                      />
+                    </div>
+                    <p className="text-xs text-amber-700 mt-4 text-center">
+                      Keep this QR code handy - you'll need it to unlock your vehicle
+                    </p>
                   </div>
-                  <p className="text-xs text-amber-700 mt-4 text-center">
-                    Keep this QR code handy - you'll need it to unlock your vehicle
-                  </p>
-                </div>
+                )}
+
+                {/* Message for non-pending bookings */}
+                {selectedBooking.status?.toLowerCase() !== 'pending' && (
+                  <div className="bg-muted/50 border-2 border-muted rounded-lg p-6">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <QrCode className="h-5 w-5 text-muted-foreground" />
+                      Vehicle Access QR Code
+                    </h3>
+                    <div className="flex justify-center items-center p-8 bg-white rounded-xl border-2 border-muted">
+                      <div className="text-center space-y-2">
+                        <div className="text-4xl">🔒</div>
+                        <p className="text-sm text-muted-foreground font-medium">
+                          {selectedBooking.status?.toLowerCase() === 'completed' 
+                            ? 'This booking has been completed. QR code is no longer available.'
+                            : selectedBooking.status?.toLowerCase() === 'cancelled' || selectedBooking.status?.toLowerCase() === 'canceled'
+                            ? 'This booking has been cancelled. QR code is no longer available.'
+                            : 'Vehicle has been unlocked. QR code is no longer needed.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

@@ -11,6 +11,7 @@ import {
 import { WalkInVehicle } from "./types";
 import { useChargingContext } from '@/contexts/ChargingContext';
 import { BATTERY_THRESHOLDS } from '@/lib/vehicle-constants';
+import { useCurrency } from '@/lib/currency';
 
 interface WalkInVehicleSelectorProps {
   vehicles: WalkInVehicle[];
@@ -24,6 +25,7 @@ const WalkInVehicleSelector: React.FC<WalkInVehicleSelectorProps> = ({
   onVehicleSelect,
 }) => {
   const { chargingVehicles } = useChargingContext();
+  const { formatPrice } = useCurrency();
   
   // Filter out charging vehicles and low battery vehicles
   const availableVehicles = vehicles.filter(v => 
@@ -84,7 +86,7 @@ const WalkInVehicleSelector: React.FC<WalkInVehicleSelectorProps> = ({
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">
-                    {vehicle.pricePerHour.toLocaleString()}k/hour
+                    {formatPrice(vehicle.pricePerHour)}/hour
                   </span>
                 </div>
               </div>
