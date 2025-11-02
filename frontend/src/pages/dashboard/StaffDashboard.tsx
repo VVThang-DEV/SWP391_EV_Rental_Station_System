@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { useStationVehicles, useStaffProfile, useStationInfo, usePendingVehicles } from "@/hooks/useStaffApi";
+import {
+  useStationVehicles,
+  useStaffProfile,
+  useStationInfo,
+  usePendingVehicles,
+} from "@/hooks/useStaffApi";
 import { apiService, Vehicle, staffApiService } from "@/services/api";
 import {
   Card,
@@ -103,50 +108,74 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [filterStatus, setFilterStatus] = useState("all");
 
   // API Hooks for Staff Dashboard
-  const { data: staffProfile, loading: profileLoading, error: profileError } = useStaffProfile();
-  const { data: stationInfo, loading: stationLoading, error: stationError } = useStationInfo();
-  const { data: apiVehicles, updateVehicle, loading: vehiclesLoading, error: vehiclesError, refetch: refetchVehicles } = useStationVehicles();
-  const { data: pendingVehicles, loading: pendingVehiclesLoading, error: pendingVehiclesError, refetch: refetchPendingVehicles } = usePendingVehicles();
+  const {
+    data: staffProfile,
+    loading: profileLoading,
+    error: profileError,
+  } = useStaffProfile();
+  const {
+    data: stationInfo,
+    loading: stationLoading,
+    error: stationError,
+  } = useStationInfo();
+  const {
+    data: apiVehicles,
+    updateVehicle,
+    loading: vehiclesLoading,
+    error: vehiclesError,
+    refetch: refetchVehicles,
+  } = useStationVehicles();
+  const {
+    data: pendingVehicles,
+    loading: pendingVehiclesLoading,
+    error: pendingVehiclesError,
+    refetch: refetchPendingVehicles,
+  } = usePendingVehicles();
 
   // Pending customers state
   const [pendingCustomers, setPendingCustomers] = useState<any[]>([]);
   const [pendingCustomersLoading, setPendingCustomersLoading] = useState(false);
-  const [pendingCustomersError, setPendingCustomersError] = useState<string | null>(null);
+  const [pendingCustomersError, setPendingCustomersError] = useState<
+    string | null
+  >(null);
 
   // Activity logs state
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [activityLogsLoading, setActivityLogsLoading] = useState(false);
 
-  
   // Reservations / Booking History state
   const [reservations, setReservations] = useState<any[]>([]);
   const [reservationsLoading, setReservationsLoading] = useState(false);
-  const [reservationsError, setReservationsError] = useState<string | null>(null);
-  const [selectedReservation, setSelectedReservation] = useState<any | null>(null);
+  const [reservationsError, setReservationsError] = useState<string | null>(
+    null
+  );
+  const [selectedReservation, setSelectedReservation] = useState<any | null>(
+    null
+  );
   // History filter state (reuse Wallet.tsx pattern)
   const [dateFilter, setDateFilter] = useState<string>("today");
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  
-  // Activity logs state
-  const [activityLogs, setActivityLogs] = useState<any[]>([]);
-  const [activityLogsLoading, setActivityLogsLoading] = useState(false);
-  
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    new Date().getMonth() + 1
+  );
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear()
+  );
+
   // Payment history state
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
-  
+
   // Debug API data
-  console.log('Staff Profile:', staffProfile);
-  console.log('Station Info:', stationInfo);
-  console.log('API Vehicles:', apiVehicles);
-  console.log('Pending Vehicles:', pendingVehicles);
-  console.log('Pending Customers:', pendingCustomers);
-  console.log('Vehicles Loading:', vehiclesLoading);
-  console.log('Vehicles Error:', vehiclesError);
-  console.log('Token:', localStorage.getItem('token'));
+  console.log("Staff Profile:", staffProfile);
+  console.log("Station Info:", stationInfo);
+  console.log("API Vehicles:", apiVehicles);
+  console.log("Pending Vehicles:", pendingVehicles);
+  console.log("Pending Customers:", pendingCustomers);
+  console.log("Vehicles Loading:", vehiclesLoading);
+  console.log("Vehicles Error:", vehiclesError);
+  console.log("Token:", localStorage.getItem("token"));
 
   // Fetch pending customers
   const fetchPendingCustomers = async () => {
@@ -155,8 +184,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       const customers = await staffApiService.getCustomersForVerification();
       setPendingCustomers(customers);
     } catch (error) {
-      console.error('Error fetching pending customers:', error);
-      setPendingCustomersError(error instanceof Error ? error.message : 'Failed to fetch customers');
+      console.error("Error fetching pending customers:", error);
+      setPendingCustomersError(
+        error instanceof Error ? error.message : "Failed to fetch customers"
+      );
     } finally {
       setPendingCustomersLoading(false);
     }
@@ -166,21 +197,24 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const fetchActivityLogs = async () => {
     try {
       setActivityLogsLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/staff/activities/today', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        "http://localhost:5000/api/staff/activities/today",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Activity Logs:', data);
+        console.log("Activity Logs:", data);
         setActivityLogs(data);
       }
     } catch (error) {
-      console.error('Error fetching activity logs:', error);
+      console.error("Error fetching activity logs:", error);
     } finally {
       setActivityLogsLoading(false);
     }
@@ -192,11 +226,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       setReservationsLoading(true);
       setReservationsError(null);
       const data = await staffApiService.getStationReservations();
-      console.log('Station Reservations:', data);
+      console.log("Station Reservations:", data);
       setReservations(data?.reservations || []);
     } catch (error) {
-      console.error('Error fetching reservations:', error);
-      setReservationsError(error instanceof Error ? error.message : 'Failed to fetch reservations');
+      console.error("Error fetching reservations:", error);
+      setReservationsError(
+        error instanceof Error ? error.message : "Failed to fetch reservations"
+      );
     } finally {
       setReservationsLoading(false);
     }
@@ -208,11 +244,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       setPaymentsLoading(true);
       setPaymentsError(null);
       const data = await staffApiService.getStationPayments();
-      console.log('Station Payments:', data);
+      console.log("Station Payments:", data);
       setPayments(data?.payments || []);
     } catch (error) {
-      console.error('Error fetching payments:', error);
-      setPaymentsError(error instanceof Error ? error.message : 'Failed to fetch payments');
+      console.error("Error fetching payments:", error);
+      setPaymentsError(
+        error instanceof Error ? error.message : "Failed to fetch payments"
+      );
     } finally {
       setPaymentsLoading(false);
     }
@@ -228,9 +266,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   // Load incidents effect
   useEffect(() => {
     const loadIncidents = () => {
-      const stationIncidents = incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
+      const stationIncidents =
+        incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
       setIncidents(stationIncidents);
-       setUnreadIncidents(stationIncidents.filter(i => i.status === 'reported').length); // + CHỈ COUNT pending cho bell notification
+      setUnreadIncidents(
+        stationIncidents.filter((i) => i.status === "reported").length
+      ); // + CHỈ COUNT pending cho bell notification
     };
 
     // Load incidents khi component mount
@@ -251,7 +292,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     "nationalId_front" | "nationalId_back" | "driverLicense" | null
   >(null);
   const [isVerifyDocumentsOpen, setIsVerifyDocumentsOpen] = useState(false);
-  const [selectedBookingForVerification, setSelectedBookingForVerification] = useState<string | null>(null);
+  const [selectedBookingForVerification, setSelectedBookingForVerification] =
+    useState<string | null>(null);
 
   // Enhanced state for CRUD operations
   const [isEditVehicleDialogOpen, setIsEditVehicleDialogOpen] = useState(false);
@@ -275,8 +317,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [isAddVehicleDialogOpen, setIsAddVehicleDialogOpen] = useState(false);
   const [selectedModelToAdd, setSelectedModelToAdd] = useState("");
   const [unassignedVehicles, setUnassignedVehicles] = useState<Vehicle[]>([]);
-  const [unassignedVehiclesLoading, setUnassignedVehiclesLoading] = useState(false);
-  const [unassignedVehiclesError, setUnassignedVehiclesError] = useState<string | null>(null);
+  const [unassignedVehiclesLoading, setUnassignedVehiclesLoading] =
+    useState(false);
+  const [unassignedVehiclesError, setUnassignedVehiclesError] = useState<
+    string | null
+  >(null);
   const [newVehicleData, setNewVehicleData] = useState({
     batteryLevel: "100",
     condition: "excellent",
@@ -310,7 +355,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [incidentFilter, setIncidentFilter] = useState("all"); // all, reported, in_progress, resolved
   const [incidentPriorityFilter, setIncidentPriorityFilter] = useState("all"); // all, low, medium, high, urgent
   const [incidentSearchQuery, setIncidentSearchQuery] = useState("");
-  const [selectedIncidentForDetails, setSelectedIncidentForDetails] = useState<IncidentData | null>(null);
+  const [selectedIncidentForDetails, setSelectedIncidentForDetails] =
+    useState<IncidentData | null>(null);
   const [isIncidentDetailsOpen, setIsIncidentDetailsOpen] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
 
@@ -328,8 +374,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       const vehicles = await apiService.getUnassignedVehicles();
       setUnassignedVehicles(vehicles);
     } catch (error) {
-      console.error('Error loading unassigned vehicles:', error);
-      setUnassignedVehiclesError(error instanceof Error ? error.message : 'Failed to load vehicles');
+      console.error("Error loading unassigned vehicles:", error);
+      setUnassignedVehiclesError(
+        error instanceof Error ? error.message : "Failed to load vehicles"
+      );
     } finally {
       setUnassignedVehiclesLoading(false);
     }
@@ -384,19 +432,24 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   // Use provided user, but prefer API data for station info
   const currentUser = {
     ...user,
-    stationId: staffProfile?.stationId?.toString() || user?.stationId
+    stationId: staffProfile?.stationId?.toString() || user?.stationId,
   };
 
   // Use API data for station information, fallback to mock data
   // Get station name from vehicles location instead of stationInfo
-  const stationName = apiVehicles && apiVehicles.length > 0 ? apiVehicles[0].location : (stationInfo?.name || "");
+  const stationName =
+    apiVehicles && apiVehicles.length > 0
+      ? apiVehicles[0].location
+      : stationInfo?.name || "";
 
   const stationData = {
     name: stationName,
     vehicles: {
-      available: apiVehicles?.filter(v => v.status === 'available').length || 0,
-      rented: apiVehicles?.filter(v => v.status === 'rented').length || 0,
-      maintenance: apiVehicles?.filter(v => v.status === 'maintenance').length || 0,
+      available:
+        apiVehicles?.filter((v) => v.status === "available").length || 0,
+      rented: apiVehicles?.filter((v) => v.status === "rented").length || 0,
+      maintenance:
+        apiVehicles?.filter((v) => v.status === "maintenance").length || 0,
       total: apiVehicles?.length || 0,
     },
     todayStats: {
@@ -408,54 +461,58 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   // Use API data for Vehicle Management, fallback to static data
-  const vehicleList = apiVehicles ? apiVehicles.map(vehicle => ({
-    id: vehicle.uniqueVehicleId || vehicle.vehicleId.toString(),
-    name: `${vehicle.modelId} - ${vehicle.uniqueVehicleId || vehicle.vehicleId}`,
-    status: vehicle.status,
-    battery: vehicle.batteryLevel,
-    location: vehicle.location || "Unknown",
-    lastMaintenance: vehicle.lastMaintenance || "N/A",
-    bookings: [],
-    condition: vehicle.condition,
-    mileage: vehicle.mileage,
-    rating: vehicle.rating,
-    trips: vehicle.trips,
-    stationId: vehicle.stationId,
-    type: "Unknown",
-    year: 2024,
-    seats: 5,
-    range: vehicle.maxRangeKm,
-    brand: "VinFast",
-    model: vehicle.modelId,
-    availability: vehicle.status,
-    image: vehicle.image || "",
-  })) : [
-    {
-      id: "EV001",
-      name: "Tesla Model 3",
-      status: "available",
-      battery: 95,
-      location: "Slot A1",
-      lastMaintenance: "2024-01-10",
-      bookings: [],
-    },
-    {
-      id: "EV002",
-      name: "VinFast VF8",
-      status: "rented",
-      battery: 78,
-      customer: "Nguyen Van A",
-      rentedSince: "2024-01-15T09:00:00",
-      expectedReturn: "2024-01-15T17:00:00",
-    },
-    {
-      id: "EV003",
-      name: "BYD Tang",
-      status: "maintenance",
-      issue: "Battery calibration needed",
-      maintenanceStarted: "2024-01-14T10:00:00",
-    },
-  ];
+  const vehicleList = apiVehicles
+    ? apiVehicles.map((vehicle) => ({
+        id: vehicle.uniqueVehicleId || vehicle.vehicleId.toString(),
+        name: `${vehicle.modelId} - ${
+          vehicle.uniqueVehicleId || vehicle.vehicleId
+        }`,
+        status: vehicle.status,
+        battery: vehicle.batteryLevel,
+        location: vehicle.location || "Unknown",
+        lastMaintenance: vehicle.lastMaintenance || "N/A",
+        bookings: [],
+        condition: vehicle.condition,
+        mileage: vehicle.mileage,
+        rating: vehicle.rating,
+        trips: vehicle.trips,
+        stationId: vehicle.stationId,
+        type: "Unknown",
+        year: 2024,
+        seats: 5,
+        range: vehicle.maxRangeKm,
+        brand: "VinFast",
+        model: vehicle.modelId,
+        availability: vehicle.status,
+        image: vehicle.image || "",
+      }))
+    : [
+        {
+          id: "EV001",
+          name: "Tesla Model 3",
+          status: "available",
+          battery: 95,
+          location: "Slot A1",
+          lastMaintenance: "2024-01-10",
+          bookings: [],
+        },
+        {
+          id: "EV002",
+          name: "VinFast VF8",
+          status: "rented",
+          battery: 78,
+          customer: "Nguyen Van A",
+          rentedSince: "2024-01-15T09:00:00",
+          expectedReturn: "2024-01-15T17:00:00",
+        },
+        {
+          id: "EV003",
+          name: "BYD Tang",
+          status: "maintenance",
+          issue: "Battery calibration needed",
+          maintenanceStarted: "2024-01-14T10:00:00",
+        },
+      ];
 
   // Only show pending customers (NO System Registration / pending vehicles)
   const pendingBookings = pendingCustomers.map((customer) => ({
@@ -474,15 +531,21 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     licenseNumber: customer.licenseNumber,
     hasDocuments: customer.hasDocuments,
     documents: customer.documents || [],
-    licenseVerified: customer.documents?.some((d: any) => d.documentType === 'license' && d.status === 'approved') || false,
+    licenseVerified:
+      customer.documents?.some(
+        (d: any) => d.documentType === "license" && d.status === "approved"
+      ) || false,
     documentsUploaded: customer.hasDocuments,
   }));
 
-  const handleVehicleCheckout = async (vehicleId: string, bookingId?: string) => {
+  const handleVehicleCheckout = async (
+    vehicleId: string,
+    bookingId?: string
+  ) => {
     try {
       // Find the booking to get customer ID
-      const booking = pendingBookings.find(b =>
-        (b.reservationId?.toString() === bookingId) || (b.id === bookingId)
+      const booking = pendingBookings.find(
+        (b) => b.reservationId?.toString() === bookingId || b.id === bookingId
       );
 
       if (!booking) {
@@ -500,7 +563,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       await staffApiService.verifyCustomer(customerId, {
         documentType: "all",
         status: "approved",
-        notes: "Customer verified and checked out"
+        notes: "Customer verified and checked out",
       });
 
       // Refresh both vehicle lists and pending customers
@@ -534,33 +597,39 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   // Format document type for display (match registration form names)
   const formatDocumentType = (docType: string): string => {
     const typeMap: Record<string, string> = {
-      'NationalId_front': 'National ID - Front',
-      'NationalId_back': 'National ID - Back',
-      'nationalId_front': 'National ID - Front',
-      'nationalId_back': 'National ID - Back',
-      'DriverLicense': 'Driver\'s License - Front',
-      'driverLicense': 'Driver\'s License - Front',
-      'license': 'Driver\'s License - Front',
-      'driverLicenseBack': 'Driver\'s License - Back',
-      'identity': 'Identity Document (CCCD/CMND)',
+      NationalId_front: "National ID - Front",
+      NationalId_back: "National ID - Back",
+      nationalId_front: "National ID - Front",
+      nationalId_back: "National ID - Back",
+      DriverLicense: "Driver's License - Front",
+      driverLicense: "Driver's License - Front",
+      license: "Driver's License - Front",
+      driverLicenseBack: "Driver's License - Back",
+      identity: "Identity Document (CCCD/CMND)",
     };
-    return typeMap[docType] || docType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return (
+      typeMap[docType] ||
+      docType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+    );
   };
 
   const handleCustomerVerification = async (customerId: string) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/staff/customers/${customerId}/verify`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "approved",
-          notes: "Documents verified by staff",
-        }),
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/staff/customers/${customerId}/verify`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "approved",
+            notes: "Documents verified by staff",
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to verify customer");
@@ -611,12 +680,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     });
   };
 
-  const handleTakePhoto = async (bookingId: string, type: "nationalId_front" | "nationalId_back" | "driverLicense") => {
+  const handleTakePhoto = async (
+    bookingId: string,
+    type: "nationalId_front" | "nationalId_back" | "driverLicense"
+  ) => {
     // For simplicity, use file picker with camera preference on mobile
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment'; // Prefer rear camera on mobile
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "environment"; // Prefer rear camera on mobile
 
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
@@ -631,23 +703,26 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         });
 
         // Find booking to get customer email
-        const booking = pendingBookings.find(b => b.id === bookingId);
+        const booking = pendingBookings.find((b) => b.id === bookingId);
         if (!booking) {
           throw new Error("Booking not found");
         }
 
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('email', booking.email);
-        formData.append('documentType', type);
+        formData.append("file", file);
+        formData.append("email", booking.email);
+        formData.append("documentType", type);
 
-        const response = await fetch('http://localhost:5000/api/documents/upload-document', {
-          method: 'POST',
-          body: formData,
-        });
+        const response = await fetch(
+          "http://localhost:5000/api/documents/upload-document",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
         if (!response.ok) {
-          throw new Error('Photo upload failed');
+          throw new Error("Photo upload failed");
         }
 
         toast({
@@ -658,14 +733,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         // Refresh only the documents for this booking to show uploaded document immediately
         try {
           const customers = await staffApiService.getCustomersForVerification();
-          const updatedCustomer = customers.find((c: any) => c.email === booking.email);
+          const updatedCustomer = customers.find(
+            (c: any) => c.email === booking.email
+          );
 
           if (updatedCustomer) {
             // Update only this customer's documents in state
             setPendingCustomers((prev: any[]) =>
               prev.map((c: any) =>
                 c.email === booking.email
-                  ? { ...c, documents: updatedCustomer.documents, hasDocuments: updatedCustomer.hasDocuments }
+                  ? {
+                      ...c,
+                      documents: updatedCustomer.documents,
+                      hasDocuments: updatedCustomer.hasDocuments,
+                    }
                   : c
               )
             );
@@ -691,9 +772,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     type: "nationalId_front" | "nationalId_back" | "driverLicense"
   ) => {
     // Create file input element
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,.pdf';
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,.pdf";
 
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
@@ -708,23 +789,26 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         });
 
         // Find booking to get customer email
-        const booking = pendingBookings.find(b => b.id === bookingId);
+        const booking = pendingBookings.find((b) => b.id === bookingId);
         if (!booking) {
           throw new Error("Booking not found");
         }
 
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('email', booking.email);
-        formData.append('documentType', type);
+        formData.append("file", file);
+        formData.append("email", booking.email);
+        formData.append("documentType", type);
 
-        const response = await fetch('http://localhost:5000/api/documents/upload-document', {
-          method: 'POST',
-          body: formData,
-        });
+        const response = await fetch(
+          "http://localhost:5000/api/documents/upload-document",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
         if (!response.ok) {
-          throw new Error('Upload failed');
+          throw new Error("Upload failed");
         }
 
         toast({
@@ -735,14 +819,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         // Refresh only the documents for this booking to show uploaded document immediately
         try {
           const customers = await staffApiService.getCustomersForVerification();
-          const updatedCustomer = customers.find((c: any) => c.email === booking.email);
+          const updatedCustomer = customers.find(
+            (c: any) => c.email === booking.email
+          );
 
           if (updatedCustomer) {
             // Update only this customer's documents in state
             setPendingCustomers((prev: any[]) =>
               prev.map((c: any) =>
                 c.email === booking.email
-                  ? { ...c, documents: updatedCustomer.documents, hasDocuments: updatedCustomer.hasDocuments }
+                  ? {
+                      ...c,
+                      documents: updatedCustomer.documents,
+                      hasDocuments: updatedCustomer.hasDocuments,
+                    }
                   : c
               )
             );
@@ -774,8 +864,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     setFilterStatus(status);
     toast({
       title: "Filter Applied",
-      description: `Showing ${status === "all" ? "all vehicles" : status + " vehicles"
-        }.`,
+      description: `Showing ${
+        status === "all" ? "all vehicles" : status + " vehicles"
+      }.`,
     });
   };
 
@@ -804,19 +895,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   const handleSaveVehicleChanges = async () => {
-    console.log('handleSaveVehicleChanges called');
-    console.log('editingVehicle:', editingVehicle);
-    console.log('apiVehicles:', apiVehicles);
+    console.log("handleSaveVehicleChanges called");
+    console.log("editingVehicle:", editingVehicle);
+    console.log("apiVehicles:", apiVehicles);
 
     if (editingVehicle && apiVehicles) {
       try {
-        console.log('Saving vehicle changes:', editingVehicle);
-        const apiVehicle = apiVehicles.find(v =>
-          (v.uniqueVehicleId && v.uniqueVehicleId === editingVehicle.id) ||
-          v.vehicleId.toString() === editingVehicle.id
+        console.log("Saving vehicle changes:", editingVehicle);
+        const apiVehicle = apiVehicles.find(
+          (v) =>
+            (v.uniqueVehicleId && v.uniqueVehicleId === editingVehicle.id) ||
+            v.vehicleId.toString() === editingVehicle.id
         );
 
-        console.log('Found API vehicle:', apiVehicle);
+        console.log("Found API vehicle:", apiVehicle);
 
         if (apiVehicle) {
           const updateData = {
@@ -826,13 +918,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             lastMaintenance: editingVehicle.lastMaintenance,
           };
 
-          console.log('Updating vehicle with data:', updateData);
+          console.log("Updating vehicle with data:", updateData);
           await updateVehicle(apiVehicle.vehicleId, updateData);
-          console.log('Vehicle updated successfully');
+          console.log("Vehicle updated successfully");
 
           // Refresh the vehicle list to show updated data
           await refetchVehicles();
-          console.log('Vehicle list refreshed');
+          console.log("Vehicle list refreshed");
         }
 
         toast({
@@ -921,7 +1013,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       // Map database station_id to static data id
       const stationMap: { [key: number]: string } = {
         1: "st1", // District 1 Station
-        2: "st2", // District 7 Station  
+        2: "st2", // District 7 Station
         3: "st3", // Airport Station
         4: "st4", // District 3 Station
         5: "st5", // District 5 Station
@@ -930,18 +1022,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         8: "st8", // District 4 Station
       };
 
-      const stationName = stationInfo?.name ||
-        stations.find(s => s.id === stationMap[stationId])?.name ||
+      const stationName =
+        stationInfo?.name ||
+        stations.find((s) => s.id === stationMap[stationId])?.name ||
         `Station ${stationId}`;
       const location = stationName;
 
-      console.log('Debug assign vehicle:', {
+      console.log("Debug assign vehicle:", {
         vehicleId,
         stationId,
         stationInfo: stationInfo?.name,
         mappedStationId: stationMap[stationId],
-        stationFromArray: stations.find(s => s.id === stationMap[stationId])?.name,
-        finalLocation: location
+        stationFromArray: stations.find((s) => s.id === stationMap[stationId])
+          ?.name,
+        finalLocation: location,
       });
 
       await apiService.assignVehicleToStation(vehicleId, stationId, location);
@@ -959,7 +1053,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       loadUnassignedVehicles();
 
       // Notify other pages that vehicles were updated
-      localStorage.setItem('vehiclesUpdated', 'true');
+      localStorage.setItem("vehiclesUpdated", "true");
 
       // Reset form and close dialog
       setIsAddVehicleDialogOpen(false);
@@ -970,7 +1064,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         mileage: "0",
       });
     } catch (error) {
-      console.error('Error assigning vehicle:', error);
+      console.error("Error assigning vehicle:", error);
       toast({
         title: "Error",
         description: "Failed to assign vehicle to station",
@@ -1113,16 +1207,19 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   // Function xử lý incident
-  const handleIncidentAction = (incidentId: string, action: 'accept' | 'resolve') => {
-    if (action === 'accept') {
-      incidentStorage.updateIncident(incidentId, { status: 'in_progress' });
+  const handleIncidentAction = (
+    incidentId: string,
+    action: "accept" | "resolve"
+  ) => {
+    if (action === "accept") {
+      incidentStorage.updateIncident(incidentId, { status: "in_progress" });
       toast({
         title: "Incident Accepted",
         description: "You are now handling this incident.",
       });
-    } else if (action === 'resolve') {
+    } else if (action === "resolve") {
       incidentStorage.updateIncident(incidentId, {
-        status: 'resolved',
+        status: "resolved",
         resolvedAt: new Date().toISOString(),
       });
       toast({
@@ -1132,9 +1229,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }
 
     // Refresh incidents
-    const stationIncidents = incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
+    const stationIncidents =
+      incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
     setIncidents(stationIncidents);
-    setUnreadIncidents(stationIncidents.filter(i => i.status === 'reported').length); // + CHỈ COUNT pending cho bell notification
+    setUnreadIncidents(
+      stationIncidents.filter((i) => i.status === "reported").length
+    ); // + CHỈ COUNT pending cho bell notification
   };
 
   const renderVehicleManagement = () => (
@@ -1253,7 +1353,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             {vehiclesLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-2 text-muted-foreground">Loading vehicles...</p>
+                <p className="mt-2 text-muted-foreground">
+                  Loading vehicles...
+                </p>
               </div>
             ) : vehiclesError ? (
               <div className="text-center py-8 text-red-500">
@@ -1268,8 +1370,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               vehicleList
                 .filter((vehicle) =>
                   searchQuery
-                    ? vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    vehicle.id.toLowerCase().includes(searchQuery.toLowerCase())
+                    ? vehicle.name
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                      vehicle.id
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase())
                     : true
                 )
                 .map((vehicle) => (
@@ -1313,8 +1419,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                           vehicle.status === "available"
                             ? "default"
                             : vehicle.status === "rented"
-                              ? "secondary"
-                              : "destructive"
+                            ? "secondary"
+                            : "destructive"
                         }
                       >
                         {vehicle.status}
@@ -1324,9 +1430,17 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={vehicle.status === "rented" || vehicle.status === "pending"}
+                          disabled={
+                            vehicle.status === "rented" ||
+                            vehicle.status === "pending"
+                          }
                           onClick={() => handleEditVehicle(vehicle)}
-                          title={vehicle.status === "rented" || vehicle.status === "pending" ? "Cannot edit vehicle with this status" : "Edit vehicle"}
+                          title={
+                            vehicle.status === "rented" ||
+                            vehicle.status === "pending"
+                              ? "Cannot edit vehicle with this status"
+                              : "Edit vehicle"
+                          }
                         >
                           <Edit className="h-3 w-3 mr-1" />
                           Edit
@@ -1418,7 +1532,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             <p className="text-base text-muted-foreground mt-2">
               Select a registered vehicle from the system to assign to{" "}
               <strong className="text-primary">
-                {stationInfo?.name || stations.find((s) => s.id === staffProfile?.stationId?.toString())?.name}
+                {stationInfo?.name ||
+                  stations.find(
+                    (s) => s.id === staffProfile?.stationId?.toString()
+                  )?.name}
               </strong>
             </p>
           </DialogHeader>
@@ -1450,7 +1567,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 {unassignedVehiclesLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Loading vehicles...</p>
+                    <p className="mt-2 text-muted-foreground">
+                      Loading vehicles...
+                    </p>
                   </div>
                 ) : unassignedVehiclesError ? (
                   <div className="text-center py-8 text-red-500">
@@ -1464,160 +1583,168 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       Retry
                     </Button>
                   </div>
-                ) : unassignedVehicles
-                  .filter((vehicle) =>
-                    selectedModelToAdd
-                      ? vehicle.modelId
-                        .toLowerCase()
-                        .includes(selectedModelToAdd.toLowerCase()) ||
-                      vehicle.uniqueVehicleId
-                        ?.toLowerCase()
-                        .includes(selectedModelToAdd.toLowerCase()) ||
-                      vehicle.licensePlate
-                        ?.toLowerCase()
-                        .includes(selectedModelToAdd.toLowerCase())
-                      : true
-                  )
-                  .map((vehicle) => (
-                    <Card
-                      key={vehicle.vehicleId}
-                      className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${newVehicleData.mileage === vehicle.vehicleId.toString()
-                        ? "ring-2 ring-primary bg-primary/5 shadow-md"
-                        : "hover:border-primary/50"
+                ) : (
+                  unassignedVehicles
+                    .filter((vehicle) =>
+                      selectedModelToAdd
+                        ? vehicle.modelId
+                            .toLowerCase()
+                            .includes(selectedModelToAdd.toLowerCase()) ||
+                          vehicle.uniqueVehicleId
+                            ?.toLowerCase()
+                            .includes(selectedModelToAdd.toLowerCase()) ||
+                          vehicle.licensePlate
+                            ?.toLowerCase()
+                            .includes(selectedModelToAdd.toLowerCase())
+                        : true
+                    )
+                    .map((vehicle) => (
+                      <Card
+                        key={vehicle.vehicleId}
+                        className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.005] ${
+                          newVehicleData.mileage ===
+                          vehicle.vehicleId.toString()
+                            ? "ring-2 ring-primary bg-primary/5 shadow-md"
+                            : "hover:border-primary/50"
                         }`}
-                      onClick={() => {
-                        setNewVehicleData({
-                          ...newVehicleData,
-                          mileage: vehicle.vehicleId.toString(), // Using mileage field to store selected vehicle ID temporarily
-                        });
-                      }}
-                    >
-                      <CardContent className="p-3 pl-4">
-                        <div className="flex gap-3">
-                          {/* Vehicle Image */}
-                          <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
-                            <img
-                              src={vehicle.image || "/placeholder.svg"}
-                              alt={vehicle.modelId}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
+                        onClick={() => {
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            mileage: vehicle.vehicleId.toString(), // Using mileage field to store selected vehicle ID temporarily
+                          });
+                        }}
+                      >
+                        <CardContent className="p-3 pl-4">
+                          <div className="flex gap-3">
+                            {/* Vehicle Image */}
+                            <div className="w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-muted shadow-sm">
+                              <img
+                                src={vehicle.image || "/placeholder.svg"}
+                                alt={vehicle.modelId}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
 
-                          {/* Vehicle Details */}
-                          <div className="flex-1 space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <h4 className="font-bold text-lg text-foreground">
-                                  {vehicle.modelId}
-                                </h4>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  SUV • 2024
-                                </p>
-                                {vehicle.licensePlate && (
-                                  <p className="text-sm font-semibold text-primary mt-1">
-                                    License: {vehicle.licensePlate}
+                            {/* Vehicle Details */}
+                            <div className="flex-1 space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-bold text-lg text-foreground">
+                                    {vehicle.modelId}
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    SUV • 2024
                                   </p>
+                                  {vehicle.licensePlate && (
+                                    <p className="text-sm font-semibold text-primary mt-1">
+                                      License: {vehicle.licensePlate}
+                                    </p>
+                                  )}
+                                </div>
+                                {newVehicleData.mileage ===
+                                  vehicle.vehicleId.toString() && (
+                                  <Badge className="bg-primary text-white text-base px-3 py-1.5 shadow-md">
+                                    ✓ Selected
+                                  </Badge>
                                 )}
                               </div>
-                              {newVehicleData.mileage === vehicle.vehicleId.toString() && (
-                                <Badge className="bg-primary text-white text-base px-3 py-1.5 shadow-md">
-                                  ✓ Selected
-                                </Badge>
-                              )}
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-xs text-muted-foreground">
-                                    VIN
-                                  </span>
-                                  <span className="font-mono text-xs truncate">
-                                    {vehicle.uniqueVehicleId || vehicle.vehicleId.toString()}
-                                  </span>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs text-muted-foreground">
+                                      VIN
+                                    </span>
+                                    <span className="font-mono text-xs truncate">
+                                      {vehicle.uniqueVehicleId ||
+                                        vehicle.vehicleId.toString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-md">
+                                  <Battery className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground">
+                                      Battery
+                                    </span>
+                                    <span className="font-semibold text-green-600">
+                                      {vehicle.batteryLevel}%
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
+                                  <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground">
+                                      Range
+                                    </span>
+                                    <span className="font-semibold">
+                                      {vehicle.maxRangeKm} km
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/20 rounded-md">
+                                  <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground">
+                                      Seats
+                                    </span>
+                                    <span className="font-semibold">5</span>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-md">
-                                <Battery className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">
-                                    Battery
-                                  </span>
-                                  <span className="font-semibold text-green-600">
-                                    {vehicle.batteryLevel}%
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
-                                <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">
-                                    Range
-                                  </span>
-                                  <span className="font-semibold">
-                                    {vehicle.maxRangeKm} km
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 p-2 bg-purple-50 dark:bg-purple-950/20 rounded-md">
-                                <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">
-                                    Seats
-                                  </span>
-                                  <span className="font-semibold">
-                                    5
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
 
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <Badge
-                                className="text-sm px-3 py-1"
-                                variant={
-                                  vehicle.condition === "excellent"
-                                    ? "default"
-                                    : vehicle.condition === "good"
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <Badge
+                                  className="text-sm px-3 py-1"
+                                  variant={
+                                    vehicle.condition === "excellent"
+                                      ? "default"
+                                      : vehicle.condition === "good"
                                       ? "secondary"
                                       : "outline"
-                                }
-                              >
-                                {vehicle.condition === "excellent"
-                                  ? "✅"
-                                  : vehicle.condition === "good"
+                                  }
+                                >
+                                  {vehicle.condition === "excellent"
+                                    ? "✅"
+                                    : vehicle.condition === "good"
                                     ? "👍"
                                     : "⚠️"}{" "}
-                                {vehicle.condition}
-                              </Badge>
-                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                <span className="font-medium">
-                                  ₫{vehicle.pricePerHour.toLocaleString()}/hr
-                                </span>
-                                <span className="text-muted-foreground">•</span>
-                                <span className="font-medium">
-                                  ₫{vehicle.pricePerDay.toLocaleString()}/day
-                                </span>
+                                  {vehicle.condition}
+                                </Badge>
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                  <span className="font-medium">
+                                    ₫{vehicle.pricePerHour.toLocaleString()}/hr
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    •
+                                  </span>
+                                  <span className="font-medium">
+                                    ₫{vehicle.pricePerDay.toLocaleString()}/day
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-
-                {unassignedVehicles.length === 0 && !unassignedVehiclesLoading && !unassignedVehiclesError && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="font-medium">
-                      No unassigned vehicles available
-                    </p>
-                    <p className="text-sm">
-                      All vehicles have been assigned to stations
-                    </p>
-                  </div>
+                        </CardContent>
+                      </Card>
+                    ))
                 )}
+
+                {unassignedVehicles.length === 0 &&
+                  !unassignedVehiclesLoading &&
+                  !unassignedVehiclesError && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="font-medium">
+                        No unassigned vehicles available
+                      </p>
+                      <p className="text-sm">
+                        All vehicles have been assigned to stations
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -1636,10 +1763,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     <li>
                       Selected vehicle will be assigned to:{" "}
                       <strong>
-                        {
-                          stationInfo?.name || stations.find((s) => s.id === staffProfile?.stationId?.toString())
-                            ?.name
-                        }
+                        {stationInfo?.name ||
+                          stations.find(
+                            (s) => s.id === staffProfile?.stationId?.toString()
+                          )?.name}
                       </strong>
                     </li>
                     <li>
@@ -2120,12 +2247,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {(pendingCustomersLoading || pendingVehiclesLoading) ? (
+            {pendingCustomersLoading || pendingVehiclesLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                 <p className="mt-2 text-muted-foreground">Loading...</p>
               </div>
-            ) : (pendingCustomersError || pendingVehiclesError) ? (
+            ) : pendingCustomersError || pendingVehiclesError ? (
               <div className="text-center py-8 text-red-500">
                 <p>Error: {pendingCustomersError || pendingVehiclesError}</p>
               </div>
@@ -2155,7 +2282,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         </p>
                       )}
                       <p className="text-sm text-muted-foreground">
-                        Registered: {new Date(booking.registeredAt).toLocaleString()}
+                        Registered:{" "}
+                        {new Date(booking.registeredAt).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -2184,7 +2312,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
                     <div className="flex space-x-2">
                       <Dialog
-                        open={isVerifyDocumentsOpen && selectedBookingForVerification === booking.id}
+                        open={
+                          isVerifyDocumentsOpen &&
+                          selectedBookingForVerification === booking.id
+                        }
                         onOpenChange={(open) => {
                           setIsVerifyDocumentsOpen(open);
                           if (open) {
@@ -2203,51 +2334,97 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle>Customer Verification: {booking.customer}</DialogTitle>
+                            <DialogTitle>
+                              Customer Verification: {booking.customer}
+                            </DialogTitle>
                             <DialogDescription>
-                              Review and verify customer documents before approving vehicle pickup
+                              Review and verify customer documents before
+                              approving vehicle pickup
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-6">
                             {/* Customer Info */}
                             <div className="space-y-2">
-                              <h3 className="font-semibold">Customer Information</h3>
+                              <h3 className="font-semibold">
+                                Customer Information
+                              </h3>
                               <div className="grid grid-cols-2 gap-2 text-sm">
-                                <p><span className="font-medium">Name:</span> {booking.customer}</p>
-                                {booking.phone && <p><span className="font-medium">Phone:</span> {booking.phone}</p>}
-                                {booking.email && <p><span className="font-medium">Email:</span> {booking.email}</p>}
-                                <p><span className="font-medium">Vehicle:</span> {booking.vehicle}</p>
+                                <p>
+                                  <span className="font-medium">Name:</span>{" "}
+                                  {booking.customer}
+                                </p>
+                                {booking.phone && (
+                                  <p>
+                                    <span className="font-medium">Phone:</span>{" "}
+                                    {booking.phone}
+                                  </p>
+                                )}
+                                {booking.email && (
+                                  <p>
+                                    <span className="font-medium">Email:</span>{" "}
+                                    {booking.email}
+                                  </p>
+                                )}
+                                <p>
+                                  <span className="font-medium">Vehicle:</span>{" "}
+                                  {booking.vehicle}
+                                </p>
                               </div>
                             </div>
 
                             {/* Documents Section */}
-                            {booking.documents && booking.documents.length > 0 && (
-                              <div className="space-y-4">
-                                <h3 className="font-semibold">Uploaded Documents</h3>
-                                <div className="space-y-3">
-                                  {booking.documents.map((doc: any) => (
-                                    <div key={doc.documentId} className="border rounded-lg p-3">
-                                      <div className="flex items-center justify-between mb-2">
-                                        <Label className="font-semibold">{formatDocumentType(doc.documentType)}</Label>
-                                        <Badge variant={doc.status === 'approved' ? 'default' : 'secondary'}>
-                                          {doc.status || 'Pending'}
-                                        </Badge>
+                            {booking.documents &&
+                              booking.documents.length > 0 && (
+                                <div className="space-y-4">
+                                  <h3 className="font-semibold">
+                                    Uploaded Documents
+                                  </h3>
+                                  <div className="space-y-3">
+                                    {booking.documents.map((doc: any) => (
+                                      <div
+                                        key={doc.documentId}
+                                        className="border rounded-lg p-3"
+                                      >
+                                        <div className="flex items-center justify-between mb-2">
+                                          <Label className="font-semibold">
+                                            {formatDocumentType(
+                                              doc.documentType
+                                            )}
+                                          </Label>
+                                          <Badge
+                                            variant={
+                                              doc.status === "approved"
+                                                ? "default"
+                                                : "secondary"
+                                            }
+                                          >
+                                            {doc.status || "Pending"}
+                                          </Badge>
+                                        </div>
+                                        <img
+                                          src={`http://localhost:5000${doc.fileUrl}`}
+                                          alt={formatDocumentType(
+                                            doc.documentType
+                                          )}
+                                          className="w-full h-48 object-contain bg-muted rounded border cursor-pointer"
+                                          onClick={() =>
+                                            window.open(
+                                              `http://localhost:5000${doc.fileUrl}`,
+                                              "_blank"
+                                            )
+                                          }
+                                        />
                                       </div>
-                                      <img
-                                        src={`http://localhost:5000${doc.fileUrl}`}
-                                        alt={formatDocumentType(doc.documentType)}
-                                        className="w-full h-48 object-contain bg-muted rounded border cursor-pointer"
-                                        onClick={() => window.open(`http://localhost:5000${doc.fileUrl}`, '_blank')}
-                                      />
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
                             {/* Verify Documents Section */}
                             <div className="space-y-4">
-                              <h3 className="font-semibold">Verify Documents</h3>
+                              <h3 className="font-semibold">
+                                Verify Documents
+                              </h3>
 
                               {/* National ID - Front */}
                               <div>
@@ -2258,7 +2435,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleTakePhoto(booking.id, "nationalId_front")
+                                      handleTakePhoto(
+                                        booking.id,
+                                        "nationalId_front"
+                                      )
                                     }
                                   >
                                     <Camera className="h-4 w-4 mr-2" />
@@ -2269,7 +2449,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleUploadDocument(booking.id, "nationalId_front")
+                                      handleUploadDocument(
+                                        booking.id,
+                                        "nationalId_front"
+                                      )
                                     }
                                   >
                                     <Upload className="h-4 w-4 mr-2" />
@@ -2287,7 +2470,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleTakePhoto(booking.id, "nationalId_back")
+                                      handleTakePhoto(
+                                        booking.id,
+                                        "nationalId_back"
+                                      )
                                     }
                                   >
                                     <Camera className="h-4 w-4 mr-2" />
@@ -2298,7 +2484,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleUploadDocument(booking.id, "nationalId_back")
+                                      handleUploadDocument(
+                                        booking.id,
+                                        "nationalId_back"
+                                      )
                                     }
                                   >
                                     <Upload className="h-4 w-4 mr-2" />
@@ -2316,7 +2505,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleTakePhoto(booking.id, "driverLicense")
+                                      handleTakePhoto(
+                                        booking.id,
+                                        "driverLicense"
+                                      )
                                     }
                                   >
                                     <Camera className="h-4 w-4 mr-2" />
@@ -2327,7 +2519,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                                     size="sm"
                                     className="flex-1"
                                     onClick={() =>
-                                      handleUploadDocument(booking.id, "driverLicense")
+                                      handleUploadDocument(
+                                        booking.id,
+                                        "driverLicense"
+                                      )
                                     }
                                   >
                                     <Upload className="h-4 w-4 mr-2" />
@@ -2351,7 +2546,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </div>
                 </div>
-              )))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -2364,7 +2560,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {documentType ? formatDocumentType(documentType) : "Document"} Capture
+              {documentType ? formatDocumentType(documentType) : "Document"}{" "}
+              Capture
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -2393,14 +2590,30 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     // Helper to get transaction icon and color
     const getTransactionIcon = (transactionType: string) => {
       switch (transactionType?.toLowerCase()) {
-        case 'payment':
-          return { icon: <DollarSign className="h-5 w-5 text-red-600" />, label: 'Payment', color: 'text-red-600' };
-        case 'refund':
-          return { icon: <RefreshCw className="h-5 w-5 text-green-600" />, label: 'Refund', color: 'text-green-600' };
-        case 'deposit':
-          return { icon: <DollarSign className="h-5 w-5 text-blue-600" />, label: 'Deposit', color: 'text-blue-600' };
+        case "payment":
+          return {
+            icon: <DollarSign className="h-5 w-5 text-red-600" />,
+            label: "Payment",
+            color: "text-red-600",
+          };
+        case "refund":
+          return {
+            icon: <RefreshCw className="h-5 w-5 text-green-600" />,
+            label: "Refund",
+            color: "text-green-600",
+          };
+        case "deposit":
+          return {
+            icon: <DollarSign className="h-5 w-5 text-blue-600" />,
+            label: "Deposit",
+            color: "text-blue-600",
+          };
         default:
-          return { icon: <CreditCard className="h-5 w-5" />, label: 'Transaction', color: '' };
+          return {
+            icon: <CreditCard className="h-5 w-5" />,
+            label: "Transaction",
+            color: "",
+          };
       }
     };
 
@@ -2422,7 +2635,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 disabled={paymentsLoading}
                 className="gap-2"
               >
-                <RefreshCw className={`h-4 w-4 ${paymentsLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${paymentsLoading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
             </div>
@@ -2431,7 +2646,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             {paymentsLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-2 text-muted-foreground">Loading payments...</p>
+                <p className="mt-2 text-muted-foreground">
+                  Loading payments...
+                </p>
               </div>
             ) : paymentsError ? (
               <div className="text-center py-8 text-red-500">
@@ -2445,36 +2662,68 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             ) : (
               <div className="space-y-3">
                 {payments.map((payment: any) => {
-                  const transactionInfo = getTransactionIcon(payment.transactionType);
-                  const isRefund = payment.transactionType?.toLowerCase() === 'refund';
-                  
+                  const transactionInfo = getTransactionIcon(
+                    payment.transactionType
+                  );
+                  const isRefund =
+                    payment.transactionType?.toLowerCase() === "refund";
+
                   return (
-                    <div key={payment.paymentId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div
+                      key={payment.paymentId}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
                       <div className="flex items-center space-x-3 flex-1">
                         {transactionInfo.icon}
                         <div className="flex-1">
                           <p className="font-medium flex items-center gap-2">
-                            <span className={transactionInfo.color}>{transactionInfo.label}</span>
-                            <span className="text-muted-foreground">• #{payment.paymentId}</span>
+                            <span className={transactionInfo.color}>
+                              {transactionInfo.label}
+                            </span>
+                            <span className="text-muted-foreground">
+                              • #{payment.paymentId}
+                            </span>
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {payment.customerName || 'Unknown'} 
-                            {payment.vehicleModel && ` • ${payment.vehicleModel}`}
-                            {payment.vehicleUniqueId && ` (${payment.vehicleUniqueId})`}
+                            {payment.customerName || "Unknown"}
+                            {payment.vehicleModel &&
+                              ` • ${payment.vehicleModel}`}
+                            {payment.vehicleUniqueId &&
+                              ` (${payment.vehicleUniqueId})`}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                            <span>{new Date(payment.createdAt).toLocaleString('vi-VN')}</span>
+                            <span>
+                              {new Date(payment.createdAt).toLocaleString(
+                                "vi-VN"
+                              )}
+                            </span>
                             <span>•</span>
-                            <span className="capitalize">{payment.methodType}</span>
+                            <span className="capitalize">
+                              {payment.methodType}
+                            </span>
                           </p>
                         </div>
                       </div>
                       <div className="text-right flex items-center gap-3">
                         <div>
-                          <p className={`font-semibold text-lg ${isRefund ? 'text-green-600' : 'text-red-600'}`}>
-                            {isRefund ? '+' : '-'}{payment.amount.toLocaleString('vi-VN')} VND
+                          <p
+                            className={`font-semibold text-lg ${
+                              isRefund ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {isRefund ? "+" : "-"}
+                            {payment.amount.toLocaleString("vi-VN")} VND
                           </p>
-                          <Badge variant={payment.status === 'success' ? 'default' : payment.status === 'refunded' ? 'outline' : 'secondary'} className="capitalize">
+                          <Badge
+                            variant={
+                              payment.status === "success"
+                                ? "default"
+                                : payment.status === "refunded"
+                                ? "outline"
+                                : "secondary"
+                            }
+                            className="capitalize"
+                          >
                             {payment.status}
                           </Badge>
                         </div>
@@ -2497,10 +2746,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </Card>
 
         {/* Payment Details Dialog */}
-        <Dialog open={!!selectedPayment} onOpenChange={(o) => !o && setSelectedPayment(null)}>
+        <Dialog
+          open={!!selectedPayment}
+          onOpenChange={(o) => !o && setSelectedPayment(null)}
+        >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Payment Details #{selectedPayment?.paymentId}</DialogTitle>
+              <DialogTitle>
+                Payment Details #{selectedPayment?.paymentId}
+              </DialogTitle>
               <DialogDescription>
                 Complete transaction information
               </DialogDescription>
@@ -2514,18 +2768,62 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     Transaction Information
                   </h3>
                   <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
-                    <p><span className="font-medium">Payment ID:</span> #{selectedPayment.paymentId}</p>
-                    <p><span className="font-medium">Type:</span> <span className="capitalize">{selectedPayment.transactionType || 'Payment'}</span></p>
-                    <p><span className="font-medium">Method:</span> <span className="capitalize">{selectedPayment.methodType}</span></p>
-                    <p><span className="font-medium">Status:</span> <Badge className="ml-1 capitalize" variant={selectedPayment.status === 'success' ? 'default' : 'secondary'}>{selectedPayment.status}</Badge></p>
-                    <p className="col-span-2">
-                      <span className="font-medium">Amount:</span> 
-                      <span className={`ml-2 text-lg font-semibold ${selectedPayment.transactionType?.toLowerCase() === 'refund' ? 'text-green-600' : 'text-red-600'}`}>
-                        {selectedPayment.transactionType?.toLowerCase() === 'refund' ? '+' : '-'}{selectedPayment.amount.toLocaleString('vi-VN')} VND
+                    <p>
+                      <span className="font-medium">Payment ID:</span> #
+                      {selectedPayment.paymentId}
+                    </p>
+                    <p>
+                      <span className="font-medium">Type:</span>{" "}
+                      <span className="capitalize">
+                        {selectedPayment.transactionType || "Payment"}
                       </span>
                     </p>
-                    <p className="col-span-2"><span className="font-medium">Transaction ID:</span> {selectedPayment.transactionId || 'N/A'}</p>
-                    <p className="col-span-2"><span className="font-medium">Created At:</span> {new Date(selectedPayment.createdAt).toLocaleString('vi-VN')}</p>
+                    <p>
+                      <span className="font-medium">Method:</span>{" "}
+                      <span className="capitalize">
+                        {selectedPayment.methodType}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="font-medium">Status:</span>{" "}
+                      <Badge
+                        className="ml-1 capitalize"
+                        variant={
+                          selectedPayment.status === "success"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {selectedPayment.status}
+                      </Badge>
+                    </p>
+                    <p className="col-span-2">
+                      <span className="font-medium">Amount:</span>
+                      <span
+                        className={`ml-2 text-lg font-semibold ${
+                          selectedPayment.transactionType?.toLowerCase() ===
+                          "refund"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {selectedPayment.transactionType?.toLowerCase() ===
+                        "refund"
+                          ? "+"
+                          : "-"}
+                        {selectedPayment.amount.toLocaleString("vi-VN")} VND
+                      </span>
+                    </p>
+                    <p className="col-span-2">
+                      <span className="font-medium">Transaction ID:</span>{" "}
+                      {selectedPayment.transactionId || "N/A"}
+                    </p>
+                    <p className="col-span-2">
+                      <span className="font-medium">Created At:</span>{" "}
+                      {new Date(selectedPayment.createdAt).toLocaleString(
+                        "vi-VN"
+                      )}
+                    </p>
                   </div>
                 </div>
 
@@ -2540,10 +2838,22 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         Customer Information
                       </h3>
                       <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
-                        <p><span className="font-medium">Name:</span> {selectedPayment.customerName}</p>
-                        <p><span className="font-medium">User ID:</span> {selectedPayment.userId || 'N/A'}</p>
-                        <p><span className="font-medium">Email:</span> {selectedPayment.customerEmail || 'N/A'}</p>
-                        <p><span className="font-medium">Phone:</span> {selectedPayment.customerPhone || 'N/A'}</p>
+                        <p>
+                          <span className="font-medium">Name:</span>{" "}
+                          {selectedPayment.customerName}
+                        </p>
+                        <p>
+                          <span className="font-medium">User ID:</span>{" "}
+                          {selectedPayment.userId || "N/A"}
+                        </p>
+                        <p>
+                          <span className="font-medium">Email:</span>{" "}
+                          {selectedPayment.customerEmail || "N/A"}
+                        </p>
+                        <p>
+                          <span className="font-medium">Phone:</span>{" "}
+                          {selectedPayment.customerPhone || "N/A"}
+                        </p>
                       </div>
                     </div>
                     <Separator />
@@ -2559,10 +2869,19 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         Vehicle Information
                       </h3>
                       <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
-                        <p><span className="font-medium">Model:</span> {selectedPayment.vehicleModel}</p>
-                        <p><span className="font-medium">Unique ID:</span> {selectedPayment.vehicleUniqueId || 'N/A'}</p>
+                        <p>
+                          <span className="font-medium">Model:</span>{" "}
+                          {selectedPayment.vehicleModel}
+                        </p>
+                        <p>
+                          <span className="font-medium">Unique ID:</span>{" "}
+                          {selectedPayment.vehicleUniqueId || "N/A"}
+                        </p>
                         {selectedPayment.reservationId && (
-                          <p><span className="font-medium">Reservation ID:</span> #{selectedPayment.reservationId}</p>
+                          <p>
+                            <span className="font-medium">Reservation ID:</span>{" "}
+                            #{selectedPayment.reservationId}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -2592,19 +2911,27 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
     const withinRange = (dateStr: string | null | undefined) => {
       if (!dateStr) return dateFilter === "all"; // If no date, only show in "all" filter
-      
+
       try {
         const now = new Date();
         const d = new Date(dateStr);
-        
+
         // Check if date is valid
         if (isNaN(d.getTime())) return dateFilter === "all";
-        
+
         if (dateFilter === "all") return true;
         if (dateFilter === "today") {
           // Compare date parts only (ignore time)
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const compareDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          const today = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+          const compareDate = new Date(
+            d.getFullYear(),
+            d.getMonth(),
+            d.getDate()
+          );
           return today.getTime() === compareDate.getTime();
         }
         if (dateFilter === "week") {
@@ -2616,29 +2943,34 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           return d >= monthAgo;
         }
         if (dateFilter === "specific-month") {
-          return d.getMonth() + 1 === selectedMonth && d.getFullYear() === selectedYear;
+          return (
+            d.getMonth() + 1 === selectedMonth &&
+            d.getFullYear() === selectedYear
+          );
         }
         return true;
       } catch (error) {
-        console.error('Error parsing date:', dateStr, error);
+        console.error("Error parsing date:", dateStr, error);
         return dateFilter === "all";
       }
     };
 
     const activeBookings = reservations
-      .filter((r: any) => bookingStatuses.includes((r.status || '').toLowerCase()))
+      .filter((r: any) =>
+        bookingStatuses.includes((r.status || "").toLowerCase())
+      )
       .filter((r: any) => withinRange(r.createdAt || r.startTime));
 
     const canceledBookings = reservations
       .filter((r: any) => {
-        const status = (r.status || '').toLowerCase();
-        return status === 'cancelled' || status === 'canceled';
+        const status = (r.status || "").toLowerCase();
+        return status === "cancelled" || status === "canceled";
       })
       .filter((r: any) => withinRange(r.cancelledAt || r.createdAt));
-    
-    console.log('All reservations:', reservations);
-    console.log('Canceled bookings:', canceledBookings);
-    console.log('Date filter:', dateFilter);
+
+    console.log("All reservations:", reservations);
+    console.log("Canceled bookings:", canceledBookings);
+    console.log("Date filter:", dateFilter);
 
     return (
       <div className="space-y-6">
@@ -2659,7 +2991,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   disabled={reservationsLoading}
                   className="gap-2"
                 >
-                  <RefreshCw className={`h-4 w-4 ${reservationsLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 ${
+                      reservationsLoading ? "animate-spin" : ""
+                    }`}
+                  />
                   Refresh
                 </Button>
                 <div className="w-40">
@@ -2671,14 +3007,19 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="week">This Week</SelectItem>
                       <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="specific-month">Specific Month</SelectItem>
+                      <SelectItem value="specific-month">
+                        Specific Month
+                      </SelectItem>
                       <SelectItem value="all">All Time</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                {dateFilter === 'specific-month' && (
+                {dateFilter === "specific-month" && (
                   <div className="flex items-center gap-2">
-                    <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                    <Select
+                      value={String(selectedMonth)}
+                      onValueChange={(v) => setSelectedMonth(parseInt(v))}
+                    >
                       <SelectTrigger className="w-28">
                         <SelectValue placeholder="Month" />
                       </SelectTrigger>
@@ -2697,14 +3038,21 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <SelectItem value="12">December</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                    <Select
+                      value={String(selectedYear)}
+                      onValueChange={(v) => setSelectedYear(parseInt(v))}
+                    >
                       <SelectTrigger className="w-28">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
                       <SelectContent>
                         {Array.from({ length: 6 }).map((_, idx) => {
                           const y = new Date().getFullYear() - 3 + idx;
-                          return <SelectItem key={y} value={String(y)}>{y}</SelectItem>;
+                          return (
+                            <SelectItem key={y} value={String(y)}>
+                              {y}
+                            </SelectItem>
+                          );
                         })}
                       </SelectContent>
                     </Select>
@@ -2725,7 +3073,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 {reservationsLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Loading bookings...</p>
+                    <p className="mt-2 text-muted-foreground">
+                      Loading bookings...
+                    </p>
                   </div>
                 ) : reservationsError ? (
                   <div className="text-center py-8 text-red-500">
@@ -2749,25 +3099,40 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             <Car className="h-5 w-5 text-primary" />
                             <div className="flex-1">
                               <p className="font-medium">
-                                #{bk.reservationId} • {bk.vehicleModel || bk.vehicleUniqueId || v?.name || `Vehicle ${bk.vehicleId}`}
+                                #{bk.reservationId} •{" "}
+                                {bk.vehicleModel ||
+                                  bk.vehicleUniqueId ||
+                                  v?.name ||
+                                  `Vehicle ${bk.vehicleId}`}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                {bk.userName || `User ${bk.userId}`} {bk.userPhone && `• ${bk.userPhone}`}
+                                {bk.userName || `User ${bk.userId}`}{" "}
+                                {bk.userPhone && `• ${bk.userPhone}`}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(bk.startTime).toLocaleString('vi-VN')} → {new Date(bk.endTime).toLocaleString('vi-VN')}
+                                {new Date(bk.startTime).toLocaleString("vi-VN")}{" "}
+                                → {new Date(bk.endTime).toLocaleString("vi-VN")}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge className="capitalize" variant="secondary">{bk.status}</Badge>
+                            <Badge className="capitalize" variant="secondary">
+                              {bk.status}
+                            </Badge>
                             {v?.battery !== undefined && (
-                              <div className="text-sm text-muted-foreground">🔋 {v.battery}%</div>
+                              <div className="text-sm text-muted-foreground">
+                                🔋 {v.battery}%
+                              </div>
                             )}
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setSelectedReservation({ ...bk, vehicleInfo: v })}
+                              onClick={() =>
+                                setSelectedReservation({
+                                  ...bk,
+                                  vehicleInfo: v,
+                                })
+                              }
                               className="gap-2"
                             >
                               <Eye className="h-4 w-4" />
@@ -2786,7 +3151,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 {reservationsLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-2 text-muted-foreground">Loading cancellations...</p>
+                    <p className="mt-2 text-muted-foreground">
+                      Loading cancellations...
+                    </p>
                   </div>
                 ) : canceledBookings.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -2798,34 +3165,52 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     {canceledBookings.map((bk: any) => {
                       const v = getVehicleInfo(bk.vehicleId);
                       return (
-                        <div 
-                          key={bk.reservationId} 
+                        <div
+                          key={bk.reservationId}
                           className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg hover:bg-muted/50 transition-colors"
                         >
                           <div className="flex items-center space-x-3 flex-1">
                             <X className="h-5 w-5 text-destructive" />
                             <div className="flex-1">
                               <p className="font-medium">
-                                #{bk.reservationId} • {bk.vehicleModel || bk.vehicleUniqueId || v?.name || `Vehicle ${bk.vehicleId}`}
+                                #{bk.reservationId} •{" "}
+                                {bk.vehicleModel ||
+                                  bk.vehicleUniqueId ||
+                                  v?.name ||
+                                  `Vehicle ${bk.vehicleId}`}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                {bk.userName || `User ${bk.userId}`} {bk.userPhone && `• ${bk.userPhone}`}
+                                {bk.userName || `User ${bk.userId}`}{" "}
+                                {bk.userPhone && `• ${bk.userPhone}`}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Reason: {bk.cancellationReason || 'No reason provided'}
+                                Reason:{" "}
+                                {bk.cancellationReason || "No reason provided"}
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                Cancelled: {bk.cancelledAt ? new Date(bk.cancelledAt).toLocaleString('vi-VN') : 'Unknown'}
+                                Cancelled:{" "}
+                                {bk.cancelledAt
+                                  ? new Date(bk.cancelledAt).toLocaleString(
+                                      "vi-VN"
+                                    )
+                                  : "Unknown"}
                                 {bk.cancelledBy && ` by ${bk.cancelledBy}`}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="destructive" className="capitalize">{bk.status}</Badge>
+                            <Badge variant="destructive" className="capitalize">
+                              {bk.status}
+                            </Badge>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setSelectedReservation({ ...bk, vehicleInfo: v })}
+                              onClick={() =>
+                                setSelectedReservation({
+                                  ...bk,
+                                  vehicleInfo: v,
+                                })
+                              }
                               className="gap-2"
                             >
                               <Eye className="h-4 w-4" />
@@ -2843,10 +3228,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </Card>
 
         {/* Reservation details dialog */}
-        <Dialog open={!!selectedReservation} onOpenChange={(o) => !o && setSelectedReservation(null)}>
+        <Dialog
+          open={!!selectedReservation}
+          onOpenChange={(o) => !o && setSelectedReservation(null)}
+        >
           <DialogContent className="max-w-xl">
             <DialogHeader>
-              <DialogTitle>Booking Details #{selectedReservation?.reservationId}</DialogTitle>
+              <DialogTitle>
+                Booking Details #{selectedReservation?.reservationId}
+              </DialogTitle>
               <DialogDescription>
                 Detailed information about this booking and vehicle
               </DialogDescription>
@@ -2859,10 +3249,22 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     Customer Information
                   </h3>
                   <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
-                    <p><span className="font-medium">Name:</span> {selectedReservation.userName || 'N/A'}</p>
-                    <p><span className="font-medium">User ID:</span> {selectedReservation.userId}</p>
-                    <p><span className="font-medium">Email:</span> {selectedReservation.userEmail || 'N/A'}</p>
-                    <p><span className="font-medium">Phone:</span> {selectedReservation.userPhone || 'N/A'}</p>
+                    <p>
+                      <span className="font-medium">Name:</span>{" "}
+                      {selectedReservation.userName || "N/A"}
+                    </p>
+                    <p>
+                      <span className="font-medium">User ID:</span>{" "}
+                      {selectedReservation.userId}
+                    </p>
+                    <p>
+                      <span className="font-medium">Email:</span>{" "}
+                      {selectedReservation.userEmail || "N/A"}
+                    </p>
+                    <p>
+                      <span className="font-medium">Phone:</span>{" "}
+                      {selectedReservation.userPhone || "N/A"}
+                    </p>
                   </div>
                 </div>
                 <Separator />
@@ -2872,11 +3274,27 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     Vehicle Information
                   </h3>
                   <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
-                    <p><span className="font-medium">Model:</span> {selectedReservation.vehicleModel || selectedReservation.vehicleInfo?.name || `Vehicle ${selectedReservation.vehicleId}`}</p>
-                    <p><span className="font-medium">Unique ID:</span> {selectedReservation.vehicleUniqueId || selectedReservation.vehicleInfo?.uniqueId || 'N/A'}</p>
-                    <p><span className="font-medium">License Plate:</span> {selectedReservation.licensePlate || 'N/A'}</p>
+                    <p>
+                      <span className="font-medium">Model:</span>{" "}
+                      {selectedReservation.vehicleModel ||
+                        selectedReservation.vehicleInfo?.name ||
+                        `Vehicle ${selectedReservation.vehicleId}`}
+                    </p>
+                    <p>
+                      <span className="font-medium">Unique ID:</span>{" "}
+                      {selectedReservation.vehicleUniqueId ||
+                        selectedReservation.vehicleInfo?.uniqueId ||
+                        "N/A"}
+                    </p>
+                    <p>
+                      <span className="font-medium">License Plate:</span>{" "}
+                      {selectedReservation.licensePlate || "N/A"}
+                    </p>
                     {selectedReservation.vehicleInfo?.battery !== undefined && (
-                      <p><span className="font-medium">Battery:</span> {selectedReservation.vehicleInfo.battery}%</p>
+                      <p>
+                        <span className="font-medium">Battery:</span>{" "}
+                        {selectedReservation.vehicleInfo.battery}%
+                      </p>
                     )}
                   </div>
                 </div>
@@ -2887,16 +3305,53 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     Booking Details
                   </h3>
                   <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
-                    <p><span className="font-medium">Status:</span> <Badge className="ml-1 capitalize" variant={(selectedReservation.status || '').toLowerCase() === 'cancelled' ? 'destructive' : 'secondary'}>{selectedReservation.status}</Badge></p>
-                    <p><span className="font-medium">Station:</span> {selectedReservation.stationName || stationData.name || stationInfo?.name || `Station ${selectedReservation.stationId}`}</p>
-                    <p className="col-span-2"><span className="font-medium">Start:</span> {new Date(selectedReservation.startTime).toLocaleString('vi-VN')}</p>
-                    <p className="col-span-2"><span className="font-medium">End:</span> {new Date(selectedReservation.endTime).toLocaleString('vi-VN')}</p>
-                    <p className="col-span-2"><span className="font-medium">Created:</span> {new Date(selectedReservation.createdAt).toLocaleString('vi-VN')}</p>
+                    <p>
+                      <span className="font-medium">Status:</span>{" "}
+                      <Badge
+                        className="ml-1 capitalize"
+                        variant={
+                          (selectedReservation.status || "").toLowerCase() ===
+                          "cancelled"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {selectedReservation.status}
+                      </Badge>
+                    </p>
+                    <p>
+                      <span className="font-medium">Station:</span>{" "}
+                      {selectedReservation.stationName ||
+                        stationData.name ||
+                        stationInfo?.name ||
+                        `Station ${selectedReservation.stationId}`}
+                    </p>
+                    <p className="col-span-2">
+                      <span className="font-medium">Start:</span>{" "}
+                      {new Date(selectedReservation.startTime).toLocaleString(
+                        "vi-VN"
+                      )}
+                    </p>
+                    <p className="col-span-2">
+                      <span className="font-medium">End:</span>{" "}
+                      {new Date(selectedReservation.endTime).toLocaleString(
+                        "vi-VN"
+                      )}
+                    </p>
+                    <p className="col-span-2">
+                      <span className="font-medium">Created:</span>{" "}
+                      {new Date(selectedReservation.createdAt).toLocaleString(
+                        "vi-VN"
+                      )}
+                    </p>
                   </div>
                 </div>
-                
+
                 {/* Cancellation Information - Only show if cancelled */}
-                {((selectedReservation.status || '').toLowerCase() === 'cancelled' || (selectedReservation.status || '').toLowerCase() === 'canceled') && (
+                {((selectedReservation.status || "").toLowerCase() ===
+                  "cancelled" ||
+                  (selectedReservation.status || "").toLowerCase() ===
+                    "canceled") && (
                   <>
                     <Separator />
                     <div className="space-y-2">
@@ -2906,19 +3361,34 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       </h3>
                       <div className="bg-destructive/5 border border-destructive/20 p-4 rounded-lg space-y-2 text-sm">
                         <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[100px]">Reason:</span>
-                          <span className="text-muted-foreground flex-1">{selectedReservation.cancellationReason || 'No reason provided'}</span>
+                          <span className="font-medium min-w-[100px]">
+                            Reason:
+                          </span>
+                          <span className="text-muted-foreground flex-1">
+                            {selectedReservation.cancellationReason ||
+                              "No reason provided"}
+                          </span>
                         </div>
                         {selectedReservation.cancelledBy && (
                           <div className="flex items-start gap-2">
-                            <span className="font-medium min-w-[100px]">Cancelled By:</span>
-                            <span className="text-muted-foreground flex-1 capitalize">{selectedReservation.cancelledBy}</span>
+                            <span className="font-medium min-w-[100px]">
+                              Cancelled By:
+                            </span>
+                            <span className="text-muted-foreground flex-1 capitalize">
+                              {selectedReservation.cancelledBy}
+                            </span>
                           </div>
                         )}
                         {selectedReservation.cancelledAt && (
                           <div className="flex items-start gap-2">
-                            <span className="font-medium min-w-[100px]">Cancelled At:</span>
-                            <span className="text-muted-foreground flex-1">{new Date(selectedReservation.cancelledAt).toLocaleString('vi-VN')}</span>
+                            <span className="font-medium min-w-[100px]">
+                              Cancelled At:
+                            </span>
+                            <span className="text-muted-foreground flex-1">
+                              {new Date(
+                                selectedReservation.cancelledAt
+                              ).toLocaleString("vi-VN")}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -2933,255 +3403,305 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     );
   };
 
-// THÊM: Render Incident Management function
- const renderIncidentManagement = () => {
-   // Filter incidents based on selected filters
-   const filteredIncidents = incidents.filter(incident => {
-     const matchesStatus = incidentFilter === "all" || incident.status === incidentFilter;
-     const matchesPriority = incidentPriorityFilter === "all" || incident.priority === incidentPriorityFilter;
-     const matchesSearch = incidentSearchQuery === "" || 
-       incident.description.toLowerCase().includes(incidentSearchQuery.toLowerCase()) ||
-       incident.customerName.toLowerCase().includes(incidentSearchQuery.toLowerCase()) ||
-       incident.vehicleId.toLowerCase().includes(incidentSearchQuery.toLowerCase());
-     
-     return matchesStatus && matchesPriority && matchesSearch;
-   });
- 
-   // Calculate stats
-   const stats = {
-     total: incidents.length,
-     reported: incidents.filter(i => i.status === 'reported').length,
-     inProgress: incidents.filter(i => i.status === 'in_progress').length,
-     resolved: incidents.filter(i => i.status === 'resolved').length,
-     urgent: incidents.filter(i => i.priority === 'urgent').length,
-   };
- 
-   return (
-     <div className="space-y-6">
-       {/* Stats Overview */}
-       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-         <Card>
-           <CardContent className="flex items-center p-6">
-             <div className="flex items-center space-x-2">
-               <div className="p-3 bg-blue-100 rounded-full">
-                 <AlertTriangle className="h-6 w-6 text-blue-600" />
-               </div>
-               <div>
-                 <p className="text-2xl font-bold">{stats.total}</p>
-                 <p className="text-sm text-muted-foreground">Total Incidents</p>
-               </div>
-             </div>
-           </CardContent>
-         </Card>
- 
-         <Card>
-           <CardContent className="flex items-center p-6">
-             <div className="flex items-center space-x-2">
-               <div className="p-3 bg-yellow-100 rounded-full">
-                 <Clock className="h-6 w-6 text-yellow-600" />
-               </div>
-               <div>
-                 <p className="text-2xl font-bold">{stats.reported}</p>
-                 <p className="text-sm text-muted-foreground">Pending</p>
-               </div>
-             </div>
-           </CardContent>
-         </Card>
- 
-         <Card>
-           <CardContent className="flex items-center p-6">
-             <div className="flex items-center space-x-2">
-               <div className="p-3 bg-orange-100 rounded-full">
-                 <Settings className="h-6 w-6 text-orange-600" />
-               </div>
-               <div>
-                 <p className="text-2xl font-bold">{stats.inProgress}</p>
-                 <p className="text-sm text-muted-foreground">In Progress</p>
-               </div>
-             </div>
-           </CardContent>
-         </Card>
- 
-         <Card>
-           <CardContent className="flex items-center p-6">
-             <div className="flex items-center space-x-2">
-               <div className="p-3 bg-green-100 rounded-full">
-                 <CheckCircle className="h-6 w-6 text-green-600" />
-               </div>
-               <div>
-                 <p className="text-2xl font-bold">{stats.resolved}</p>
-                 <p className="text-sm text-muted-foreground">Resolved</p>
-               </div>
-             </div>
-           </CardContent>
-         </Card>
- 
-         <Card>
-           <CardContent className="flex items-center p-6">
-             <div className="flex items-center space-x-2">
-               <div className="p-3 bg-red-100 rounded-full">
-                 <AlertCircle className="h-6 w-6 text-red-600" />
-               </div>
-               <div>
-                 <p className="text-2xl font-bold">{stats.urgent}</p>
-                 <p className="text-sm text-muted-foreground">Urgent</p>
-               </div>
-             </div>
-           </CardContent>
-         </Card>
-       </div>
- 
-       {/* Filters and Search */}
-       <Card>
-         <CardHeader>
-           <div className="flex items-center justify-between">
-             <CardTitle>Incident Management</CardTitle>
-             <div className="flex items-center space-x-2">
-               <div className="relative">
-                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                 <Input
-                   placeholder="Search incidents..."
-                   value={incidentSearchQuery}
-                   onChange={(e) => setIncidentSearchQuery(e.target.value)}
-                   className="pl-10 w-64"
-                 />
-               </div>
-               
-               <Select value={incidentFilter} onValueChange={setIncidentFilter}>
-                 <SelectTrigger className="w-32">
-                   <SelectValue placeholder="Status" />
-                 </SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="all">All Status</SelectItem>
-                   <SelectItem value="reported">Reported</SelectItem>
-                   <SelectItem value="in_progress">In Progress</SelectItem>
-                   <SelectItem value="resolved">Resolved</SelectItem>
-                 </SelectContent>
-               </Select>
- 
-               <Select value={incidentPriorityFilter} onValueChange={setIncidentPriorityFilter}>
-                 <SelectTrigger className="w-32">
-                   <SelectValue placeholder="Priority" />
-                 </SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="all">All Priority</SelectItem>
-                   <SelectItem value="low">Low</SelectItem>
-                   <SelectItem value="medium">Medium</SelectItem>
-                   <SelectItem value="high">High</SelectItem>
-                   <SelectItem value="urgent">Urgent</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
-           </div>
-         </CardHeader>
+  // THÊM: Render Incident Management function
+  const renderIncidentManagement = () => {
+    // Filter incidents based on selected filters
+    const filteredIncidents = incidents.filter((incident) => {
+      const matchesStatus =
+        incidentFilter === "all" || incident.status === incidentFilter;
+      const matchesPriority =
+        incidentPriorityFilter === "all" ||
+        incident.priority === incidentPriorityFilter;
+      const matchesSearch =
+        incidentSearchQuery === "" ||
+        incident.description
+          .toLowerCase()
+          .includes(incidentSearchQuery.toLowerCase()) ||
+        incident.customerName
+          .toLowerCase()
+          .includes(incidentSearchQuery.toLowerCase()) ||
+        incident.vehicleId
+          .toLowerCase()
+          .includes(incidentSearchQuery.toLowerCase());
 
-         <CardContent>
-           <div className="space-y-4">
-             {filteredIncidents.length === 0 ? (
-               <div className="text-center py-8">
-                 <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                 <h3 className="text-lg font-semibold mb-2">No Incidents Found</h3>
-                 <p className="text-muted-foreground">
-                   {incidentFilter !== "all" || incidentPriorityFilter !== "all" || incidentSearchQuery
-                     ? "Try adjusting your filters"
-                     : "All incidents have been resolved"}
-                 </p>
-               </div>
-             ) : (
-               filteredIncidents.map((incident) => (
-                 <div
-                   key={incident.id}
-                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                   onClick={() => {
-                     setSelectedIncidentForDetails(incident);
-                     setStaffNotes(incident.staffNotes || "");
-                     setIsIncidentDetailsOpen(true);
-                   }}
-                   >
-                   <div className="flex items-center space-x-4">
-                     <div className={`p-2 rounded-full ${
-                       incident.priority === 'urgent' ? 'bg-red-100' :
-                       incident.priority === 'high' ? 'bg-orange-100' :
-                       incident.priority === 'medium' ? 'bg-yellow-100' : 'bg-gray-100'
-                     }`}>
-                       <AlertTriangle className={`h-5 w-5 ${
-                         incident.priority === 'urgent' ? 'text-red-600' :
-                         incident.priority === 'high' ? 'text-orange-600' :
-                           incident.priority === 'medium' ? 'text-yellow-600' : 'text-gray-600'
-                       }`} />
-                     </div>
+      return matchesStatus && matchesPriority && matchesSearch;
+    });
 
-                     <div className="flex-1">
-                       <div className="flex items-center space-x-2 mb-1">
-                         <h4 className="font-semibold">{incident.type.replace('-', ' ').toUpperCase()}</h4>
-                         <Badge variant={
-                           incident.status === 'resolved' ? 'secondary' :
-                           incident.status === 'in_progress' ? 'default' : 'destructive'
-                         }>
-                           {incident.status.replace('_', ' ')}
-                         </Badge>
-                         <Badge variant={
-                           incident.priority === 'urgent' ? 'destructive' :
-                           incident.priority === 'high' ? 'destructive' :
-                           incident.priority === 'medium' ? 'default' : 'secondary'
-                         }>
-                           {incident.priority}
-                         </Badge>
-                       </div>
+    // Calculate stats
+    const stats = {
+      total: incidents.length,
+      reported: incidents.filter((i) => i.status === "reported").length,
+      inProgress: incidents.filter((i) => i.status === "in_progress").length,
+      resolved: incidents.filter((i) => i.status === "resolved").length,
+      urgent: incidents.filter((i) => i.priority === "urgent").length,
+    };
 
-                       <p className="text-sm text-muted-foreground mb-1">
-                         Customer: {incident.customerName} • Vehicle: {incident.vehicleId}
-                       </p>
+    return (
+      <div className="space-y-6">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <AlertTriangle className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Incidents
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                       <p className="text-sm line-clamp-2">{incident.description}</p>
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-yellow-100 rounded-full">
+                  <Clock className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.reported}</p>
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                       <div className="flex items-center text-xs text-muted-foreground mt-2">
-                         <Clock className="h-3 w-3 mr-1" />
-                         {new Date(incident.reportedAt).toLocaleString()}
-                       </div>
-                     </div>
-                   </div>
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-orange-100 rounded-full">
+                  <Settings className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.inProgress}</p>
+                  <p className="text-sm text-muted-foreground">In Progress</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                   <div className="flex items-center space-x-2">
-                     {incident.status === 'reported' && (
-                       <Button
-                         size="sm"
-                         variant="outline"
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           handleIncidentAction(incident.id, 'accept');
-                         }}
-                       >
-                         Accept
-                       </Button>
-                     )}
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.resolved}</p>
+                  <p className="text-sm text-muted-foreground">Resolved</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                     {incident.status !== 'resolved' && (
-                       <Button
-                         size="sm"
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           handleIncidentAction(incident.id, 'resolve');
-                         }}
-                       >
-                         <CheckCircle className="h-4 w-4 mr-1" />
-                         Resolve
-                       </Button>
-                     )}
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-3 bg-red-100 rounded-full">
+                  <AlertCircle className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.urgent}</p>
+                  <p className="text-sm text-muted-foreground">Urgent</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-                     <Button size="sm" variant="ghost">
-                       <Eye className="h-4 w-4" />
-                     </Button>
-                   </div>
-                 </div>
-               ))
-             )}
-           </div>
-         </CardContent>
-       </Card>
-     </div>
-   );
-};
+        {/* Filters and Search */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Incident Management</CardTitle>
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Search incidents..."
+                    value={incidentSearchQuery}
+                    onChange={(e) => setIncidentSearchQuery(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+
+                <Select
+                  value={incidentFilter}
+                  onValueChange={setIncidentFilter}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="reported">Reported</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={incidentPriorityFilter}
+                  onValueChange={setIncidentPriorityFilter}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="space-y-4">
+              {filteredIncidents.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    No Incidents Found
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {incidentFilter !== "all" ||
+                    incidentPriorityFilter !== "all" ||
+                    incidentSearchQuery
+                      ? "Try adjusting your filters"
+                      : "All incidents have been resolved"}
+                  </p>
+                </div>
+              ) : (
+                filteredIncidents.map((incident) => (
+                  <div
+                    key={incident.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedIncidentForDetails(incident);
+                      setStaffNotes(incident.staffNotes || "");
+                      setIsIncidentDetailsOpen(true);
+                    }}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div
+                        className={`p-2 rounded-full ${
+                          incident.priority === "urgent"
+                            ? "bg-red-100"
+                            : incident.priority === "high"
+                            ? "bg-orange-100"
+                            : incident.priority === "medium"
+                            ? "bg-yellow-100"
+                            : "bg-gray-100"
+                        }`}
+                      >
+                        <AlertTriangle
+                          className={`h-5 w-5 ${
+                            incident.priority === "urgent"
+                              ? "text-red-600"
+                              : incident.priority === "high"
+                              ? "text-orange-600"
+                              : incident.priority === "medium"
+                              ? "text-yellow-600"
+                              : "text-gray-600"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className="font-semibold">
+                            {incident.type.replace("-", " ").toUpperCase()}
+                          </h4>
+                          <Badge
+                            variant={
+                              incident.status === "resolved"
+                                ? "secondary"
+                                : incident.status === "in_progress"
+                                ? "default"
+                                : "destructive"
+                            }
+                          >
+                            {incident.status.replace("_", " ")}
+                          </Badge>
+                          <Badge
+                            variant={
+                              incident.priority === "urgent"
+                                ? "destructive"
+                                : incident.priority === "high"
+                                ? "destructive"
+                                : incident.priority === "medium"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {incident.priority}
+                          </Badge>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Customer: {incident.customerName} • Vehicle:{" "}
+                          {incident.vehicleId}
+                        </p>
+
+                        <p className="text-sm line-clamp-2">
+                          {incident.description}
+                        </p>
+
+                        <div className="flex items-center text-xs text-muted-foreground mt-2">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {new Date(incident.reportedAt).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      {incident.status === "reported" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleIncidentAction(incident.id, "accept");
+                          }}
+                        >
+                          Accept
+                        </Button>
+                      )}
+
+                      {incident.status !== "resolved" && (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleIncidentAction(incident.id, "resolve");
+                          }}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Resolve
+                        </Button>
+                      )}
+
+                      <Button size="sm" variant="ghost">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
 
   return (
     <PageTransition>
@@ -3191,7 +3711,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           <div
             className="relative overflow-hidden bg-cover bg-center bg-no-repeat"
             style={{
-              backgroundImage: "url('/src/assets/home-bg.jpg')"
+              backgroundImage: "url('/src/assets/home-bg.jpg')",
             }}
           >
             <div className="absolute inset-0 bg-black/40"></div>
@@ -3225,7 +3745,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </div>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
-                  {t("common.welcomeUser")}, {staffProfile?.fullName || currentUser.name}
+                  {t("common.welcomeUser")},{" "}
+                  {staffProfile?.fullName || currentUser.name}
                 </p>
               </div>
             </div>
@@ -3309,8 +3830,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               </Card>
             </div>
           </SlideIn> */}
-
-
 
           {/* Tabs */}
           <FadeIn delay={300}>
@@ -3550,7 +4069,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </div>
       </div>
 
-
       {/* Incident Notifications Panel */}
       <Dialog open={isIncidentPanelOpen} onOpenChange={setIsIncidentPanelOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -3567,16 +4085,28 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           <div className="space-y-4">
             {incidents.length > 0 ? (
               incidents.map((incident) => (
-                <Card key={incident.id} className="border-l-4 border-l-orange-500">
+                <Card
+                  key={incident.id}
+                  className="border-l-4 border-l-orange-500"
+                >
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-lg">{incident.type.replace('-', ' ').toUpperCase()}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {incident.type.replace("-", " ").toUpperCase()}
+                        </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                          Customer: {incident.customerName} • Vehicle: {incident.vehicleId}
+                          Customer: {incident.customerName} • Vehicle:{" "}
+                          {incident.vehicleId}
                         </p>
                       </div>
-                      <Badge variant={incident.priority === 'urgent' ? 'destructive' : 'secondary'}>
+                      <Badge
+                        variant={
+                          incident.priority === "urgent"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
                         {incident.priority}
                       </Badge>
                     </div>
@@ -3594,13 +4124,17 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleIncidentAction(incident.id, 'accept')}
+                          onClick={() =>
+                            handleIncidentAction(incident.id, "accept")
+                          }
                         >
                           Accept
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => handleIncidentAction(incident.id, 'resolve')}
+                          onClick={() =>
+                            handleIncidentAction(incident.id, "resolve")
+                          }
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Resolve
@@ -3613,217 +4147,284 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             ) : (
               <div className="text-center py-8">
                 <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Active Incidents</h3>
-                <p className="text-muted-foreground">All incidents have been resolved.</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No Active Incidents
+                </h3>
+                <p className="text-muted-foreground">
+                  All incidents have been resolved.
+                </p>
               </div>
             )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsIncidentPanelOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsIncidentPanelOpen(false)}
+            >
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* THÊM: Incident Details Dialog */}
+      <Dialog
+        open={isIncidentDetailsOpen}
+        onOpenChange={setIsIncidentDetailsOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Incident Details - {selectedIncidentForDetails?.id}
+            </DialogTitle>
+            <DialogDescription>
+              Manage and resolve customer incident reports
+            </DialogDescription>
+          </DialogHeader>
 
-{/* THÊM: Incident Details Dialog */}
-<Dialog open={isIncidentDetailsOpen} onOpenChange={setIsIncidentDetailsOpen}>
-  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-    <DialogHeader>
-      <DialogTitle className="flex items-center gap-2">
-        <AlertTriangle className="h-5 w-5 text-orange-500" />
-        Incident Details - {selectedIncidentForDetails?.id}
-      </DialogTitle>
-      <DialogDescription>
-        Manage and resolve customer incident reports
-      </DialogDescription>
-    </DialogHeader>
+          {selectedIncidentForDetails && (
+            <div className="space-y-6">
+              {/* Incident Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      Incident Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium">Type</Label>
+                      <p className="text-sm">
+                        {selectedIncidentForDetails.type
+                          .replace("-", " ")
+                          .toUpperCase()}
+                      </p>
+                    </div>
 
-    {selectedIncidentForDetails && (
-      <div className="space-y-6">
-        {/* Incident Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Incident Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="text-sm font-medium">Type</Label>
-                <p className="text-sm">{selectedIncidentForDetails.type.replace('-', ' ').toUpperCase()}</p>
+                    <div>
+                      <Label className="text-sm font-medium">Status</Label>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge
+                          variant={
+                            selectedIncidentForDetails.status === "resolved"
+                              ? "secondary"
+                              : selectedIncidentForDetails.status ===
+                                "in_progress"
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {selectedIncidentForDetails.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">Priority</Label>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge
+                          variant={
+                            selectedIncidentForDetails.priority === "urgent"
+                              ? "destructive"
+                              : selectedIncidentForDetails.priority === "high"
+                              ? "destructive"
+                              : selectedIncidentForDetails.priority === "medium"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {selectedIncidentForDetails.priority}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">Reported At</Label>
+                      <p className="text-sm">
+                        {new Date(
+                          selectedIncidentForDetails.reportedAt
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {selectedIncidentForDetails.resolvedAt && (
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Resolved At
+                        </Label>
+                        <p className="text-sm">
+                          {new Date(
+                            selectedIncidentForDetails.resolvedAt
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      Customer & Vehicle
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Customer Name
+                      </Label>
+                      <p className="text-sm">
+                        {selectedIncidentForDetails.customerName}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">Customer ID</Label>
+                      <p className="text-sm">
+                        {selectedIncidentForDetails.customerId}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">Vehicle ID</Label>
+                      <p className="text-sm">
+                        {selectedIncidentForDetails.vehicleId}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Reservation ID
+                      </Label>
+                      <p className="text-sm">
+                        {selectedIncidentForDetails.reservationId}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">Station</Label>
+                      <p className="text-sm">
+                        {selectedIncidentForDetails.stationId}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-              <div>
-                <Label className="text-sm font-medium">Status</Label>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Badge variant={
-                    selectedIncidentForDetails.status === 'resolved' ? 'secondary' :
-                    selectedIncidentForDetails.status === 'in_progress' ? 'default' : 'destructive'
-                  }>
-                    {selectedIncidentForDetails.status.replace('_', ' ')}
-                  </Badge>
-                </div>
+              {/* Incident Description */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    Incident Description
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">
+                    {selectedIncidentForDetails.description}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Staff Notes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Staff Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Textarea
+                      placeholder="Add your notes about this incident..."
+                      value={staffNotes}
+                      onChange={(e) => setStaffNotes(e.target.value)}
+                      rows={4}
+                    />
+
+                    <Button
+                      onClick={() => {
+                        incidentStorage.updateIncident(
+                          selectedIncidentForDetails.id,
+                          {
+                            staffNotes: staffNotes,
+                          }
+                        );
+                        toast({
+                          title: "Notes Updated",
+                          description:
+                            "Staff notes have been saved successfully.",
+                        });
+                      }}
+                      className="w-full sm:w-auto"
+                    >
+                      Save Notes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <div className="flex flex-wrap gap-3">
+                {selectedIncidentForDetails.status === "reported" && (
+                  <Button
+                    onClick={() => {
+                      handleIncidentAction(
+                        selectedIncidentForDetails.id,
+                        "accept"
+                      );
+                      setSelectedIncidentForDetails({
+                        ...selectedIncidentForDetails,
+                        status: "in_progress",
+                      });
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Accept Incident
+                  </Button>
+                )}
+
+                {selectedIncidentForDetails.status !== "resolved" && (
+                  <Button
+                    onClick={() => {
+                      handleIncidentAction(
+                        selectedIncidentForDetails.id,
+                        "resolve"
+                      );
+                      setIsIncidentDetailsOpen(false);
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Mark as Resolved
+                  </Button>
+                )}
+
+                <Button variant="outline">
+                  <Phone className="h-4 w-4 mr-2" />
+                  Contact Customer
+                </Button>
+
+                <Button variant="outline">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Generate Report
+                </Button>
               </div>
-
-              <div>
-                <Label className="text-sm font-medium">Priority</Label>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Badge variant={
-                    selectedIncidentForDetails.priority === 'urgent' ? 'destructive' :
-                    selectedIncidentForDetails.priority === 'high' ? 'destructive' :
-                    selectedIncidentForDetails.priority === 'medium' ? 'default' : 'secondary'
-                  }>
-                    {selectedIncidentForDetails.priority}
-                  </Badge>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Reported At</Label>
-                <p className="text-sm">{new Date(selectedIncidentForDetails.reportedAt).toLocaleString()}</p>
-              </div>
-
-              {selectedIncidentForDetails.resolvedAt && (
-                <div>
-                  <Label className="text-sm font-medium">Resolved At</Label>
-                  <p className="text-sm">{new Date(selectedIncidentForDetails.resolvedAt).toLocaleString()}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Customer & Vehicle</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="text-sm font-medium">Customer Name</Label>
-                <p className="text-sm">{selectedIncidentForDetails.customerName}</p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Customer ID</Label>
-                <p className="text-sm">{selectedIncidentForDetails.customerId}</p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Vehicle ID</Label>
-                <p className="text-sm">{selectedIncidentForDetails.vehicleId}</p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Reservation ID</Label>
-                <p className="text-sm">{selectedIncidentForDetails.reservationId}</p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Station</Label>
-                <p className="text-sm">{selectedIncidentForDetails.stationId}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Incident Description */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Incident Description</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{selectedIncidentForDetails.description}</p>
-          </CardContent>
-        </Card>
-
-        {/* Staff Notes */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Staff Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Textarea
-                placeholder="Add your notes about this incident..."
-                value={staffNotes}
-                onChange={(e) => setStaffNotes(e.target.value)}
-                rows={4}
-              />
-
-              <Button
-                onClick={() => {
-                  incidentStorage.updateIncident(selectedIncidentForDetails.id, {
-                    staffNotes: staffNotes
-                  });
-                  toast({
-                    title: "Notes Updated",
-                    description: "Staff notes have been saved successfully.",
-                  });
-                }}
-                className="w-full sm:w-auto"
-              >
-                Save Notes
-              </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-3">
-          {selectedIncidentForDetails.status === 'reported' && (
-            <Button
-              onClick={() => {
-                handleIncidentAction(selectedIncidentForDetails.id, 'accept');
-                setSelectedIncidentForDetails({
-                  ...selectedIncidentForDetails,
-                  status: 'in_progress'
-                });
-              }}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Accept Incident
-            </Button>
           )}
 
-          {selectedIncidentForDetails.status !== 'resolved' && (
+          <DialogFooter>
             <Button
-              onClick={() => {
-                handleIncidentAction(selectedIncidentForDetails.id, 'resolve');
-                setIsIncidentDetailsOpen(false);
-              }}
-              className="bg-green-600 hover:bg-green-700"
+              variant="outline"
+              onClick={() => setIsIncidentDetailsOpen(false)}
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Mark as Resolved
+              Close
             </Button>
-          )}
-
-          <Button variant="outline">
-            <Phone className="h-4 w-4 mr-2" />
-            Contact Customer
-          </Button>
-
-          <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            Generate Report
-          </Button>
-        </div>
-      </div>
-    )}
-
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setIsIncidentDetailsOpen(false)}>
-        Close
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-
-
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageTransition>
-
   );
 };
 
