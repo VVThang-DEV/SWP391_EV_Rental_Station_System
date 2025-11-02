@@ -31,6 +31,14 @@ public class ReservationDto
     public DateTime? CancelledAt { get; set; }
     public string? StationName { get; set; }
     public string? VehicleName { get; set; }
+    
+    // Additional information for staff
+    public string? UserName { get; set; }
+    public string? UserEmail { get; set; }
+    public string? UserPhone { get; set; }
+    public string? VehicleModel { get; set; }
+    public string? VehicleUniqueId { get; set; }
+    public string? LicensePlate { get; set; }
 }
 
 public class CancelReservationRequest

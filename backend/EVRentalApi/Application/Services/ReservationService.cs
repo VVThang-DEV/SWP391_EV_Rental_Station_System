@@ -2,6 +2,7 @@ using EVRentalApi.Infrastructure.Repositories;
 using EVRentalApi.Models;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Data.SqlClient;
 
 namespace EVRentalApi.Application.Services;
 
@@ -255,6 +256,56 @@ public class ReservationService : IReservationService
                 return;
             }
 
+            // Get payment information
+            string paymentMethod = "Cash at Station"; // Default
+            string paymentStatus = "Pending Payment";
+            try
+            {
+                using var connection = new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+                await connection.OpenAsync();
+                
+                var paymentSql = @"
+                    SELECT TOP 1 method_type, status 
+                    FROM payments 
+                    WHERE reservation_id = @ReservationId 
+                    ORDER BY created_at DESC";
+                
+                using var cmd = new SqlCommand(paymentSql, connection);
+                cmd.Parameters.AddWithValue("@ReservationId", reservation.ReservationId);
+                
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    var methodType = reader.GetString(0);
+                    var status = reader.GetString(1);
+                    
+                    // Format payment method
+                    paymentMethod = methodType switch
+                    {
+                        "wallet" => "Wallet",
+                        "cash" => "Cash at Station",
+                        "momo" => "MoMo",
+                        "vnpay" => "VNPay",
+                        "bank_transfer" => "Bank Transfer",
+                        _ => methodType
+                    };
+                    
+                    // Format status
+                    paymentStatus = status switch
+                    {
+                        "success" => "Paid",
+                        "pending" => "Pending Payment",
+                        "failed" => "Payment Failed",
+                        "refunded" => "Refunded",
+                        _ => status
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Email] Warning: Could not fetch payment info: {ex.Message}");
+            }
+
             // Calculate rental duration
             var duration = reservation.EndTime - reservation.StartTime;
             var hours = Math.Ceiling(duration.TotalHours);
@@ -387,6 +438,14 @@ public class ReservationService : IReservationService
                     <span class='value' style='font-size: 18px; font-weight: bold; color: #667eea;'>
                         ${(totalCost / USD_TO_VND_RATE):N2} USD ({totalCost:N0} VND)
                     </span>
+                </div>
+                <div class='info-row' style='margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;'>
+                    <span class='label'>Payment Method:</span>
+                    <span class='value' style='font-weight: 600;'>{paymentMethod}</span>
+                </div>
+                <div class='info-row'>
+                    <span class='label'>Payment Status:</span>
+                    <span class='value' style='font-weight: 600; color: {(paymentStatus == "Paid" ? "#10b981" : "#f59e0b")};'>{paymentStatus}</span>
                 </div>
             </div>
 
