@@ -1,0 +1,23 @@
+{
+  "name": "mobile-qr-scan-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --clear",
+    "android": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --android --clear",
+    "ios": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --ios --clear",
+    "web": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --web --clear"
+  },
+  "dependencies": {
+    "expo": "~54.0.22",
+    "expo-camera": "~17.0.9",
+    "expo-status-bar": "~3.0.8",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  },
+  "private": true,
+  "devDependencies": {
+    "@expo/cli": "^54.0.15",
+    "babel-preset-expo": "^54.0.6"
+  }
+}
