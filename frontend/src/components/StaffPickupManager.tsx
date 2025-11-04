@@ -72,21 +72,40 @@ const StaffPickupManager: React.FC = () => {
         console.log("📦 Loaded customers for pickup:", customers);
         
         // Map API data to PendingBooking format
-        const mappedBookings: PendingBooking[] = customers.map((customer: any) => {
+        const mappedBookings: PendingBooking[] = await Promise.all(customers.map(async (customer: any) => {
           const hasDocuments = customer.documents && customer.documents.length > 0;
           const allDocsApproved = hasDocuments && customer.documents.every((doc: any) => doc.status === 'approved');
           const hasLicense = customer.documents && customer.documents.some((doc: any) => 
             doc.documentType === 'driverLicense' && doc.status === 'approved'
           );
           
+          // Check if QR code was scanned for this reservation
+          let qrScanned = false;
+          try {
+            const token = localStorage.getItem("token");
+            const qrResponse = await fetch(`http://localhost:5000/api/qr/reservation/${customer.reservationId}`, {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
+            if (qrResponse.ok) {
+              const qrData = await qrResponse.json();
+              // QR is scanned if it exists and status is 'used'
+              qrScanned = qrData.success && qrData.qrCode && qrData.qrCode.status === 'used';
+              console.log(`[QR Check] Reservation ${customer.reservationId}: QR scanned = ${qrScanned}`);
+            }
+          } catch (err) {
+            console.warn(`Failed to check QR status for reservation ${customer.reservationId}:`, err);
+          }
+          
           // Determine status based on verifications
-          // NOTE: qrScanned is always false initially, so status will never be "ready" on first load
-          // Status will only become "ready" after all 3 verifications (QR, License, Docs) are completed
           let status: "pending" | "ready" | "incomplete" = "pending";
           if (hasDocuments && !allDocsApproved) {
             status = "incomplete";
+          } else if (qrScanned && allDocsApproved && hasLicense) {
+            // All verifications complete - ready for pickup
+            status = "ready";
           }
-          // Don't set status to "ready" here - it requires QR scan which happens later
           
           // Parse pickup date/time from StartTime
           let pickupDate = "N/A";
@@ -145,10 +164,10 @@ const StaffPickupManager: React.FC = () => {
             depositAmount: customer.depositAmount || 0,
             documentsVerified: allDocsApproved,
             licenseVerified: hasLicense,
-            qrScanned: false, // Will be updated when QR is scanned
+            qrScanned: qrScanned, // Checked from backend QR status
             status: status,
           };
-        });
+        }));
         
         setBookings(mappedBookings);
       } catch (error) {
@@ -164,6 +183,15 @@ const StaffPickupManager: React.FC = () => {
     };
 
     loadPendingPickups();
+    
+    // Auto-refresh every 10 seconds to detect new QR scans
+    const intervalId = setInterval(() => {
+      console.log("[Staff Dashboard] Auto-refreshing QR statuses...");
+      loadPendingPickups();
+    }, 10000); // 10 seconds
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
   }, [toast]);
 
   const handleQRScanned = (bookingId: string) => {

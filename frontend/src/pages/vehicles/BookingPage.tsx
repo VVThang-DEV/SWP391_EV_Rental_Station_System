@@ -1428,8 +1428,11 @@ const BookingPage = () => {
                 // ✅ SAVE QR CODE TO DATABASE
                 if (reservationId) {
                   try {
-                    console.log("[QR] Saving QR code to database for reservation:", reservationId);
-                    
+                    console.log(
+                      "[QR] Saving QR code to database for reservation:",
+                      reservationId
+                    );
+
                     // Generate QR code data - EXACT format as example
                     const qrCodeData = JSON.stringify({
                       reservationId: reservationId,
@@ -1460,9 +1463,13 @@ const BookingPage = () => {
                     );
 
                     if (qrResponse.ok) {
-                      console.log("[QR] ✅ QR code saved successfully to database");
+                      console.log(
+                        "[QR] ✅ QR code saved successfully to database"
+                      );
                     } else {
-                      console.log("[QR] ⚠️ Failed to save QR code, but continuing...");
+                      console.log(
+                        "[QR] ⚠️ Failed to save QR code, but continuing..."
+                      );
                     }
                   } catch (qrError) {
                     console.error("[QR] Error saving QR code:", qrError);
@@ -1784,10 +1791,14 @@ const BookingPage = () => {
                 vehicleId: vehicle.id,
                 stationId: 1,
                 userId: userData.userId || 0,
-                startTime: bookingData.startDate + "T" + bookingData.startTime + ":00",
-                endTime: bookingData.endDate + "T" + bookingData.endTime + ":00",
+                startTime:
+                  bookingData.startDate + "T" + bookingData.startTime + ":00",
+                endTime:
+                  bookingData.endDate + "T" + bookingData.endTime + ":00",
                 status: "pending",
-                accessCode: `ACCESS_${bookingData.reservationId || 0}_${Date.now()}`,
+                accessCode: `ACCESS_${
+                  bookingData.reservationId || 0
+                }_${Date.now()}`,
                 timestamp: new Date().toISOString(),
               })}
               size={180}
