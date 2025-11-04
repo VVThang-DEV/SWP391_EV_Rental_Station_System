@@ -17,6 +17,7 @@
   },
   "private": true,
   "devDependencies": {
-    "@expo/cli": "^54.0.15"
+    "@expo/cli": "^54.0.15",
+    "babel-preset-expo": "^54.0.6"
   }
 }
