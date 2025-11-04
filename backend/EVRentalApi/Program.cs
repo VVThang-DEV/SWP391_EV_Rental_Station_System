@@ -62,6 +62,10 @@ builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 
+// DI: QR Code management
+builder.Services.AddScoped<IQRCodeRepository, QRCodeRepository>();
+builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+
 // DI: Payment management
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
@@ -680,6 +684,83 @@ app.MapPost("/api/staff/walkin-bookings", [Microsoft.AspNetCore.Authorization.Au
         success = false, 
         message = result.Message 
     });
+});
+
+// ============================================
+// QR Code endpoints
+// ============================================
+
+// Save QR code after reservation is created (called from frontend)
+app.MapPost("/api/qr/save", [Microsoft.AspNetCore.Authorization.Authorize] async (SaveQRCodeRequest req, IQRCodeService qrCodeService, HttpContext context) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"[QR] User {userId} saving QR code for reservation {req.ReservationId}");
+    
+    var result = await qrCodeService.SaveQRCodeAsync(req);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[QR] ✅ QR code saved successfully for reservation {req.ReservationId}");
+        return Results.Ok(new 
+        { 
+            success = true, 
+            message = result.Message,
+            qrCode = result.QRCode
+        });
+    }
+    
+    Console.WriteLine($"[QR] ❌ Failed to save QR code: {result.Message}");
+    return Results.BadRequest(new 
+    { 
+        success = false, 
+        message = result.Message 
+    });
+});
+
+// Verify QR code (used by mobile app for staff to scan customer QR codes)
+app.MapPost("/api/qr/verify", async (VerifyQRCodeRequest req, IQRCodeService qrCodeService) =>
+{
+    Console.WriteLine($"[QR] Verifying QR code...");
+    
+    var result = await qrCodeService.VerifyQRCodeAsync(req.QrCodeData);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[QR] ✅ QR code verified successfully");
+        return Results.Ok(new 
+        { 
+            success = true, 
+            message = result.Message,
+            reservation = result.Reservation,
+            vehicleName = result.VehicleName,
+            userName = result.UserName
+        });
+    }
+    
+    Console.WriteLine($"[QR] ❌ QR code verification failed: {result.Message}");
+    return Results.BadRequest(new 
+    { 
+        success = false, 
+        message = result.Message 
+    });
+});
+
+// Get QR code for a reservation (optional - for frontend to retrieve if needed)
+app.MapGet("/api/qr/reservation/{reservationId}", [Microsoft.AspNetCore.Authorization.Authorize] async (int reservationId, IQRCodeService qrCodeService) =>
+{
+    var qrCode = await qrCodeService.GetQRCodeByReservationIdAsync(reservationId);
+    
+    if (qrCode != null)
+    {
+        return Results.Ok(new { success = true, qrCode = qrCode });
+    }
+    
+    return Results.NotFound(new { success = false, message = "QR code not found for this reservation" });
 });
 
 // Payment endpoints

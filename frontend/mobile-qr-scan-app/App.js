@@ -12,7 +12,10 @@ import { CameraView, Camera } from "expo-camera";
 import { StatusBar } from "expo-status-bar";
 
 // Update this to your backend URL
-const BACKEND_URL = "http://localhost:5000"; // Change this to your actual backend URL
+// For Android emulator: use 10.0.2.2
+// For iOS simulator: use localhost
+// For physical device: use your computer's IP address (e.g., 192.168.1.100)
+const BACKEND_URL = "http://10.0.2.2:5000"; // Change this based on your setup
 
 export default function App() {
   const [hasPermission, setHasPermission] = useState(null);
