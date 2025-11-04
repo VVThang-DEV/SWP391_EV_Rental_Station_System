@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --clear",
+    "android": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --android --clear",
+    "ios": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --ios --clear",
+    "web": "set NODE_OPTIONS=--max-old-space-size=4096 && expo start --web --clear"
   },
   "dependencies": {
     "expo": "~54.0.22",
