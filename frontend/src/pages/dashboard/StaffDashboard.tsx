@@ -265,23 +265,82 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
   // Load incidents effect
   useEffect(() => {
-    const loadIncidents = () => {
-      const stationIncidents =
-        incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
-      setIncidents(stationIncidents);
-      setUnreadIncidents(
-        stationIncidents.filter((i) => i.status === "reported").length
-      ); // + CHỈ COUNT pending cho bell notification
+    const loadIncidents = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        // Get station ID from staff profile or user
+        const stationId = staffProfile?.stationId || user?.stationId;
+        if (!stationId) {
+          console.warn('[StaffDashboard] No station ID found');
+          return;
+        }
+
+        // Load incidents from API
+        const response = await fetch(`http://localhost:5000/api/incidents/station/${stationId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.incidents) {
+            // Map API incidents to IncidentData format
+            const mappedIncidents: IncidentData[] = data.incidents.map((inc: any) => ({
+              id: inc.incidentId.toString(),
+              reservationId: inc.reservationId || 0,
+              vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+              stationId: inc.stationId?.toString() || stationId.toString(),
+              customerId: inc.userId?.toString() || 'Unknown',
+              customerName: inc.customerName || 'Unknown Customer',
+              type: inc.type || 'other',
+              description: inc.description || '',
+              status: inc.status || 'reported',
+              priority: inc.priority || 'medium',
+              reportedAt: inc.reportedAt || new Date().toISOString(),
+              resolvedAt: inc.resolvedAt,
+              staffNotes: inc.staffNotes,
+            }));
+
+            setIncidents(mappedIncidents);
+            setUnreadIncidents(
+              mappedIncidents.filter((i) => i.status === "reported").length
+            );
+          }
+        }
+
+        // Also load unread count for notification bell
+        const countResponse = await fetch(`http://localhost:5000/api/incidents/station/${stationId}/unread-count`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (countResponse.ok) {
+          const countData = await countResponse.json();
+          if (countData.success && countData.count !== undefined) {
+            setUnreadIncidents(countData.count);
+          }
+        }
+      } catch (error) {
+        console.error('[StaffDashboard] Error loading incidents:', error);
+      }
     };
 
-    // Load incidents khi component mount
-    loadIncidents();
+    // Load incidents when component mounts or staff profile changes
+    if (staffProfile?.stationId || user?.stationId) {
+      loadIncidents();
+    }
 
     // Auto-refresh mỗi 5 giây
     const interval = setInterval(loadIncidents, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [staffProfile?.stationId, user?.stationId]);
 
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -1207,34 +1266,103 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   // Function xử lý incident
-  const handleIncidentAction = (
+  const handleIncidentAction = async (
     incidentId: string,
     action: "accept" | "resolve"
   ) => {
-    if (action === "accept") {
-      incidentStorage.updateIncident(incidentId, { status: "in_progress" });
-      toast({
-        title: "Incident Accepted",
-        description: "You are now handling this incident.",
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: "Unauthorized",
+          description: "Please login to perform this action.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let updateData: any = {};
+      if (action === "accept") {
+        updateData = { status: "in_progress" };
+      } else if (action === "resolve") {
+        updateData = { status: "resolved" };
+      }
+
+      const response = await fetch(`http://localhost:5000/api/incidents/${incidentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
       });
-    } else if (action === "resolve") {
-      incidentStorage.updateIncident(incidentId, {
-        status: "resolved",
-        resolvedAt: new Date().toISOString(),
-      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        if (action === "accept") {
+          toast({
+            title: "Incident Accepted",
+            description: "You are now handling this incident.",
+          });
+        } else if (action === "resolve") {
+          toast({
+            title: "Incident Resolved",
+            description: "Incident has been marked as resolved.",
+          });
+        }
+
+        // Refresh incidents by reloading
+        const stationId = staffProfile?.stationId || user?.stationId;
+        if (stationId) {
+          const refreshResponse = await fetch(`http://localhost:5000/api/incidents/station/${stationId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success && refreshData.incidents) {
+              const mappedIncidents: IncidentData[] = refreshData.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || stationId.toString(),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+
+              setIncidents(mappedIncidents);
+              setUnreadIncidents(
+                mappedIncidents.filter((i) => i.status === "reported").length
+              );
+            }
+          }
+        }
+      } else {
+        toast({
+          title: "Failed to Update Incident",
+          description: data.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('[StaffDashboard] Error updating incident:', error);
       toast({
-        title: "Incident Resolved",
-        description: "Incident has been marked as resolved.",
+        title: "Error",
+        description: "An error occurred while updating the incident.",
+        variant: "destructive",
       });
     }
-
-    // Refresh incidents
-    const stationIncidents =
-      incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
-    setIncidents(stationIncidents);
-    setUnreadIncidents(
-      stationIncidents.filter((i) => i.status === "reported").length
-    ); // + CHỈ COUNT pending cho bell notification
   };
 
   const renderVehicleManagement = () => (

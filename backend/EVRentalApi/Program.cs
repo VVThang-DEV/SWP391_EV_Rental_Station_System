@@ -9,6 +9,7 @@ using EVRentalApi.Application.Services;
 using EVRentalApi.Infrastructure.Repositories;
 using EVRentalApi.Infrastructure.Email;
 using EVRentalApi.Models;
+using Microsoft.AspNetCore.Authorization;
 using System.Collections.Generic;
 using Microsoft.Extensions.FileProviders;
 
@@ -66,6 +67,10 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
+
+// DI: Incident management
+builder.Services.AddScoped<IIncidentRepository, IncidentRepository>();
+builder.Services.AddScoped<IIncidentService, IncidentService>();
 
 // Add controllers
 builder.Services.AddControllers();
@@ -1390,6 +1395,127 @@ app.MapPost("/api/wallet/confirm-payment", [Microsoft.AspNetCore.Authorization.A
         await conn.CloseAsync();
         return Results.BadRequest(new { success = false, message = $"Payment processing failed: {ex.Message}" });
     }
+});
+
+// Incident endpoints
+// Create incident (customer reports)
+app.MapPost("/api/incidents", [Authorize] async (CreateIncidentRequest req, IIncidentService incidentService, HttpContext context) =>
+{
+    Console.WriteLine($"[Incident API] Received incident report: VehicleId={req.VehicleId}, Type={req.Type}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        Console.WriteLine("[Incident API] Unauthorized: No valid user ID");
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"[Incident API] User ID: {userId}");
+
+    var result = await incidentService.CreateIncidentAsync(req, userId);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[Incident API] ✅ Incident created successfully: {result.Incident?.IncidentId}");
+    }
+    else
+    {
+        Console.WriteLine($"[Incident API] ❌ Failed to create incident: {result.Message}");
+    }
+
+    // Always return 200 with success flag to avoid client JSON parse errors and surface validation messages
+    return Results.Ok(new {
+        success = result.Success,
+        message = result.Message,
+        incident = result.Incident
+    });
+});
+
+// Get incidents by station (staff view)
+app.MapGet("/api/incidents/station/{stationId}", [Authorize] async (int stationId, IIncidentService incidentService) =>
+{
+    Console.WriteLine($"[Incident API] Getting incidents for station: {stationId}");
+    
+    var incidents = await incidentService.GetIncidentsByStationAsync(stationId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        incidents = incidents 
+    });
+});
+
+// Get user incidents (customer view)
+app.MapGet("/api/incidents/user", [Authorize] async (IIncidentService incidentService, HttpContext context) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    var incidents = await incidentService.GetUserIncidentsAsync(userId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        incidents = incidents 
+    });
+});
+
+// Get incident by ID
+app.MapGet("/api/incidents/{id}", [Authorize] async (int id, IIncidentService incidentService) =>
+{
+    var incident = await incidentService.GetIncidentByIdAsync(id);
+    
+    if (incident == null)
+    {
+        return Results.NotFound(new { success = false, message = "Incident not found" });
+    }
+    
+    return Results.Ok(new { 
+        success = true, 
+        incident = incident 
+    });
+});
+
+// Update incident (staff actions)
+app.MapPut("/api/incidents/{id}", [Authorize] async (int id, UpdateIncidentRequest req, IIncidentService incidentService, HttpContext context) =>
+{
+    Console.WriteLine($"[Incident API] Updating incident {id}: Status={req.Status}, Priority={req.Priority}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    int? handledBy = null;
+    
+    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+    {
+        handledBy = userId;
+        Console.WriteLine($"[Incident API] Handled by user: {userId}");
+    }
+
+    var result = await incidentService.UpdateIncidentAsync(id, req, handledBy);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[Incident API] ✅ Incident updated successfully");
+        return Results.Ok(new { 
+            success = true, 
+            message = result.Message,
+            incident = result.Incident 
+        });
+    }
+    
+    Console.WriteLine($"[Incident API] ❌ Failed to update incident: {result.Message}");
+    return Results.BadRequest(new { success = false, message = result.Message });
+});
+
+// Get unread incident count for notification bell
+app.MapGet("/api/incidents/station/{stationId}/unread-count", [Authorize] async (int stationId, IIncidentService incidentService) =>
+{
+    var count = await incidentService.GetUnreadIncidentCountAsync(stationId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        count = count 
+    });
 });
 
 app.Run("http://localhost:5000");

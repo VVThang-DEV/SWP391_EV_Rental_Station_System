@@ -227,40 +227,60 @@ const Dashboard = ({ user }: DashboardProps) => {
      return;
    }
 
+   // Check if user has current rental
+   if (!dashboardData.currentRental) {
+     toast({
+       title: "No Active Rental",
+       description: "You need to have an active rental to report an incident.",
+       variant: "destructive",
+     });
+     return;
+   }
+
    setIsSubmittingIncident(true);
    try {
-    //  const token = localStorage.getItem('token');
-    //  const response = await fetch('http://localhost:5000/api/incidents', {
-    //    method: 'POST',
-    //    headers: {
-    //      'Authorization': `Bearer ${token}`,
-    //      'Content-Type': 'application/json',
-    //    },
-    //    body: JSON.stringify({
-    //      rental_id: dashboardData.currentRental?.reservationId,
-    //      vehicle_id: dashboardData.currentRental?.vehicleId,
-    //      description: `${incidentType}: ${incidentDescription}`,
-    //      status: 'reported',
-    //    }),
-    //  });
-    //  if (response.ok) {
+     const token = localStorage.getItem('token');
+     if (!token) {
+       toast({
+         title: "Unauthorized",
+         description: "Please login to report an incident.",
+         variant: "destructive",
+       });
+       return;
+     }
 
-    // Mock: Lưu vào localStorage trước
-     const newIncident = incidentStorage.addIncident({
-       reservationId: dashboardData.currentRental?.reservationId || 123,
-       vehicleId: dashboardData.currentRental?.vehicleId || "VF8001",
-       stationId: "district-1", // Mock station ID
-       customerId: user?.id || "customer-1",
-       customerName: user?.name || "Customer Name",
-       type: incidentType,
-       description: incidentDescription,
-       status: 'reported',
-       priority: incidentType.includes('accident') || incidentType.includes('battery-empty') ? 'urgent' : 'medium',
-    });
+     // Determine priority based on incident type
+     let priority = 'medium';
+     if (incidentType.includes('accident') || incidentType.includes('emergency')) {
+       priority = 'urgent';
+     } else if (incidentType.includes('breakdown') || incidentType.includes('battery-empty')) {
+       priority = 'high';
+     }
 
-     console.log('Incident created:', newIncident);
-     // Giả lập thành công
-     
+    const response = await fetch('http://localhost:5000/api/incidents', {
+       method: 'POST',
+       headers: {
+         'Authorization': `Bearer ${token}`,
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({
+        reservationId: dashboardData.currentRental?.reservationId || null,
+         type: incidentType,
+         description: incidentDescription,
+         priority: priority,
+       }),
+     });
+
+    // Safely parse response (handles 404/empty body)
+    let data: any = {};
+    const text = await response.text();
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {};
+    }
+
+     if (response.ok && data.success) {
        toast({
          title: "Incident Reported Successfully",
          description: "Our staff will contact you shortly to assist.",
@@ -268,18 +288,18 @@ const Dashboard = ({ user }: DashboardProps) => {
        setIsIncidentDialogOpen(false);
        setIncidentType("");
        setIncidentDescription("");
-    //  } else {
-    //    toast({
-    //      title: "Failed to Report Incident",
-    //      description: "Please try again or contact support directly.",
-    //      variant: "destructive",
-    //    });
-    //  }
+     } else {
+       toast({
+         title: "Failed to Report Incident",
+         description: data.message || "Please try again or contact support directly.",
+         variant: "destructive",
+       });
+     }
    } catch (error) {
      console.error('Error reporting incident:', error);
      toast({
        title: "Error",
-       description: "An error occurred while reporting the incident.",
+       description: "An error occurred while reporting the incident. Please try again.",
        variant: "destructive",
      });
    } finally {
