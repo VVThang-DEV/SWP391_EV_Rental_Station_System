@@ -62,6 +62,9 @@ builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 
+// DI: QR Code management
+builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+
 // DI: Payment management
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
@@ -468,6 +471,52 @@ app.MapGet("/api/reservations/{id}", [Microsoft.AspNetCore.Authorization.Authori
         success = true, 
         reservation = reservation 
     });
+});
+
+// QR Code endpoints
+app.MapPost("/api/qr/generate/{reservationId}", [Microsoft.AspNetCore.Authorization.Authorize] async (int reservationId, IQRCodeService qrCodeService) =>
+{
+    Console.WriteLine($"[QR API] Generating QR code for reservation {reservationId}");
+    
+    var qrCode = await qrCodeService.GeneratePickupQRCodeAsync(reservationId);
+    
+    if (qrCode == null)
+    {
+        return Results.BadRequest(new { success = false, message = "Failed to generate QR code" });
+    }
+    
+    return Results.Ok(new { success = true, qrCode = qrCode });
+});
+
+app.MapPost("/api/qr/verify", async (QRVerificationRequest req, IQRCodeService qrCodeService) =>
+{
+    Console.WriteLine($"[QR API] Verifying QR code");
+    
+    if (string.IsNullOrWhiteSpace(req.QRCodeData))
+    {
+        return Results.BadRequest(new { success = false, message = "QR code data is required" });
+    }
+    
+    var result = await qrCodeService.VerifyAndConfirmQRCodeAsync(req.QRCodeData);
+    
+    if (result.Success)
+    {
+        return Results.Ok(new
+        {
+            success = true,
+            message = result.Message,
+            reservation = result.Reservation
+        });
+    }
+    else
+    {
+        return Results.BadRequest(new
+        {
+            success = false,
+            message = result.Message,
+            reservation = result.Reservation
+        });
+    }
 });
 
 app.MapPost("/api/reservations/{id}/cancel", [Microsoft.AspNetCore.Authorization.Authorize] async (int id, CancelReservationRequest req, IReservationService reservationService, Func<SqlConnection> getConnection, HttpContext context) =>

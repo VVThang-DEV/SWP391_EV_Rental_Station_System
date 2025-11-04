@@ -76,3 +76,29 @@ public class WalkInBookingResponse
     public int? UserId { get; set; }
 }
 
+// QR Code Models
+public class PickupQRCodeData
+{
+    public int ReservationId { get; set; }
+    public int VehicleId { get; set; }
+    public int StationId { get; set; }
+    public int UserId { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string AccessCode { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; }
+}
+
+public class QRVerificationRequest
+{
+    public string QRCodeData { get; set; } = string.Empty;
+}
+
+public class QRVerificationResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public ReservationDto? Reservation { get; set; }
+}
+
