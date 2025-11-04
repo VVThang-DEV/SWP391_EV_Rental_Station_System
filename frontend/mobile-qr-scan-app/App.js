@@ -10,18 +10,40 @@ import {
 } from "react-native";
 import { CameraView, Camera } from "expo-camera";
 import { StatusBar } from "expo-status-bar";
+import Constants from "expo-constants";
 
-// Update this to your backend URL
-// For Android emulator: use 10.0.2.2
-// For iOS simulator: use localhost
-// For physical device: use your computer's IP address (e.g., 192.168.1.100)
-const BACKEND_URL = "http://10.0.2.2:5000"; // Change this based on your setup
+// Backend URL resolution:
+// - If EXPO_PUBLIC_BACKEND_URL is provided, use it
+// - Else, when running in Expo Go, derive LAN IP from hostUri (works on iPhone)
+// - Fallback to Android emulator loopback (10.0.2.2)
+const deriveLanBackendUrl = () => {
+  const hostUri = Constants?.expoConfig?.hostUri || Constants?.expoConfig?.bundleUrl || "";
+  // In some SDKs hostUri may be like "192.168.1.23:19000" or "exp://192.168.1.23:19000"
+  let hostname = null;
+  if (typeof hostUri === "string" && hostUri.length > 0) {
+    try {
+      // Try URL parsing first
+      const maybeUrl = hostUri.includes("://") ? hostUri : `exp://${hostUri}`;
+      const url = new URL(maybeUrl);
+      hostname = url.hostname;
+    } catch (_) {
+      // Fallback simple split
+      hostname = hostUri.replace(/^exp:\/\//, "").split(":")[0];
+    }
+  }
+  return hostname ? `http://${hostname}:5000` : "http://10.0.2.2:5000";
+};
+
+const BACKEND_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL || deriveLanBackendUrl();
 
 export default function App() {
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [verifyStatus, setVerifyStatus] = useState(null);
 
   useEffect(() => {
     const getCameraPermissions = async () => {
@@ -31,6 +53,53 @@ export default function App() {
 
     getCameraPermissions();
   }, []);
+
+  const fetchWithTimeout = async (resource, options = {}) => {
+    const { timeout = 8000, ...rest } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(resource, { ...rest, signal: controller.signal });
+      return response;
+    } finally {
+      clearTimeout(id);
+    }
+  };
+
+  const testConnection = async () => {
+    try {
+      setConnectionStatus("testing");
+      // Try root first (may 404 but proves reachability)
+      const resp = await fetchWithTimeout(`${BACKEND_URL}/`, { method: "GET", timeout: 4000 });
+      setConnectionStatus(`Reachable (${resp.status})`);
+    } catch (e) {
+      setConnectionStatus(`Unreachable: ${e.name === "AbortError" ? "timeout" : e.message}`);
+      Alert.alert("Backend not reachable", `${BACKEND_URL}\n\n${e.message}`);
+    }
+  };
+
+  const testVerifyEndpoint = async () => {
+    try {
+      setVerifyStatus("testing");
+      const start = Date.now();
+      const resp = await fetchWithTimeout(`${BACKEND_URL}/api/qr/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ ping: true }),
+        timeout: 12000,
+      });
+      const elapsed = Date.now() - start;
+      let bodyText = "";
+      try {
+        bodyText = await resp.text();
+      } catch (_) {}
+      setVerifyStatus(`Status ${resp.status} in ${elapsed}ms`);
+      Alert.alert("/api/qr/verify", `HTTP ${resp.status}\n${bodyText?.slice(0, 400)}`);
+    } catch (e) {
+      setVerifyStatus(e.name === "AbortError" ? "timeout" : e.message);
+      Alert.alert("/api/qr/verify failed", e.name === "AbortError" ? "timeout/aborted" : e.message);
+    }
+  };
 
   const handleBarCodeScanned = async ({ type, data }) => {
     if (scanned || loading) return;
@@ -52,27 +121,37 @@ export default function App() {
       }
 
       // Send to backend for verification
-      const response = await fetch(`${BACKEND_URL}/api/qr/verify`, {
+      const response = await fetchWithTimeout(`${BACKEND_URL}/api/qr/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({
           qrCodeData: data,
         }),
+        timeout: 15000,
       });
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (_) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text?.slice(0, 200)}`);
+      }
 
       if (result.success) {
         setResult({
           success: true,
           message: result.message,
           reservation: result.reservation,
+          vehicleName: result.vehicleName,
+          userName: result.userName,
         });
         Alert.alert(
           "Success! ✅",
-          `${result.message}\n\nReservation #${result.reservation?.reservationId}\nVehicle: ${result.reservation?.vehicleName}\nCustomer: ${result.reservation?.userName}`,
+          `${result.message}\n\nReservation #${result.reservation?.reservationId}\nVehicle: ${result.vehicleName ?? "Unknown"}\nCustomer: ${result.userName ?? "Unknown"}`,
           [{ text: "OK", onPress: () => resetScanner() }]
         );
       } else {
@@ -128,6 +207,13 @@ export default function App() {
         <Text style={styles.subtitle}>
           Scan reservation QR code to confirm pickup
         </Text>
+        <Text style={[styles.subtitle, { marginTop: 6 }]}>Server: {BACKEND_URL}</Text>
+        <View style={{ marginTop: 8 }}>
+          <Button title={connectionStatus ? `Test: ${connectionStatus}` : "Test Connection"} onPress={testConnection} />
+        </View>
+        <View style={{ marginTop: 8 }}>
+          <Button title={verifyStatus ? `Verify: ${verifyStatus}` : "Verify Endpoint"} onPress={testVerifyEndpoint} />
+        </View>
       </View>
 
       <View style={styles.cameraContainer}>
@@ -164,10 +250,10 @@ export default function App() {
                     Reservation #{result.reservation.reservationId}
                   </Text>
                   <Text style={styles.detailText}>
-                    Vehicle: {result.reservation.vehicleName}
+                    Vehicle: {result.vehicleName}
                   </Text>
                   <Text style={styles.detailText}>
-                    Customer: {result.reservation.userName}
+                    Customer: {result.userName}
                   </Text>
                   <Text style={styles.detailText}>
                     Status: {result.reservation.status}

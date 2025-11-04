@@ -1473,7 +1473,7 @@ app.MapPost("/api/wallet/confirm-payment", [Microsoft.AspNetCore.Authorization.A
     }
 });
 
-app.Run("http://localhost:5000");
+app.Run("http://0.0.0.0:5000");
 
 record LoginRequest(string Email, string Password);
 record DepositRequest(decimal Amount, string MethodType, string? TransactionId);

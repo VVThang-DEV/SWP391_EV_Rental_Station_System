@@ -94,11 +94,24 @@ public class QRCodeService : IQRCodeService
             var qrCode = await _qrCodeRepository.GetQRCodeByCodeAsync(qrCodeData);
             if (qrCode == null)
             {
-                return new VerifyQRCodeResponse
+                // Auto-save fallback: if reservation exists but QR not saved, create it now
+                // This helps when frontend skipped the save step
+                var autoSave = await _qrCodeRepository.SaveQRCodeAsync(new SaveQRCodeRequest
                 {
-                    Success = false,
-                    Message = "QR code not found in system. Please ensure the reservation was completed successfully."
-                };
+                    ReservationId = reservationId,
+                    QRCodeData = qrCodeData
+                });
+
+                if (!autoSave.Success)
+                {
+                    return new VerifyQRCodeResponse
+                    {
+                        Success = false,
+                        Message = "QR code not found in system. Please ensure the reservation was completed successfully."
+                    };
+                }
+
+                qrCode = autoSave.QRCode;
             }
 
             // Check if QR code has expired
