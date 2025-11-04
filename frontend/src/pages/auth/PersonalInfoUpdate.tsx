@@ -49,6 +49,15 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
 
   // Check if user came from registration
   const isFromRegistration = location.state?.fromRegistration || false;
+  const registrationDateOfBirth = location.state?.dateOfBirth || "";
+
+  // Log when dateOfBirth is pre-filled from registration
+  if (isFromRegistration && registrationDateOfBirth) {
+    console.log(
+      "Pre-filling dateOfBirth from registration:",
+      registrationDateOfBirth
+    );
+  }
 
   const [personalData, setPersonalData] = useState({
     fullName: user?.name || "",
@@ -58,7 +67,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     cccd: "",
     licenseNumber: "",
     gender: "",
-    dateOfBirth: "",
+    dateOfBirth: registrationDateOfBirth, // Pre-fill with date from registration
   });
 
   const [uploadedDocuments, setUploadedDocuments] = useState<
@@ -89,30 +98,40 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
           return;
         }
 
-        const response = await fetch("http://localhost:5000/auth/current-user", {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await fetch(
+          "http://localhost:5000/auth/current-user",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.user) {
             // Update personal data with existing user info
-            setPersonalData(prev => ({
+            // For dateOfBirth, prefer the one from registration state if available
+            const backendDateOfBirth = result.user.dateOfBirth || result.user.date_of_birth || "";
+            const finalDateOfBirth = isFromRegistration && registrationDateOfBirth ? registrationDateOfBirth : backendDateOfBirth;
+
+            setPersonalData((prev) => ({
               ...prev,
-              fullName: result.user.fullName || result.user.full_name || prev.fullName,
+              fullName:
+                result.user.fullName || result.user.full_name || prev.fullName,
               email: result.user.email || prev.email,
               phone: result.user.phone || "",
               address: result.user.address || "",
               cccd: result.user.cccd || "",
-              licenseNumber: result.user.licenseNumber || result.user.license_number || "",
+              licenseNumber:
+                result.user.licenseNumber || result.user.license_number || "",
               gender: result.user.gender || "",
-              dateOfBirth: result.user.dateOfBirth || result.user.date_of_birth || "",
+              dateOfBirth: finalDateOfBirth,
             }));
             console.log("User data loaded successfully:", result.user);
+            console.log("Final dateOfBirth used:", finalDateOfBirth);
           }
         }
       } catch (error) {
@@ -121,7 +140,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
     };
 
     loadUserData();
-  }, []);
+  }, [isFromRegistration, registrationDateOfBirth]);
 
   const handleInputChange = (
     field: keyof typeof personalData,
@@ -257,25 +276,33 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
         address: typeof updateData.Address,
         gender: typeof updateData.Gender,
         dateOfBirth: typeof updateData.DateOfBirth,
-        phone: typeof updateData.Phone
+        phone: typeof updateData.Phone,
       });
       console.log("Actual values:", JSON.stringify(updateData, null, 2));
 
       // Call API to update personal information
-      const response = await fetch("http://localhost:5000/auth/update-personal-info", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
-      });
+      const response = await fetch(
+        "http://localhost:5000/auth/update-personal-info",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error("API Error Response:", errorText);
         console.error("Response Status:", response.status);
-        console.error("Response Headers:", Object.fromEntries(response.headers.entries()));
-        throw new Error(`Failed to update personal information: ${response.status} - ${errorText}`);
+        console.error(
+          "Response Headers:",
+          Object.fromEntries(response.headers.entries())
+        );
+        throw new Error(
+          `Failed to update personal information: ${response.status} - ${errorText}`
+        );
       }
 
       const result = await response.json();
@@ -285,19 +312,22 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
         const documentEntries = Object.entries(uploadedDocuments);
         if (documentEntries.length > 0) {
           console.log("Documents to upload:", documentEntries);
-          
+
           // Upload each document
           for (const [documentType, file] of documentEntries) {
             try {
               const formData = new FormData();
-              formData.append('file', file);
-              formData.append('email', personalData.email);
-              formData.append('documentType', documentType);
+              formData.append("file", file);
+              formData.append("email", personalData.email);
+              formData.append("documentType", documentType);
 
-              const uploadResponse = await fetch("http://localhost:5000/api/documents/upload-document", {
-                method: "POST",
-                body: formData,
-              });
+              const uploadResponse = await fetch(
+                "http://localhost:5000/api/documents/upload-document",
+                {
+                  method: "POST",
+                  body: formData,
+                }
+              );
 
               if (!uploadResponse.ok) {
                 throw new Error(`Failed to upload ${documentType}`);
@@ -314,7 +344,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
               });
             }
           }
-          
+
           toast({
             title: "Documents Uploaded",
             description: "Your documents have been uploaded successfully.",
@@ -333,7 +363,8 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
 
         toast({
           title: "Profile Updated Successfully!",
-          description: result.message || "Your personal information has been saved.",
+          description:
+            result.message || "Your personal information has been saved.",
         });
 
         // Navigate to stations page
@@ -345,13 +376,18 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
           },
         });
       } else {
-        throw new Error(result.message || "Failed to update personal information");
+        throw new Error(
+          result.message || "Failed to update personal information"
+        );
       }
     } catch (error) {
       console.error("Error updating personal info:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update your information. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update your information. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -488,9 +524,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="cccd">
-                        CCCD *
-                      </Label>
+                      <Label htmlFor="cccd">CCCD *</Label>
                       <Input
                         id="cccd"
                         value={personalData.cccd}
@@ -509,9 +543,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="licenseNumber">
-                        License Number *
-                      </Label>
+                      <Label htmlFor="licenseNumber">License Number *</Label>
                       <Input
                         id="licenseNumber"
                         value={personalData.licenseNumber}
@@ -529,9 +561,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="gender">
-                        Gender *
-                      </Label>
+                      <Label htmlFor="gender">Gender *</Label>
                       <select
                         id="gender"
                         value={personalData.gender}
@@ -553,9 +583,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="dateOfBirth">
-                        Date of Birth *
-                      </Label>
+                      <Label htmlFor="dateOfBirth">Date of Birth *</Label>
                       <Input
                         id="dateOfBirth"
                         type="date"
@@ -650,12 +678,8 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                         <p className="font-medium">{personalData.address}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">
-                          CCCD
-                        </p>
-                        <p className="font-medium">
-                          {personalData.cccd}
-                        </p>
+                        <p className="text-sm text-muted-foreground">CCCD</p>
+                        <p className="font-medium">{personalData.cccd}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
@@ -666,9 +690,7 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">
-                          Gender
-                        </p>
+                        <p className="text-sm text-muted-foreground">Gender</p>
                         <p className="font-medium capitalize">
                           {personalData.gender}
                         </p>
@@ -678,7 +700,15 @@ const PersonalInfoUpdate = ({ user }: PersonalInfoUpdateProps) => {
                           Date of Birth
                         </p>
                         <p className="font-medium">
-                          {personalData.dateOfBirth}
+                          {personalData.dateOfBirth
+                            ? new Date(
+                                personalData.dateOfBirth
+                              ).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "Not provided"}
                         </p>
                       </div>
                     </div>
