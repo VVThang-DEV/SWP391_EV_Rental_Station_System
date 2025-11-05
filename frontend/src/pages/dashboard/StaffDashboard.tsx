@@ -3601,6 +3601,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         "vi-VN"
                       )}
                     </p>
+                    {selectedReservation.confirmedBy && (
+                      <p className="col-span-2">
+                        <span className="font-medium">Confirmed By:</span>{" "}
+                        Staff
+                      </p>
+                    )}
+                    {selectedReservation.confirmedAt && (
+                      <p className="col-span-2">
+                        <span className="font-medium">Confirmed At:</span>{" "}
+                        {new Date(selectedReservation.confirmedAt).toLocaleString(
+                          "vi-VN"
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
 

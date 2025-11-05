@@ -545,6 +545,21 @@ const Bookings = () => {
                       <span className="text-muted-foreground">User ID:</span>
                       <span className="font-medium">{selectedBooking.userId}</span>
                     </div>
+                    {/* Confirm information if available */}
+                    {selectedBooking.confirmedBy && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Confirmed By:</span>
+                        <span className="font-medium">Staff</span>
+                      </div>
+                    )}
+                    {selectedBooking.confirmedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Confirmed At:</span>
+                        <span className="font-medium">
+                          {new Date(selectedBooking.confirmedAt).toLocaleString('vi-VN')}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

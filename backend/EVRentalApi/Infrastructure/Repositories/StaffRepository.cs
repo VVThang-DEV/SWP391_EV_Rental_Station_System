@@ -637,14 +637,17 @@ public class StaffRepository : IStaffRepository
 
             Console.WriteLine($"[ConfirmReservation] Confirming reservation {reservationId} for user {userId}, vehicle {vehicleId}");
 
-            // Update reservation status to confirmed
+            // Update reservation status to confirmed and stamp confirmed_by/at
             const string updateReservationSql = @"
                 UPDATE reservations 
-                SET status = 'confirmed' 
+                SET status = 'confirmed', 
+                    confirmed_by = @StaffId,
+                    confirmed_at = GETDATE()
                 WHERE reservation_id = @ReservationId";
 
             await using var updateReservationCmd = new SqlCommand(updateReservationSql, conn);
             updateReservationCmd.Parameters.AddWithValue("@ReservationId", reservationId);
+            updateReservationCmd.Parameters.AddWithValue("@StaffId", staffId);
             var reservationUpdated = await updateReservationCmd.ExecuteNonQueryAsync();
 
             if (reservationUpdated > 0)
@@ -925,6 +928,8 @@ public class StaffRepository : IStaffRepository
                     r.cancellation_reason,
                     r.cancelled_by,
                     r.cancelled_at,
+                    r.confirmed_by,
+                    r.confirmed_at,
                     u.full_name as user_name,
                     u.email as user_email,
                     u.phone as user_phone,
@@ -965,6 +970,10 @@ public class StaffRepository : IStaffRepository
                         ? null : reader.GetString(reader.GetOrdinal("cancelled_by")),
                     CancelledAt = reader.IsDBNull(reader.GetOrdinal("cancelled_at")) 
                         ? null : reader.GetDateTime(reader.GetOrdinal("cancelled_at")),
+                    ConfirmedBy = reader.IsDBNull(reader.GetOrdinal("confirmed_by")) 
+                        ? null : reader.GetInt32(reader.GetOrdinal("confirmed_by")),
+                    ConfirmedAt = reader.IsDBNull(reader.GetOrdinal("confirmed_at")) 
+                        ? null : reader.GetDateTime(reader.GetOrdinal("confirmed_at")),
                     UserName = reader.GetString(reader.GetOrdinal("user_name")),
                     UserEmail = reader.GetString(reader.GetOrdinal("user_email")),
                     UserPhone = reader.GetString(reader.GetOrdinal("user_phone")),

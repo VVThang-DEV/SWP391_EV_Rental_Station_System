@@ -153,9 +153,9 @@ const Dashboard = ({ user }: DashboardProps) => {
         const res = await apiService.getReservations();
         const reservations = res.reservations || [];
 
-        // treat any non-finished reservation as current
+        // Only show truly active rentals (not pending/confirmed)
         const activeLike = reservations
-          .filter((r) => !["completed", "cancelled", "canceled", "finished"].includes((r.status || "").toLowerCase()))
+          .filter((r) => ["active", "in_progress", "rented"].includes((r.status || "").toLowerCase()))
           .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
 
         if (activeLike) {
@@ -195,13 +195,24 @@ const Dashboard = ({ user }: DashboardProps) => {
           });
           return;
         }
+        // API có dữ liệu nhưng không có rental đang active → ẩn Current Rental
+        setDashboardData({
+          stats,
+          currentRental: null,
+          recentRentals: bookingStorage.getRecentRentals(3),
+        });
+        return;
       } catch {
         // ignore and use storage fallback
       }
 
+      // Fallback: only show storage current rental if it's active
+      const storageCurrent = bookingStorage.getCurrentRental();
+      const storageActive = storageCurrent && ["active", "in_progress", "rented"].includes((storageCurrent.status || "").toLowerCase()) ? storageCurrent : null;
+
       setDashboardData({
         stats,
-        currentRental: bookingStorage.getCurrentRental(),
+        currentRental: storageActive,
         recentRentals: bookingStorage.getRecentRentals(3),
       });
     };
@@ -444,7 +455,11 @@ const Dashboard = ({ user }: DashboardProps) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Current Rental */}
-          {dashboardData.currentRental ? (
+          {(() => {
+            const cr = dashboardData.currentRental as any;
+            const show = cr && ["active", "in_progress", "rented"].includes((cr.status || "").toLowerCase());
+            return show;
+          })() ? (
             <Card className="card-premium">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
