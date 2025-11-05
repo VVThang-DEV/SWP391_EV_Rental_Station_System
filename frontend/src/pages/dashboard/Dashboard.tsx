@@ -31,6 +31,7 @@ import { useTranslation } from "@/contexts/TranslationContext";
 import { bookingStorage } from "@/lib/booking-storage";
 import { incidentStorage } from "@/lib/incident-storage";
 import { useEffect, useState } from "react";
+import { apiService } from "@/services/api";
 import {
   Car,
   Clock,
@@ -143,22 +144,70 @@ const Dashboard = ({ user }: DashboardProps) => {
   //   });
   // }, []);
 
-  //DATA MOCK TEST
+  // Load dashboard data with live reservations if available (fallback to local storage)
   useEffect(() => {
-    // Lấy dữ liệu thực từ storage
-    const stats = bookingStorage.getDashboardStats();
-    const currentRental = bookingStorage.getCurrentRental();
-    const recentRentals = bookingStorage.getRecentRentals(3);
+    const loadData = async () => {
+      const stats = bookingStorage.getDashboardStats();
 
-    setDashboardData({
-      stats,
-      // + Sử dụng mock data nếu không có current rental
-      currentRental: currentRental || mockCurrentRental,
-      // + Sử dụng mock data nếu không có recent rentals
-      recentRentals: recentRentals.length > 0 ? recentRentals : mockRecentRentals,
-    });
+      try {
+        const res = await apiService.getReservations();
+        const reservations = res.reservations || [];
+
+        // treat any non-finished reservation as current
+        const activeLike = reservations
+          .filter((r) => !["completed", "cancelled", "canceled", "finished"].includes((r.status || "").toLowerCase()))
+          .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
+
+        if (activeLike) {
+          let batteryLevel: number | null = null;
+          try {
+            const vehicle = await apiService.getVehicleById(activeLike.vehicleId);
+            batteryLevel = typeof vehicle.batteryLevel === "number" ? vehicle.batteryLevel : null;
+          } catch {
+            batteryLevel = null;
+          }
+
+          const currentRental: any = {
+            id: `RES_${activeLike.reservationId}`,
+            reservationId: activeLike.reservationId,
+            vehicle: `Vehicle #${activeLike.vehicleId}`,
+            vehicleId: String(activeLike.vehicleId),
+            vehicleBrand: "",
+            vehicleYear: new Date(activeLike.startTime).getFullYear(),
+            vehicleImage: "",
+            startDate: new Date(activeLike.startTime).toISOString().split("T")[0],
+            endDate: new Date(activeLike.endTime).toISOString().split("T")[0],
+            startTime: new Date(activeLike.startTime).toLocaleTimeString(),
+            endTime: new Date(activeLike.endTime).toLocaleTimeString(),
+            pickupLocation: (activeLike as any).stationName || `Station #${activeLike.stationId}`,
+            dropoffLocation: (activeLike as any).stationName || `Station #${activeLike.stationId}`,
+            status: activeLike.status || "active",
+            totalCost: 0,
+            duration: "",
+            batteryLevel: batteryLevel ?? undefined,
+            createdAt: activeLike.createdAt,
+          };
+
+          setDashboardData({
+            stats,
+            currentRental,
+            recentRentals: bookingStorage.getRecentRentals(3),
+          });
+          return;
+        }
+      } catch {
+        // ignore and use storage fallback
+      }
+
+      setDashboardData({
+        stats,
+        currentRental: bookingStorage.getCurrentRental(),
+        recentRentals: bookingStorage.getRecentRentals(3),
+      });
+    };
+
+    loadData();
   }, []);
-  // END MOCK TEST
 
 
   if (!user) {
@@ -427,9 +476,20 @@ const Dashboard = ({ user }: DashboardProps) => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Battery Level</span>
-                    <span className="font-medium">85%</span>
+                    <span className="font-medium">
+                      {typeof (dashboardData.currentRental as any)?.batteryLevel === "number"
+                        ? `${(dashboardData.currentRental as any).batteryLevel}%`
+                        : "--%"}
+                    </span>
                   </div>
-                  <Progress value={85} className="h-2" />
+                  <Progress
+                    value={
+                      typeof (dashboardData.currentRental as any)?.batteryLevel === "number"
+                        ? (dashboardData.currentRental as any).batteryLevel
+                        : 0
+                    }
+                    className="h-2"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">

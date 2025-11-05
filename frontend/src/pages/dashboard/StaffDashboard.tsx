@@ -3215,7 +3215,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       .filter((r: any) =>
         bookingStatuses.includes((r.status || "").toLowerCase())
       )
-      .filter((r: any) => withinRange(r.createdAt || r.startTime));
+      // Prioritize filtering by startTime (pickup date) instead of createdAt
+      .filter((r: any) => withinRange(r.startTime || r.createdAt));
 
     const canceledBookings = reservations
       .filter((r: any) => {
@@ -4338,19 +4339,41 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             <TabsContent value="battery" className="mt-4">
               {lowBatteryCount > 0 ? (
                 <div className="space-y-3">
-                  {lowBatteryVehicles.map((v:any) => (
-                    <Card key={`low-${v.vehicleId}`} className="border-l-4 border-l-yellow-500">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm">{v.licensePlate || v.uniqueVehicleId || `Vehicle #${v.vehicleId}`}</CardTitle>
-                          <Badge variant="destructive">{(v.batteryLevel ?? v.battery ?? 0)}%</Badge>
+                  {lowBatteryVehicles.map((v: any) => {
+                    const level = v.batteryLevel ?? v.battery ?? 0;
+                    const critical = typeof level === 'number' && level <= 10;
+                    return (
+                      <div
+                        key={`low-${v.vehicleId || v.uniqueVehicleId}`}
+                        className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                          critical
+                            ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+                            : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm truncate">
+                              {v.modelId || 'Unknown Vehicle'}
+                            </h4>
+                            <Badge 
+                              variant={critical ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {level}%
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            ID: {v.uniqueVehicleId || `#${v.vehicleId}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            📍 {v.location || 'Unknown Location'}
+                          </p>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">Battery level is below threshold. Consider charging soon.</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        {/* Reserved space for future actions (start charge / complete) */}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">No low battery vehicles</div>

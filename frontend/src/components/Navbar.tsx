@@ -358,14 +358,23 @@ interface StaffNotificationsButtonProps {
 }
 
 const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButtonProps) => {
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadIncidents, setUnreadIncidents] = useState(0);
+  const [batteryCount, setBatteryCount] = useState(0);
 
   useEffect(() => {
     let isActive = true;
 
     const loadCount = async () => {
       if (!stationId) {
-        if (isActive) setUnreadCount(0);
+        // Hydrate battery count from local storage if available
+        try {
+          const stored = localStorage.getItem('staffNotifCounts');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (typeof parsed?.battery === 'number') setBatteryCount(parsed.battery);
+          }
+        } catch {}
+        if (isActive) setUnreadIncidents(0);
         return;
       }
 
@@ -389,7 +398,7 @@ const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButt
               : typeof data?.data?.count === 'number'
               ? data.data.count
               : 0;
-          if (isActive) setUnreadCount(count);
+          if (isActive) setUnreadIncidents(count);
           return;
         }
       } catch {
@@ -411,7 +420,7 @@ const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButt
         if (listRes.ok) {
           const listData = await listRes.json();
           const incidents = (listData?.incidents || []).filter((i: any) => (i?.status || 'reported') === 'reported');
-          if (isActive) setUnreadCount(incidents.length);
+          if (isActive) setUnreadIncidents(incidents.length);
           return;
         }
       } catch {
@@ -421,11 +430,20 @@ const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButt
       // Fallback to local storage incidents
       try {
         const localCount = incidentStorage.getPendingIncidentsByStation(String(stationId)).length;
-        if (isActive) setUnreadCount(localCount);
+        if (isActive) setUnreadIncidents(localCount);
       } catch {
-        if (isActive) setUnreadCount(0);
+        if (isActive) setUnreadIncidents(0);
       }
     };
+
+    // Seed battery count at mount
+    try {
+      const stored = localStorage.getItem('staffNotifCounts');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed?.battery === 'number') setBatteryCount(parsed.battery);
+      }
+    } catch {}
 
     loadCount();
     const interval = setInterval(loadCount, 30000);
@@ -437,32 +455,40 @@ const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButt
     // Listen to in-app updates from StaffDashboard if available
     const onExternal = (e: any) => {
       const count = Number(e?.detail?.count);
-      if (!Number.isNaN(count)) {
-        setUnreadCount(count);
-      }
+      if (!Number.isNaN(count)) setUnreadIncidents(count);
     };
     window.addEventListener('staffUnreadIncidents', onExternal as any);
+
+    const onCounts = (e: any) => {
+      const b = Number(e?.detail?.battery);
+      if (!Number.isNaN(b)) setBatteryCount(b);
+      const i = Number(e?.detail?.incidents);
+      if (!Number.isNaN(i)) setUnreadIncidents(i);
+    };
+    window.addEventListener('staffNotifCounts', onCounts as any);
     return () => {
       isActive = false;
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('staffUnreadIncidents', onExternal as any);
+      window.removeEventListener('staffNotifCounts', onCounts as any);
     };
   }, [stationId]);
 
+  const total = Math.max(0, (unreadIncidents || 0) + (batteryCount || 0));
   return (
     <div className="relative">
       <Button
         variant="ghost"
         size="sm"
         onClick={onClick}
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+        aria-label={`Notifications${total > 0 ? ` (${total})` : ''}`}
       >
         <Bell className="h-5 w-5" />
       </Button>
-      {unreadCount > 0 && (
+      {total > 0 && (
         <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] h-4 min-w-4 px-1 flex items-center justify-center leading-none">
-          {unreadCount > 99 ? '99+' : unreadCount}
+          {total > 99 ? '99+' : total}
         </span>
       )}
     </div>
