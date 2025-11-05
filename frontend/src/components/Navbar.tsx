@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { Bell } from "lucide-react";
+import { incidentStorage } from "@/lib/incident-storage";
+import { staffApiService } from "@/services/api";
 
 interface NavbarProps {
   user?: {
@@ -36,10 +38,32 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [staffStationId, setStaffStationId] = useState<string | undefined>(undefined);
 
   const isActive = (path: string) => location.pathname === path;
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
+  // Ensure we have a stationId for staff in the navbar
+  useEffect(() => {
+    const loadStationId = async () => {
+      if (!user || user.role !== 'staff') return;
+      // If user already has stationId, use it
+      if ((user as any)?.stationId) {
+        setStaffStationId((user as any).stationId?.toString?.());
+        return;
+      }
+      try {
+        const profile = await staffApiService.getStaffProfile();
+        if (profile?.stationId != null) {
+          setStaffStationId(profile.stationId.toString());
+        }
+      } catch (e) {
+        // ignore; the notifications button will fall back to local storage
+      }
+    };
+    loadStationId();
+  }, [user?.role, (user as any)?.stationId]);
 
   return (
     <nav className="bg-background/95 backdrop-blur-md border-b border-border sticky top-0 z-50">
@@ -103,26 +127,20 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
               <>
                 {/* Unified Notifications trigger for staff */}
                 {user.role === "staff" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <StaffNotificationsButton
                     onClick={() => {
                       if (location.pathname === '/dashboard/staff') {
-                        // Already on staff dashboard: fire an in-app event to open the dialog
                         try {
                           const ev = new CustomEvent('openStaffNotifications');
                           window.dispatchEvent(ev);
                         } catch {}
                       } else {
-                        // Navigate and set a one-shot flag for initial open
                         try { localStorage.setItem('openStaffNotifications','1'); } catch {}
                         navigate('/dashboard/staff');
                       }
                     }}
-                    aria-label="Notifications"
-                  >
-                    <Bell className="h-5 w-5" />
-                  </Button>
+                    stationId={(user as any)?.stationId || staffStationId}
+                  />
                 )}
 
                 <DropdownMenu>
@@ -331,6 +349,123 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
         )}
       </div>
     </nav>
+  );
+};
+
+interface StaffNotificationsButtonProps {
+  stationId?: string;
+  onClick: () => void;
+}
+
+const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButtonProps) => {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadCount = async () => {
+      if (!stationId) {
+        if (isActive) setUnreadCount(0);
+        return;
+      }
+
+      // Try backend unread-count first
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(
+          `http://localhost:5000/api/incidents/station/${stationId}/unread-count`,
+          {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const count =
+            typeof data?.count === 'number'
+              ? data.count
+              : typeof data?.data?.count === 'number'
+              ? data.data.count
+              : 0;
+          if (isActive) setUnreadCount(count);
+          return;
+        }
+      } catch {
+        // ignore and fallback
+      }
+
+      // Fallback 2: fetch full list by station and count reported
+      try {
+        const token = localStorage.getItem('token');
+        const listRes = await fetch(
+          `http://localhost:5000/api/incidents/station/${stationId}`,
+          {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const incidents = (listData?.incidents || []).filter((i: any) => (i?.status || 'reported') === 'reported');
+          if (isActive) setUnreadCount(incidents.length);
+          return;
+        }
+      } catch {
+        // ignore and try local fallback
+      }
+
+      // Fallback to local storage incidents
+      try {
+        const localCount = incidentStorage.getPendingIncidentsByStation(String(stationId)).length;
+        if (isActive) setUnreadCount(localCount);
+      } catch {
+        if (isActive) setUnreadCount(0);
+      }
+    };
+
+    loadCount();
+    const interval = setInterval(loadCount, 30000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') loadCount();
+    };
+    document.addEventListener('visibilitychange', onVis);
+
+    // Listen to in-app updates from StaffDashboard if available
+    const onExternal = (e: any) => {
+      const count = Number(e?.detail?.count);
+      if (!Number.isNaN(count)) {
+        setUnreadCount(count);
+      }
+    };
+    window.addEventListener('staffUnreadIncidents', onExternal as any);
+    return () => {
+      isActive = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('staffUnreadIncidents', onExternal as any);
+    };
+  }, [stationId]);
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onClick}
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+      >
+        <Bell className="h-5 w-5" />
+      </Button>
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] h-4 min-w-4 px-1 flex items-center justify-center leading-none">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+    </div>
   );
 };
 
