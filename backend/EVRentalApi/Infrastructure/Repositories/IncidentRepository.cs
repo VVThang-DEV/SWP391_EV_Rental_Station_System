@@ -483,6 +483,48 @@ public class IncidentRepository : IIncidentRepository
         }
     }
 
+    public async Task<IEnumerable<IncidentDto>> GetRecentIncidentsAsync(int? stationId, string? status, int limit)
+    {
+        var results = new List<IncidentDto>();
+        try
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            var sql = @"SELECT TOP (@Limit)
+                            i.incident_id, i.reservation_id, i.vehicle_id, i.station_id, i.user_id,
+                            i.type, i.description, i.status, i.priority, i.reported_at, i.resolved_at,
+                            i.staff_notes, i.handled_by, i.created_at, i.updated_at
+                        FROM incidents i
+                        WHERE (@StationId IS NULL OR i.station_id = @StationId)
+                          AND (@Status IS NULL OR i.status = @Status)
+                        ORDER BY i.reported_at DESC";
+
+            using var cmd = new SqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@Limit", limit);
+            cmd.Parameters.AddWithValue("@StationId", (object?)stationId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Status", (object?)status ?? DBNull.Value);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                results.Add(MapToIncidentDto(reader));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[IncidentRepository] Error getting recent incidents: {ex.Message}");
+        }
+
+        // fill details
+        foreach (var inc in results)
+        {
+            await FillIncidentDetailsAsync(inc);
+        }
+
+        return results;
+    }
+
     private async Task<IncidentDto> GetIncidentWithDetailsAsync(int incidentId)
     {
         var incident = await GetIncidentByIdAsync(incidentId);

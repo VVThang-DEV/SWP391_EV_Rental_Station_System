@@ -1518,6 +1518,14 @@ app.MapGet("/api/incidents/station/{stationId}/unread-count", [Authorize] async 
     });
 });
 
+// Recent incidents (optionally filter by status/station)
+app.MapGet("/api/incidents/recent", [Authorize] async (HttpContext context, IIncidentService incidentService, int? stationId, string? status, int? limit) =>
+{
+    var lim = limit.GetValueOrDefault(20);
+    var incidents = await incidentService.GetRecentIncidentsAsync(stationId, status, lim);
+    return Results.Ok(new { success = true, incidents });
+});
+
 app.Run("http://localhost:5000");
 
 record LoginRequest(string Email, string Password);

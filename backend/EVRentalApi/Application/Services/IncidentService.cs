@@ -11,6 +11,7 @@ public interface IIncidentService
     Task<IncidentDto?> GetIncidentByIdAsync(int incidentId);
     Task<IncidentResponse> UpdateIncidentAsync(int incidentId, UpdateIncidentRequest request, int? handledBy = null);
     Task<int> GetUnreadIncidentCountAsync(int stationId);
+    Task<IEnumerable<IncidentDto>> GetRecentIncidentsAsync(int? stationId, string? status, int limit);
 }
 
 public class IncidentResponse
@@ -225,6 +226,19 @@ public class IncidentService : IIncidentService
         {
             Console.WriteLine($"[IncidentService] Error getting unread count: {ex.Message}");
             return 0;
+        }
+    }
+
+    public async Task<IEnumerable<IncidentDto>> GetRecentIncidentsAsync(int? stationId, string? status, int limit)
+    {
+        try
+        {
+            return await _incidentRepository.GetRecentIncidentsAsync(stationId, status, limit);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[IncidentService] Error getting recent incidents: {ex.Message}");
+            return Enumerable.Empty<IncidentDto>();
         }
     }
 }

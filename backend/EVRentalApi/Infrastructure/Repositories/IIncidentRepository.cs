@@ -10,5 +10,6 @@ public interface IIncidentRepository
     Task<IncidentDto?> GetIncidentByIdAsync(int incidentId);
     Task<bool> UpdateIncidentAsync(int incidentId, UpdateIncidentRequest request, int? handledBy = null);
     Task<int> GetUnreadIncidentCountAsync(int stationId);
+    Task<IEnumerable<IncidentDto>> GetRecentIncidentsAsync(int? stationId, string? status, int limit);
 }
 

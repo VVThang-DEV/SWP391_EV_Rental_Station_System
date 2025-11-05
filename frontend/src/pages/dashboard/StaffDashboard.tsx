@@ -285,11 +285,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           },
         });
 
+        let mappedIncidents: IncidentData[] = [];
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.incidents) {
             // Map API incidents to IncidentData format
-            const mappedIncidents: IncidentData[] = data.incidents.map((inc: any) => ({
+            mappedIncidents = data.incidents.map((inc: any) => ({
               id: inc.incidentId.toString(),
               reservationId: inc.reservationId || 0,
               vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
@@ -304,13 +305,73 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               resolvedAt: inc.resolvedAt,
               staffNotes: inc.staffNotes,
             }));
-
-            setIncidents(mappedIncidents);
-            setUnreadIncidents(
-              mappedIncidents.filter((i) => i.status === "reported").length
-            );
           }
         }
+
+        // Fallback: if no station incidents, get current user's incidents
+        if (mappedIncidents.length === 0) {
+          const userResp = await fetch('http://localhost:5000/api/incidents/user', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (userResp.ok) {
+            const udata = await userResp.json();
+            if (udata.success && udata.incidents) {
+              mappedIncidents = udata.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || (stationId?.toString?.() || '0'),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+            }
+          }
+        }
+
+        // Final fallback: recent incidents across all stations (status=reported)
+        if (mappedIncidents.length === 0) {
+          const recentResp = await fetch('http://localhost:5000/api/incidents/recent?status=reported&limit=20', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (recentResp.ok) {
+            const rdata = await recentResp.json();
+            if (rdata.success && rdata.incidents) {
+              mappedIncidents = rdata.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || (stationId?.toString?.() || '0'),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+            }
+          }
+        }
+
+        setIncidents(mappedIncidents);
+        setUnreadIncidents(
+          mappedIncidents.filter((i) => i.status === 'reported').length
+        );
 
         // Also load unread count for notification bell
         const countResponse = await fetch(`http://localhost:5000/api/incidents/station/${stationId}/unread-count`, {
@@ -411,6 +472,32 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [unreadIncidents, setUnreadIncidents] = useState(0);
   const [isIncidentPanelOpen, setIsIncidentPanelOpen] = useState(false);
 
+  // Battery alerts (reuse station vehicles data)
+  const { data: stationVehicles } = useStationVehicles();
+  const [lowBatteryVehicles, setLowBatteryVehicles] = useState<any[]>([]);
+  const [lowBatteryCount, setLowBatteryCount] = useState(0);
+
+  useEffect(() => {
+    if (stationVehicles && Array.isArray(stationVehicles)) {
+      const lows = stationVehicles.filter((v: any) => {
+        const level = (v.batteryLevel ?? v.battery ?? 100);
+        return typeof level === 'number' && level < 20; // threshold
+      });
+      setLowBatteryVehicles(lows);
+      setLowBatteryCount(lows.length);
+    }
+  }, [stationVehicles]);
+
+  // Persist counts for Navbar badge
+  useEffect(() => {
+    try {
+      const payload = { incidents: unreadIncidents, battery: lowBatteryCount };
+      localStorage.setItem('staffNotifCounts', JSON.stringify(payload));
+      const ev = new CustomEvent('staffNotifCounts', { detail: payload } as any);
+      window.dispatchEvent(ev);
+    } catch {}
+  }, [unreadIncidents, lowBatteryCount]);
+
   const [incidentFilter, setIncidentFilter] = useState("all"); // all, reported, in_progress, resolved
   const [incidentPriorityFilter, setIncidentPriorityFilter] = useState("all"); // all, low, medium, high, urgent
   const [incidentSearchQuery, setIncidentSearchQuery] = useState("");
@@ -418,6 +505,24 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     useState<IncidentData | null>(null);
   const [isIncidentDetailsOpen, setIsIncidentDetailsOpen] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
+
+  // Open notifications if triggered from navbar
+  useEffect(() => {
+    try {
+      const flag = localStorage.getItem('openStaffNotifications');
+      if (flag === '1') {
+        setIsIncidentPanelOpen(true);
+        localStorage.removeItem('openStaffNotifications');
+      }
+    } catch {}
+  }, []);
+
+  // Listen for in-app event from Navbar to open notifications
+  useEffect(() => {
+    const handler = () => setIsIncidentPanelOpen(true);
+    window.addEventListener('openStaffNotifications', handler as any);
+    return () => window.removeEventListener('openStaffNotifications', handler as any);
+  }, []);
 
   // Load unassigned vehicles when dialog opens
   useEffect(() => {
@@ -3853,23 +3958,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   <h1 className="text-4xl md:text-5xl font-bold text-white">
                     {t("common.staffDashboard")}
                   </h1>
-
-                  {/* Incident Notification Bell */}
-                  <div className="relative">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsIncidentPanelOpen(true)}
-                      className="text-white hover:bg-white/20"
-                    >
-                      <Bell className="h-6 w-6" />
-                      {unreadIncidents > 0 && (
-                        <Badge className="absolute -top-2 -right-2 bg-red-500 text-white min-w-[20px] h-5 flex items-center justify-center text-xs">
-                          {unreadIncidents}
-                        </Badge>
-                      )}
-                    </Button>
-                  </div>
                 </div>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
@@ -4197,22 +4285,56 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </div>
       </div>
 
-      {/* Incident Notifications Panel */}
+      {/* Unified Notifications Panel */}
       <Dialog open={isIncidentPanelOpen} onOpenChange={setIsIncidentPanelOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Incident Reports ({incidents.length})
+              <Bell className="h-5 w-5" /> Notifications
             </DialogTitle>
             <DialogDescription>
-              New incident reports from customers in your station
+              Battery alerts and incident reports in your station
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {incidents.length > 0 ? (
-              incidents.map((incident) => (
+          <Tabs defaultValue="battery" className="mt-1">
+            <TabsList className="grid grid-cols-2">
+              <TabsTrigger value="battery" className="flex items-center gap-2">
+                <Battery className="h-4 w-4" />
+                Battery Alerts {lowBatteryCount > 0 ? `(${lowBatteryCount})` : ''}
+              </TabsTrigger>
+              <TabsTrigger value="incidents" className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                Incident Reports {incidents.length > 0 ? `(${incidents.length})` : ''}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="battery" className="mt-4">
+              {lowBatteryCount > 0 ? (
+                <div className="space-y-3">
+                  {lowBatteryVehicles.map((v:any) => (
+                    <Card key={`low-${v.vehicleId}`} className="border-l-4 border-l-yellow-500">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm">{v.licensePlate || v.uniqueVehicleId || `Vehicle #${v.vehicleId}`}</CardTitle>
+                          <Badge variant="destructive">{(v.batteryLevel ?? v.battery ?? 0)}%</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">Battery level is below threshold. Consider charging soon.</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">No low battery vehicles</div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="incidents" className="mt-4">
+              <div className="space-y-4">
+                {incidents.length > 0 ? (
+                  incidents.map((incident) => (
                 <Card
                   key={incident.id}
                   className="border-l-4 border-l-orange-500"
@@ -4271,28 +4393,30 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </CardContent>
                 </Card>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No Active Incidents
-                </h3>
-                <p className="text-muted-foreground">
-                  All incidents have been resolved.
-                </p>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      No Active Incidents
+                    </h3>
+                    <p className="text-muted-foreground">
+                      All incidents have been resolved.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </TabsContent>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsIncidentPanelOpen(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsIncidentPanelOpen(false)}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

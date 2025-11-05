@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
-import BatteryAlertBell from "@/components/BatteryAlertBell";
+import { Bell } from "lucide-react";
 
 interface NavbarProps {
   user?: {
@@ -101,9 +101,28 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                {/* Battery Alert Bell - only show for staff */}
+                {/* Unified Notifications trigger for staff */}
                 {user.role === "staff" && (
-                  <BatteryAlertBell />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (location.pathname === '/dashboard/staff') {
+                        // Already on staff dashboard: fire an in-app event to open the dialog
+                        try {
+                          const ev = new CustomEvent('openStaffNotifications');
+                          window.dispatchEvent(ev);
+                        } catch {}
+                      } else {
+                        // Navigate and set a one-shot flag for initial open
+                        try { localStorage.setItem('openStaffNotifications','1'); } catch {}
+                        navigate('/dashboard/staff');
+                      }
+                    }}
+                    aria-label="Notifications"
+                  >
+                    <Bell className="h-5 w-5" />
+                  </Button>
                 )}
 
                 <DropdownMenu>
