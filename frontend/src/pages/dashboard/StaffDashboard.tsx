@@ -498,7 +498,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     } catch {}
   }, [unreadIncidents, lowBatteryCount]);
 
-  const [incidentFilter, setIncidentFilter] = useState("all"); // all, reported, in_progress, resolved
+  const [incidentFilter, setIncidentFilter] = useState("reported"); // all, reported, in_progress, resolved
   const [incidentPriorityFilter, setIncidentPriorityFilter] = useState("all"); // all, low, medium, high, urgent
   const [incidentSearchQuery, setIncidentSearchQuery] = useState("");
   const [selectedIncidentForDetails, setSelectedIncidentForDetails] =
@@ -1405,6 +1405,25 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       const data = await response.json();
 
       if (response.ok && data.success) {
+        // Optimistic local update: accept moves to in_progress but DOES NOT change bell count
+        // Only resolving should decrement the bell count
+        setIncidents((prev) => {
+          const updated = prev.map((i) =>
+            i.id === incidentId
+              ? { ...i, status: action === "accept" ? "in_progress" : "resolved" }
+              : i
+          );
+          if (action === "resolve") {
+            const unread = updated.filter((i) => i.status === "reported").length;
+            setUnreadIncidents(unread);
+            try {
+              const ev = new CustomEvent('staffUnreadIncidents', { detail: { count: unread } });
+              window.dispatchEvent(ev);
+            } catch {}
+          }
+          return updated;
+        });
+
         if (action === "accept") {
           toast({
             title: "Incident Accepted",
@@ -1415,6 +1434,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             title: "Incident Resolved",
             description: "Incident has been marked as resolved.",
           });
+          // Keep item visible only until resolved; nothing else needed here
         }
 
         // Refresh incidents by reloading
@@ -1447,9 +1467,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               }));
 
               setIncidents(mappedIncidents);
-              setUnreadIncidents(
-                mappedIncidents.filter((i) => i.status === "reported").length
-              );
+              const unreadNow = mappedIncidents.filter((i) => i.status === "reported").length;
+              setUnreadIncidents(unreadNow);
+              try {
+                const ev = new CustomEvent('staffUnreadIncidents', { detail: { count: unreadNow } });
+                window.dispatchEvent(ev);
+              } catch {}
             }
           }
         }
@@ -4305,7 +4328,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               </TabsTrigger>
               <TabsTrigger value="incidents" className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-orange-500" />
-                Incident Reports {incidents.length > 0 ? `(${incidents.length})` : ''}
+                {(() => {
+                  const pending = incidents.filter((i) => i.status === 'reported').length;
+                  return `Incident Reports ${pending > 0 ? `(${pending})` : ''}`;
+                })()}
               </TabsTrigger>
             </TabsList>
 
@@ -4333,8 +4359,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
             <TabsContent value="incidents" className="mt-4">
               <div className="space-y-4">
-                {incidents.length > 0 ? (
-                  incidents.map((incident) => (
+                {incidents.filter((i) => i.status !== 'resolved').length > 0 ? (
+                  incidents
+                    .filter((i) => i.status !== 'resolved')
+                    .map((incident) => (
                 <Card
                   key={incident.id}
                   className="border-l-4 border-l-orange-500"
@@ -4374,17 +4402,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            handleIncidentAction(incident.id, "accept")
-                          }
+                          onClick={() => handleIncidentAction(incident.id, "accept")}
                         >
                           Accept
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() =>
-                            handleIncidentAction(incident.id, "resolve")
-                          }
+                          onClick={() => handleIncidentAction(incident.id, "resolve")}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Resolve
@@ -4393,7 +4417,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </CardContent>
                 </Card>
-                  ))
+                    ))
                 ) : (
                   <div className="text-center py-8">
                     <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
