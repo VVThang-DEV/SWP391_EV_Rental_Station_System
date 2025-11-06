@@ -467,6 +467,33 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     damages: [] as string[],
   });
 
+  // Vehicle Return Checkout state
+  const [isReturnCheckoutOpen, setIsReturnCheckoutOpen] = useState(false);
+  const [returnSearchQuery, setReturnSearchQuery] = useState("");
+  const [returnSearchType, setReturnSearchType] = useState<"reservation" | "phone" | "name">("reservation");
+  const [selectedReturnBooking, setSelectedReturnBooking] = useState<any | null>(null);
+  const [returnInspectionData, setReturnInspectionData] = useState({
+    batteryLevel: 100,
+    mileage: 0,
+    exteriorCondition: "good",
+    interiorCondition: "good",
+    tiresCondition: "good",
+    damages: [] as string[],
+    notes: "",
+  });
+  const [returnTimeStatus, setReturnTimeStatus] = useState<"early" | "on_time" | "late">("on_time");
+  const [lateHours, setLateHours] = useState<number>(0);
+  const [damagePaymentMethod, setDamagePaymentMethod] = useState<"cash" | "wallet">("cash");
+  const [returnFeeCalculation, setReturnFeeCalculation] = useState({
+    baseRental: 0,
+    lateFee: 0,
+    damageFee: 0,
+    additionalCharges: 0,
+    depositRefund: 0,
+    totalRefund: 0,
+    totalDue: 0,
+  });
+
   // Incident notification state
   const [incidents, setIncidents] = useState<IncidentData[]>([]);
   const [unreadIncidents, setUnreadIncidents] = useState(0);
@@ -614,6 +641,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       rented: apiVehicles?.filter((v) => v.status === "rented").length || 0,
       maintenance:
         apiVehicles?.filter((v) => v.status === "maintenance").length || 0,
+      awaiting_processing:
+        apiVehicles?.filter((v) => v.status === "awaiting_processing").length || 0,
       total: apiVehicles?.length || 0,
     },
     todayStats: {
@@ -1370,6 +1399,409 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }));
   };
 
+  // Vehicle Return Checkout Functions
+  const calculateReturnFees = (
+    booking: any,
+    inspection: typeof returnInspectionData,
+    timeStatus: "early" | "on_time" | "late",
+    lateHoursInput: number,
+    vehiclePricePerHour: number
+  ) => {
+    const baseRental = booking.totalAmount || 0;
+    
+    // Calculate late fee based on return time status
+    let lateFee = 0;
+    if (timeStatus === "late" && lateHoursInput > 0) {
+      // Late fee = số giờ muộn * giá 1 giờ thuê xe
+      lateFee = lateHoursInput * vehiclePricePerHour;
+    }
+
+    let damageFee = 0;
+    if (inspection.damages.length > 0) {
+      damageFee = inspection.damages.length * 500000;
+    }
+    if (inspection.exteriorCondition === "poor" || inspection.interiorCondition === "poor") {
+      damageFee += 1000000;
+    }
+    if (inspection.tiresCondition === "poor") {
+      damageFee += 2000000;
+    }
+
+    const batteryChargeFee = inspection.batteryLevel < 50 ? 500000 : 0;
+    const additionalCharges = batteryChargeFee;
+    const totalDue = lateFee + damageFee + additionalCharges;
+    const depositRefund = Math.max(0, (booking.depositAmount || 0) - totalDue);
+    const totalRefund = depositRefund;
+
+    return {
+      baseRental,
+      lateFee,
+      damageFee,
+      additionalCharges,
+      depositRefund,
+      totalRefund,
+      totalDue,
+    };
+  };
+
+  const handleStartReturnCheckout = (booking: any) => {
+    setSelectedReturnBooking(booking);
+    const vehicle = apiVehicles?.find((v) => v.vehicleId === booking.vehicleId);
+    
+    // Determine return time status
+    const now = new Date();
+    const endTime = new Date(booking.endTime);
+    const diffMs = now.getTime() - endTime.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    
+    let initialStatus: "early" | "on_time" | "late" = "on_time";
+    let initialLateHours = 0;
+    
+    if (diffHours < -0.5) {
+      // More than 30 minutes early
+      initialStatus = "early";
+    } else if (diffHours > 0.5) {
+      // More than 30 minutes late
+      initialStatus = "late";
+      // Calculate rounded late hours (làm tròn thành giờ chẵn)
+      // Ví dụ: endTime = 7:00, actual = 8:30 -> làm tròn thành 9:00 -> trễ 2 giờ
+      const actualReturnTime = new Date(now);
+      // Round up to next hour (làm tròn lên giờ chẵn)
+      // Nếu có phút hoặc giây > 0, làm tròn lên giờ tiếp theo
+      if (now.getMinutes() > 0 || now.getSeconds() > 0 || now.getMilliseconds() > 0) {
+        actualReturnTime.setHours(actualReturnTime.getHours() + 1);
+      }
+      actualReturnTime.setMinutes(0);
+      actualReturnTime.setSeconds(0);
+      actualReturnTime.setMilliseconds(0);
+      // Calculate late hours: (rounded return time - expected return time) in hours
+      const roundedLateHours = Math.ceil((actualReturnTime.getTime() - endTime.getTime()) / (1000 * 60 * 60));
+      initialLateHours = Math.max(1, roundedLateHours);
+    }
+    
+    setReturnTimeStatus(initialStatus);
+    setLateHours(initialLateHours);
+    
+    if (vehicle) {
+      setReturnInspectionData({
+        batteryLevel: vehicle.batteryLevel || 100,
+        mileage: vehicle.mileage || 0,
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        damages: [],
+        notes: "",
+      });
+      
+      // Calculate fees with vehicle price per hour
+      const fees = calculateReturnFees(
+        booking,
+        {
+          batteryLevel: vehicle.batteryLevel || 100,
+          mileage: vehicle.mileage || 0,
+          exteriorCondition: "good",
+          interiorCondition: "good",
+          tiresCondition: "good",
+          damages: [],
+          notes: "",
+        },
+        initialStatus,
+        initialLateHours,
+        vehicle.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+    setIsReturnCheckoutOpen(true);
+  };
+
+  const handleUpdateReturnInspection = (updates: Partial<typeof returnInspectionData>) => {
+    const newData = { ...returnInspectionData, ...updates };
+    setReturnInspectionData(newData);
+    if (selectedReturnBooking) {
+      const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+      const fees = calculateReturnFees(
+        selectedReturnBooking,
+        newData,
+        returnTimeStatus,
+        lateHours,
+        vehicle?.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+  };
+
+  const handleReturnTimeStatusChange = (status: "early" | "on_time" | "late") => {
+    setReturnTimeStatus(status);
+    if (status !== "late") {
+      setLateHours(0);
+    }
+    if (selectedReturnBooking) {
+      const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+      const fees = calculateReturnFees(
+        selectedReturnBooking,
+        returnInspectionData,
+        status,
+        status === "late" ? lateHours : 0,
+        vehicle?.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+  };
+
+  const handleLateHoursChange = (hours: number) => {
+    const roundedHours = Math.max(0, Math.ceil(hours));
+    setLateHours(roundedHours);
+    if (selectedReturnBooking) {
+      const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+      const fees = calculateReturnFees(
+        selectedReturnBooking,
+        returnInspectionData,
+        returnTimeStatus,
+        roundedHours,
+        vehicle?.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+  };
+
+  const handleToggleReturnDamage = (damage: string) => {
+    const damages = returnInspectionData.damages.includes(damage)
+      ? returnInspectionData.damages.filter((d) => d !== damage)
+      : [...returnInspectionData.damages, damage];
+    handleUpdateReturnInspection({ damages });
+  };
+
+  const handleCompleteReturnCheckout = async () => {
+    if (!selectedReturnBooking) return;
+
+    if (!returnInspectionData.batteryLevel || !returnInspectionData.mileage) {
+      toast({
+        title: "Incomplete Inspection",
+        description: "Please fill in battery level and mileage",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate late hours if status is late
+    if (returnTimeStatus === "late" && lateHours <= 0) {
+      toast({
+        title: "Invalid Late Hours",
+        description: "Vui lòng nhập số giờ muộn khi khách trả xe trễ giờ",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if there are damages/issues
+    const hasDamages = 
+      returnInspectionData.damages.length > 0 ||
+      returnInspectionData.exteriorCondition === "poor" ||
+      returnInspectionData.interiorCondition === "poor" ||
+      returnInspectionData.tiresCondition === "poor";
+    
+    const totalDamageFees = returnFeeCalculation.damageFee + returnFeeCalculation.additionalCharges;
+    const hasDamageFees = totalDamageFees > 0;
+
+    // Validate payment method if there are damage fees
+    if (hasDamageFees && !damagePaymentMethod) {
+      toast({
+        title: "Chọn phương thức thanh toán",
+        description: "Vui lòng chọn phương thức thanh toán cho phí hư hỏng",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Step 1: Deduct late fee from customer wallet FIRST (before updating vehicle)
+      let walletDeductResult = null;
+      let damageWalletDeductResult = null;
+      let allDeductionsSuccessful = true;
+      
+      if (returnTimeStatus === "late" && returnFeeCalculation.lateFee > 0) {
+        try {
+          walletDeductResult = await staffApiService.deductFromCustomerWallet(
+            selectedReturnBooking.userId,
+            returnFeeCalculation.lateFee,
+            `Phí trễ giờ: ${lateHours} giờ × ${(() => {
+              const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+              return vehicle?.pricePerHour?.toLocaleString("vi-VN") || "N/A";
+            })()} VND/giờ`,
+            selectedReturnBooking.reservationId
+          );
+          console.log("Late fee deducted successfully:", walletDeductResult);
+        } catch (walletError: any) {
+          console.error("Wallet deduction error:", walletError);
+          allDeductionsSuccessful = false;
+          toast({
+            title: "⚠️ Warning",
+            description: `Không thể trừ phí trễ giờ từ ví khách hàng: ${walletError.message || "Không đủ số dư hoặc lỗi hệ thống"}`,
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      }
+
+      // Step 2: Handle damage fees based on payment method
+      if (hasDamageFees) {
+        if (damagePaymentMethod === "wallet") {
+          // Deduct damage fee and additional charges from wallet
+          try {
+            const damageReason = `Phí hư hỏng xe: ${returnInspectionData.damages.length > 0 ? `Các hư hỏng: ${returnInspectionData.damages.join(", ")}. ` : ""}${returnFeeCalculation.damageFee > 0 ? `Phí hư hỏng: ${returnFeeCalculation.damageFee.toLocaleString("vi-VN")} VND. ` : ""}${returnFeeCalculation.additionalCharges > 0 ? `Phụ phí: ${returnFeeCalculation.additionalCharges.toLocaleString("vi-VN")} VND. ` : ""}Tổng: ${totalDamageFees.toLocaleString("vi-VN")} VND`;
+            
+            damageWalletDeductResult = await staffApiService.deductFromCustomerWallet(
+              selectedReturnBooking.userId,
+              totalDamageFees,
+              damageReason,
+              selectedReturnBooking.reservationId
+            );
+            console.log("Damage fees deducted successfully from wallet:", damageWalletDeductResult);
+          } catch (walletError: any) {
+            console.error("Wallet deduction error for damages:", walletError);
+            allDeductionsSuccessful = false;
+            toast({
+              title: "⚠️ Warning",
+              description: `Không thể trừ phí hư hỏng từ ví: ${walletError.message || "Không đủ số dư hoặc lỗi hệ thống"}`,
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
+        } else {
+          // Cash payment - no wallet deduction needed
+          console.log("Damage fees will be paid in cash");
+        }
+      }
+
+      // Step 3: Determine vehicle status based on damages and return time
+      // If no damages and on time/early: set to "available"
+      // If there are damages: set to "awaiting_processing"
+      let vehicleStatus = "available";
+      if (hasDamages) {
+        vehicleStatus = "awaiting_processing";
+      }
+
+      // Step 4: Update vehicle status and condition
+      try {
+        await staffApiService.updateVehicle(selectedReturnBooking.vehicleId, {
+          batteryLevel: returnInspectionData.batteryLevel,
+          mileage: returnInspectionData.mileage,
+          condition:
+            returnInspectionData.damages.length > 0 ||
+            returnInspectionData.exteriorCondition === "poor" ||
+            returnInspectionData.interiorCondition === "poor"
+              ? "fair"
+              : "good",
+          status: vehicleStatus,
+          notes: returnInspectionData.notes || undefined,
+        });
+        console.log(`✅ Vehicle status updated to '${vehicleStatus}' successfully`);
+      } catch (vehicleUpdateError: any) {
+        console.error("Failed to update vehicle status:", vehicleUpdateError);
+        toast({
+          title: "⚠️ Warning",
+          description: `Không thể cập nhật trạng thái xe: ${vehicleUpdateError.message || "Lỗi hệ thống"}`,
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+
+      // Step 5: Update reservation status to completed
+      try {
+        await staffApiService.completeReturn(selectedReturnBooking.reservationId);
+        console.log(`✅ Reservation ${selectedReturnBooking.reservationId} status updated to 'completed'`);
+      } catch (reservationUpdateError: any) {
+        console.error("Failed to update reservation status:", reservationUpdateError);
+        toast({
+          title: "⚠️ Warning",
+          description: `Không thể cập nhật trạng thái đặt xe: ${reservationUpdateError.message || "Lỗi hệ thống"}`,
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+
+      const lateFeeMessage = returnTimeStatus === "late" && returnFeeCalculation.lateFee > 0
+        ? ` Phí trễ giờ: ${returnFeeCalculation.lateFee.toLocaleString("vi-VN")} VND (${lateHours} giờ × ${(() => {
+            const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+            return vehicle?.pricePerHour?.toLocaleString("vi-VN") || "N/A";
+          })()} VND/giờ)${walletDeductResult ? ` - Đã trừ từ ví khách hàng. Số dư còn lại: ${walletDeductResult.newBalance?.toLocaleString("vi-VN") || "N/A"} VND` : ""}.`
+        : "";
+
+      const damageFeeMessage = hasDamageFees
+        ? ` Phí hư hỏng: ${totalDamageFees.toLocaleString("vi-VN")} VND - ${damagePaymentMethod === "wallet" ? `Đã trừ từ ví${damageWalletDeductResult ? `. Số dư còn lại: ${damageWalletDeductResult.newBalance?.toLocaleString("vi-VN") || "N/A"} VND` : ""}` : "Thanh toán bằng tiền mặt"}.`
+        : "";
+
+      const statusMessage = hasDamages
+        ? " Xe đã được đưa vào trạng thái chờ xử lý do có hư hỏng."
+        : "";
+
+      toast({
+        title: "✅ Return Completed",
+        description: `Vehicle ${selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId} has been returned successfully.${lateFeeMessage}${damageFeeMessage}${statusMessage}`,
+        duration: 5000,
+      });
+
+      // Refresh data and ensure filter shows available vehicles
+      await Promise.all([refetchVehicles(), fetchReservations()]);
+      
+      // If vehicle is now available (no damages), set filter to show available vehicles
+      if (!hasDamages && vehicleStatus === "available") {
+        setFilterStatus("available");
+        toast({
+          title: "✅ Xe đã sẵn sàng cho thuê",
+          description: `Xe ${selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId} đã được cập nhật và hiển thị trong danh sách xe cho thuê.`,
+          duration: 3000,
+        });
+      }
+
+      // Close dialog and reset state
+      setIsReturnCheckoutOpen(false);
+      setSelectedReturnBooking(null);
+      setReturnSearchQuery("");
+      setReturnTimeStatus("on_time");
+      setLateHours(0);
+      setDamagePaymentMethod("cash");
+      setReturnInspectionData({
+        batteryLevel: 100,
+        mileage: 0,
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        damages: [],
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Return checkout error:", error);
+      toast({
+        title: "❌ Return Failed",
+        description: error instanceof Error ? error.message : "Failed to complete return. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter active rentals for return
+  const getActiveRentalsForReturn = () => {
+    const activeStatuses = ["active", "in_progress", "confirmed", "rented"];
+    return reservations
+      .filter((r: any) => activeStatuses.includes((r.status || "").toLowerCase()))
+      .filter((r: any) => {
+        if (!returnSearchQuery) return true;
+        const query = returnSearchQuery.toLowerCase();
+        switch (returnSearchType) {
+          case "reservation":
+            return r.reservationId?.toString().includes(query);
+          case "phone":
+            return (r.userPhone || "").toLowerCase().includes(query);
+          case "name":
+            return (r.userName || "").toLowerCase().includes(query);
+          default:
+            return true;
+        }
+      })
+      .sort((a: any, b: any) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+  };
+
   // Function xử lý incident
   const handleIncidentAction = async (
     incidentId: string,
@@ -1570,6 +2002,154 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </Card>
       </div>
 
+      {/* Vehicle Return Checkout */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Vehicle Return Checkout
+              </CardTitle>
+              <CardDescription>
+                Process vehicle returns when customers bring vehicles back to station
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchReservations} disabled={reservationsLoading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${reservationsLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Search Bar */}
+          <div className="flex gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={
+                  returnSearchType === "reservation"
+                    ? "Search by Reservation ID..."
+                    : returnSearchType === "phone"
+                    ? "Search by Phone Number..."
+                    : "Search by Customer Name..."
+                }
+                value={returnSearchQuery}
+                onChange={(e) => setReturnSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={returnSearchType} onValueChange={(v: any) => setReturnSearchType(v)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="reservation">Reservation ID</SelectItem>
+                <SelectItem value="phone">Phone Number</SelectItem>
+                <SelectItem value="name">Customer Name</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Active Rentals List */}
+          {reservationsLoading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading active rentals...</p>
+            </div>
+          ) : (() => {
+            const activeRentals = getActiveRentalsForReturn();
+            if (activeRentals.length === 0) {
+              return (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium">No Active Rentals Found</p>
+                  <p className="text-sm">All vehicles have been returned or no bookings match your search.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {activeRentals.map((bk: any) => {
+                  const vehicleInfo = getVehicleInfo(bk.vehicleId);
+                  const license = bk.licensePlate || bk.vehicleUniqueId || vehicleInfo?.uniqueId;
+                  const model = bk.vehicleModel || vehicleInfo?.name || `Vehicle ${bk.vehicleId}`;
+                  const isOverdue = new Date() > new Date(bk.endTime);
+
+                  return (
+                    <Card
+                      key={bk.reservationId}
+                      className={`hover:shadow-md transition-shadow ${
+                        isOverdue ? "border-destructive/50 bg-destructive/5" : ""
+                      }`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="p-3 bg-primary/10 rounded-lg">
+                              <Car className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-semibold">Reservation #{bk.reservationId}</h4>
+                                <Badge variant={isOverdue ? "destructive" : "secondary"}>
+                                  {isOverdue ? "Overdue" : bk.status}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Customer:</span>
+                                  <p className="font-medium">{bk.userName || `User ${bk.userId}`}</p>
+                                  <p className="text-xs text-muted-foreground">{bk.userPhone || "N/A"}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Vehicle:</span>
+                                  <p className="font-medium">{model}</p>
+                                  <p className="text-xs text-muted-foreground">Plate/ID: {license || "N/A"}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Rental Period:</span>
+                                  <p className="font-medium">
+                                    {new Date(bk.startTime).toLocaleDateString("vi-VN")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Due: {new Date(bk.endTime).toLocaleTimeString("vi-VN", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Deposit:</span>
+                                  <p className="font-medium text-green-600">
+                                    {(bk.depositAmount || 0).toLocaleString("vi-VN")} VND
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-primary"
+                              onClick={() => handleStartReturnCheckout(bk)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Process Return
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* Vehicle List */}
       <Card>
         <CardHeader>
@@ -1585,14 +2165,45 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   className="pl-10 w-64 text-black"
                 />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleFilterChange("all")}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                {t("common.filter")}
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant={filterStatus === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("all")}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filterStatus === "available" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("available")}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Available
+                </Button>
+                <Button
+                  variant={filterStatus === "rented" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("rented")}
+                >
+                  Rented
+                </Button>
+                <Button
+                  variant={filterStatus === "maintenance" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("maintenance")}
+                >
+                  Maintenance
+                </Button>
+                <Button
+                  variant={filterStatus === "awaiting_processing" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("awaiting_processing")}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  Awaiting Processing
+                </Button>
+              </div>
               <Button
                 size="sm"
                 onClick={() => setIsAddVehicleDialogOpen(true)}
@@ -1624,20 +2235,32 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               </div>
             ) : (
               vehicleList
-                .filter((vehicle) =>
-                  searchQuery
-                    ? vehicle.name
+                .filter((vehicle) => {
+                  // Filter by status
+                  if (filterStatus !== "all" && vehicle.status !== filterStatus) {
+                    return false;
+                  }
+                  // Filter by search query
+                  if (searchQuery) {
+                    return (
+                      vehicle.name
                         .toLowerCase()
                         .includes(searchQuery.toLowerCase()) ||
                       vehicle.id
                         .toLowerCase()
                         .includes(searchQuery.toLowerCase())
-                    : true
-                )
-                .map((vehicle) => (
+                    );
+                  }
+                  return true;
+                })
+                .map((vehicle) => {
+                  const isAwaitingProcessing = vehicle.status === "awaiting_processing";
+                  return (
                   <div
                     key={vehicle.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    className={`flex items-center justify-between p-4 border rounded-lg ${
+                      isAwaitingProcessing ? "opacity-50 grayscale pointer-events-none" : ""
+                    }`}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="p-3 bg-muted rounded-full">
@@ -1659,6 +2282,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             Customer: {vehicle.customer || "N/A"}
                           </p>
                         )}
+                        {isAwaitingProcessing && (
+                          <p className="text-sm text-destructive font-medium">
+                            ⚠️ Xe đang chờ xử lý - Không cho thuê
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1676,10 +2304,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             ? "default"
                             : vehicle.status === "rented"
                             ? "secondary"
+                            : vehicle.status === "awaiting_processing"
+                            ? "destructive"
                             : "destructive"
                         }
                       >
-                        {vehicle.status}
+                        {vehicle.status === "awaiting_processing" ? "Chờ xử lý" : vehicle.status}
                       </Badge>
 
                       <div className="flex space-x-2">
@@ -1688,12 +2318,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                           variant="outline"
                           disabled={
                             vehicle.status === "rented" ||
-                            vehicle.status === "pending"
+                            vehicle.status === "pending" ||
+                            isAwaitingProcessing
                           }
                           onClick={() => handleEditVehicle(vehicle)}
                           title={
                             vehicle.status === "rented" ||
-                            vehicle.status === "pending"
+                            vehicle.status === "pending" ||
+                            isAwaitingProcessing
                               ? "Cannot edit vehicle with this status"
                               : "Edit vehicle"
                           }
@@ -1768,7 +2400,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
             )}
           </div>
         </CardContent>
@@ -4733,6 +5366,407 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               onClick={() => setIsIncidentDetailsOpen(false)}
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vehicle Return Checkout Dialog */}
+      <Dialog open={isReturnCheckoutOpen} onOpenChange={setIsReturnCheckoutOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Process Vehicle Return
+            </DialogTitle>
+            <DialogDescription>
+              Complete inspection and process return for Reservation #{selectedReturnBooking?.reservationId}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedReturnBooking && (
+            <div className="space-y-6">
+              {/* Booking Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Booking Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <Label className="text-muted-foreground">Customer</Label>
+                      <p className="font-medium">{selectedReturnBooking.userName || `User ${selectedReturnBooking.userId}`}</p>
+                      <p className="text-xs text-muted-foreground">{selectedReturnBooking.userPhone || "N/A"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Vehicle</Label>
+                      <p className="font-medium">{selectedReturnBooking.vehicleModel || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        ID: {selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Start Time</Label>
+                      <p className="font-medium">
+                        {new Date(selectedReturnBooking.startTime).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Expected Return</Label>
+                      <p className="font-medium">
+                        {new Date(selectedReturnBooking.endTime).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Return Time Status */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Return Time Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="returnTimeStatus">
+                      Thời gian trả xe <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={returnTimeStatus}
+                      onValueChange={(value: "early" | "on_time" | "late") =>
+                        handleReturnTimeStatusChange(value)
+                      }
+                    >
+                      <SelectTrigger id="returnTimeStatus" className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="early">Sớm hơn</SelectItem>
+                        <SelectItem value="on_time">Đúng giờ</SelectItem>
+                        <SelectItem value="late">Trễ giờ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {returnTimeStatus === "late" && (
+                    <div>
+                      <Label htmlFor="lateHours">
+                        Số giờ muộn (làm tròn thành giờ chẵn) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="lateHours"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={lateHours}
+                        onChange={(e) => handleLateHoursChange(parseInt(e.target.value) || 0)}
+                        className="mt-2"
+                        placeholder="Nhập số giờ muộn"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Ví dụ: Trả xe lúc 8:30, dự kiến 7:00 → Làm tròn thành 9:00 → Trễ 2 giờ
+                      </p>
+                      {selectedReturnBooking && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Giá 1 giờ thuê xe: {(() => {
+                            const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+                            return vehicle?.pricePerHour ? `${vehicle.pricePerHour.toLocaleString("vi-VN")} VND` : "N/A";
+                          })()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {returnTimeStatus === "early" && (
+                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
+                      <p className="text-sm text-green-800 dark:text-green-200">
+                        ✓ Khách trả xe sớm hơn dự kiến. Không có phí phạt.
+                      </p>
+                    </div>
+                  )}
+
+                  {returnTimeStatus === "on_time" && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        ✓ Khách trả xe đúng giờ. Không có phí phạt.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Vehicle Inspection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Vehicle Inspection</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="returnBatteryLevel">
+                        Battery Level (%) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="returnBatteryLevel"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={returnInspectionData.batteryLevel}
+                        onChange={(e) =>
+                          handleUpdateReturnInspection({ batteryLevel: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="returnMileage">
+                        Current Mileage (km) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="returnMileage"
+                        type="number"
+                        min="0"
+                        value={returnInspectionData.mileage}
+                        onChange={(e) =>
+                          handleUpdateReturnInspection({ mileage: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="returnExterior">Exterior Condition</Label>
+                      <Select
+                        value={returnInspectionData.exteriorCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ exteriorCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnInterior">Interior Condition</Label>
+                      <Select
+                        value={returnInspectionData.interiorCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ interiorCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnTires">Tires Condition</Label>
+                      <Select
+                        value={returnInspectionData.tiresCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ tiresCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Damages Found (if any)</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {[
+                        "Scratches",
+                        "Dents",
+                        "Broken lights",
+                        "Cracked windshield",
+                        "Worn tires",
+                        "Interior stains",
+                        "Missing parts",
+                        "Other damages",
+                      ].map((damage) => (
+                        <label
+                          key={damage}
+                          className="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={returnInspectionData.damages.includes(damage)}
+                            onChange={() => handleToggleReturnDamage(damage)}
+                            className="rounded"
+                          />
+                          <span>{damage}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="returnNotes">Inspection Notes</Label>
+                    <Textarea
+                      id="returnNotes"
+                      value={returnInspectionData.notes}
+                      onChange={(e) => handleUpdateReturnInspection({ notes: e.target.value })}
+                      placeholder="Document any issues, observations, or customer feedback..."
+                      rows={3}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Fee Calculation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Fee Calculation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Base Rental:</span>
+                      <span className="font-medium">{returnFeeCalculation.baseRental.toLocaleString("vi-VN")} VND</span>
+                    </div>
+                    {returnFeeCalculation.lateFee > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Late Fee:</span>
+                        <span className="font-medium">+{returnFeeCalculation.lateFee.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    {returnFeeCalculation.damageFee > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Damage Fee:</span>
+                        <span className="font-medium">+{returnFeeCalculation.damageFee.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    {returnFeeCalculation.additionalCharges > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Additional Charges:</span>
+                        <span className="font-medium">+{returnFeeCalculation.additionalCharges.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Total Due:</span>
+                        <span className={returnFeeCalculation.totalDue > 0 ? "text-destructive" : "text-green-600"}>
+                          {returnFeeCalculation.totalDue > 0 ? "+" : ""}
+                          {returnFeeCalculation.totalDue.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-green-600 mt-2">
+                        <span>Deposit Refund:</span>
+                        <span className="font-semibold">
+                          {returnFeeCalculation.totalRefund.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Damage Payment Method Selection */}
+              {(returnFeeCalculation.damageFee > 0 || returnFeeCalculation.additionalCharges > 0) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Phương thức thanh toán phí hư hỏng
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <Label>Chọn phương thức thanh toán cho phí hư hỏng</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setDamagePaymentMethod("cash")}
+                          className={`p-4 border-2 rounded-lg transition-all ${
+                            damagePaymentMethod === "cash"
+                              ? "border-primary bg-primary/10"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-5 w-5" />
+                            <div className="text-left">
+                              <div className="font-semibold">Tiền mặt</div>
+                              <div className="text-xs text-muted-foreground">Khách hàng thanh toán trực tiếp</div>
+                            </div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDamagePaymentMethod("wallet")}
+                          className={`p-4 border-2 rounded-lg transition-all ${
+                            damagePaymentMethod === "wallet"
+                              ? "border-primary bg-primary/10"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="h-5 w-5" />
+                            <div className="text-left">
+                              <div className="font-semibold">Trừ từ ví</div>
+                              <div className="text-xs text-muted-foreground">Tự động trừ từ ví khách hàng</div>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                      {damagePaymentMethod === "wallet" && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            ⚠️ Số tiền sẽ được trừ tự động từ ví khách hàng và thông báo qua email.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsReturnCheckoutOpen(false);
+                setSelectedReturnBooking(null);
+                setReturnTimeStatus("on_time");
+                setLateHours(0);
+                setDamagePaymentMethod("cash");
+                setReturnInspectionData({
+                  batteryLevel: 100,
+                  mileage: 0,
+                  exteriorCondition: "good",
+                  interiorCondition: "good",
+                  tiresCondition: "good",
+                  damages: [],
+                  notes: "",
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCompleteReturnCheckout} className="bg-primary">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Complete Return
             </Button>
           </DialogFooter>
         </DialogContent>

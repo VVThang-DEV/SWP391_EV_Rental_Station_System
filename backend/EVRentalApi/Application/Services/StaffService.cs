@@ -314,15 +314,24 @@ public class StaffService : IStaffService
                 return new VehicleUpdateResponse { Success = false, Message = "Vehicle not found or does not belong to your station." };
             }
 
-            // Check if vehicle is currently rented or pending - prevent editing
-            if (vehicle.Status?.ToLower() == "rented" || vehicle.Status?.ToLower() == "pending")
+            // Check if vehicle is pending - prevent editing
+            // Allow editing if vehicle is rented AND we're setting status to "available" (returning vehicle)
+            if (vehicle.Status?.ToLower() == "pending")
             {
                 return new VehicleUpdateResponse 
                 { 
                     Success = false, 
-                    Message = vehicle.Status?.ToLower() == "rented" 
-                        ? "Cannot edit vehicle that is currently rented. Please wait until the rental period ends."
-                        : "Cannot edit vehicle that is pending approval. Please approve or reject the vehicle first."
+                    Message = "Cannot edit vehicle that is pending approval. Please approve or reject the vehicle first."
+                };
+            }
+            
+            // Allow update if vehicle is rented but we're changing status to available (return process)
+            if (vehicle.Status?.ToLower() == "rented" && request.Status?.ToLower() != "available")
+            {
+                return new VehicleUpdateResponse 
+                { 
+                    Success = false, 
+                    Message = "Cannot edit vehicle that is currently rented. Please complete the return process first."
                 };
             }
 
