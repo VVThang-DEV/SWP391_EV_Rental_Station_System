@@ -265,23 +265,143 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
   // Load incidents effect
   useEffect(() => {
-    const loadIncidents = () => {
-      const stationIncidents =
-        incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
-      setIncidents(stationIncidents);
-      setUnreadIncidents(
-        stationIncidents.filter((i) => i.status === "reported").length
-      ); // + CHỈ COUNT pending cho bell notification
+    const loadIncidents = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        // Get station ID from staff profile or user
+        const stationId = staffProfile?.stationId || user?.stationId;
+        if (!stationId) {
+          console.warn('[StaffDashboard] No station ID found');
+          return;
+        }
+
+        // Load incidents from API
+        const response = await fetch(`http://localhost:5000/api/incidents/station/${stationId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        let mappedIncidents: IncidentData[] = [];
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.incidents) {
+            // Map API incidents to IncidentData format
+            mappedIncidents = data.incidents.map((inc: any) => ({
+              id: inc.incidentId.toString(),
+              reservationId: inc.reservationId || 0,
+              vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+              stationId: inc.stationId?.toString() || stationId.toString(),
+              customerId: inc.userId?.toString() || 'Unknown',
+              customerName: inc.customerName || 'Unknown Customer',
+              type: inc.type || 'other',
+              description: inc.description || '',
+              status: inc.status || 'reported',
+              priority: inc.priority || 'medium',
+              reportedAt: inc.reportedAt || new Date().toISOString(),
+              resolvedAt: inc.resolvedAt,
+              staffNotes: inc.staffNotes,
+            }));
+          }
+        }
+
+        // Fallback: if no station incidents, get current user's incidents
+        if (mappedIncidents.length === 0) {
+          const userResp = await fetch('http://localhost:5000/api/incidents/user', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (userResp.ok) {
+            const udata = await userResp.json();
+            if (udata.success && udata.incidents) {
+              mappedIncidents = udata.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || (stationId?.toString?.() || '0'),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+            }
+          }
+        }
+
+        // Final fallback: recent incidents across all stations (status=reported)
+        if (mappedIncidents.length === 0) {
+          const recentResp = await fetch('http://localhost:5000/api/incidents/recent?status=reported&limit=20', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (recentResp.ok) {
+            const rdata = await recentResp.json();
+            if (rdata.success && rdata.incidents) {
+              mappedIncidents = rdata.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || (stationId?.toString?.() || '0'),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+            }
+          }
+        }
+
+        setIncidents(mappedIncidents);
+        setUnreadIncidents(
+          mappedIncidents.filter((i) => i.status === 'reported').length
+        );
+
+        // Also load unread count for notification bell
+        const countResponse = await fetch(`http://localhost:5000/api/incidents/station/${stationId}/unread-count`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (countResponse.ok) {
+          const countData = await countResponse.json();
+          if (countData.success && countData.count !== undefined) {
+            setUnreadIncidents(countData.count);
+          }
+        }
+      } catch (error) {
+        console.error('[StaffDashboard] Error loading incidents:', error);
+      }
     };
 
-    // Load incidents khi component mount
-    loadIncidents();
+    // Load incidents when component mounts or staff profile changes
+    if (staffProfile?.stationId || user?.stationId) {
+      loadIncidents();
+    }
 
     // Auto-refresh mỗi 5 giây
     const interval = setInterval(loadIncidents, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [staffProfile?.stationId, user?.stationId]);
 
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -352,13 +472,57 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [unreadIncidents, setUnreadIncidents] = useState(0);
   const [isIncidentPanelOpen, setIsIncidentPanelOpen] = useState(false);
 
-  const [incidentFilter, setIncidentFilter] = useState("all"); // all, reported, in_progress, resolved
+  // Battery alerts (reuse station vehicles data)
+  const { data: stationVehicles } = useStationVehicles();
+  const [lowBatteryVehicles, setLowBatteryVehicles] = useState<any[]>([]);
+  const [lowBatteryCount, setLowBatteryCount] = useState(0);
+
+  useEffect(() => {
+    if (stationVehicles && Array.isArray(stationVehicles)) {
+      const lows = stationVehicles.filter((v: any) => {
+        const level = (v.batteryLevel ?? v.battery ?? 100);
+        return typeof level === 'number' && level < 20; // threshold
+      });
+      setLowBatteryVehicles(lows);
+      setLowBatteryCount(lows.length);
+    }
+  }, [stationVehicles]);
+
+  // Persist counts for Navbar badge
+  useEffect(() => {
+    try {
+      const payload = { incidents: unreadIncidents, battery: lowBatteryCount };
+      localStorage.setItem('staffNotifCounts', JSON.stringify(payload));
+      const ev = new CustomEvent('staffNotifCounts', { detail: payload } as any);
+      window.dispatchEvent(ev);
+    } catch {}
+  }, [unreadIncidents, lowBatteryCount]);
+
+  const [incidentFilter, setIncidentFilter] = useState("reported"); // all, reported, in_progress, resolved
   const [incidentPriorityFilter, setIncidentPriorityFilter] = useState("all"); // all, low, medium, high, urgent
   const [incidentSearchQuery, setIncidentSearchQuery] = useState("");
   const [selectedIncidentForDetails, setSelectedIncidentForDetails] =
     useState<IncidentData | null>(null);
   const [isIncidentDetailsOpen, setIsIncidentDetailsOpen] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
+
+  // Open notifications if triggered from navbar
+  useEffect(() => {
+    try {
+      const flag = localStorage.getItem('openStaffNotifications');
+      if (flag === '1') {
+        setIsIncidentPanelOpen(true);
+        localStorage.removeItem('openStaffNotifications');
+      }
+    } catch {}
+  }, []);
+
+  // Listen for in-app event from Navbar to open notifications
+  useEffect(() => {
+    const handler = () => setIsIncidentPanelOpen(true);
+    window.addEventListener('openStaffNotifications', handler as any);
+    return () => window.removeEventListener('openStaffNotifications', handler as any);
+  }, []);
 
   // Load unassigned vehicles when dialog opens
   useEffect(() => {
@@ -592,32 +756,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       title: "Vehicle Checked In",
       description: `Vehicle ${vehicleId} has been successfully returned.`,
     });
-  };
-
-  // Quick check-in from Vehicle Management active rentals list
-  const handleQuickReturn = async (reservation: any) => {
-    try {
-      // Mark vehicle available
-      await staffApiService.updateVehicle(reservation.vehicleId, {
-        status: "available",
-      });
-
-      // Refresh data
-      await Promise.all([refetchVehicles(), fetchReservations()]);
-
-      toast({
-        title: "✅ Return Completed",
-        description: `Vehicle ${reservation.vehicleUniqueId || reservation.vehicleId} marked as available.`,
-        duration: 3000,
-      });
-    } catch (e) {
-      console.error("Quick return failed", e);
-      toast({
-        title: "❌ Return Failed",
-        description: "Could not complete return. Please try again.",
-        variant: "destructive",
-      });
-    }
   };
 
   // Format document type for display (match registration form names)
@@ -1233,34 +1371,126 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   // Function xử lý incident
-  const handleIncidentAction = (
+  const handleIncidentAction = async (
     incidentId: string,
     action: "accept" | "resolve"
   ) => {
-    if (action === "accept") {
-      incidentStorage.updateIncident(incidentId, { status: "in_progress" });
-      toast({
-        title: "Incident Accepted",
-        description: "You are now handling this incident.",
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: "Unauthorized",
+          description: "Please login to perform this action.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let updateData: any = {};
+      if (action === "accept") {
+        updateData = { status: "in_progress" };
+      } else if (action === "resolve") {
+        updateData = { status: "resolved" };
+      }
+
+      const response = await fetch(`http://localhost:5000/api/incidents/${incidentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
       });
-    } else if (action === "resolve") {
-      incidentStorage.updateIncident(incidentId, {
-        status: "resolved",
-        resolvedAt: new Date().toISOString(),
-      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Optimistic local update: accept moves to in_progress but DOES NOT change bell count
+        // Only resolving should decrement the bell count
+        setIncidents((prev) => {
+          const updated = prev.map((i) =>
+            i.id === incidentId
+              ? { ...i, status: action === "accept" ? "in_progress" : "resolved" }
+              : i
+          );
+          if (action === "resolve") {
+            const unread = updated.filter((i) => i.status === "reported").length;
+            setUnreadIncidents(unread);
+            try {
+              const ev = new CustomEvent('staffUnreadIncidents', { detail: { count: unread } });
+              window.dispatchEvent(ev);
+            } catch {}
+          }
+          return updated;
+        });
+
+        if (action === "accept") {
+          toast({
+            title: "Incident Accepted",
+            description: "You are now handling this incident.",
+          });
+        } else if (action === "resolve") {
+          toast({
+            title: "Incident Resolved",
+            description: "Incident has been marked as resolved.",
+          });
+          // Keep item visible only until resolved; nothing else needed here
+        }
+
+        // Refresh incidents by reloading
+        const stationId = staffProfile?.stationId || user?.stationId;
+        if (stationId) {
+          const refreshResponse = await fetch(`http://localhost:5000/api/incidents/station/${stationId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success && refreshData.incidents) {
+              const mappedIncidents: IncidentData[] = refreshData.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || stationId.toString(),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+
+              setIncidents(mappedIncidents);
+              const unreadNow = mappedIncidents.filter((i) => i.status === "reported").length;
+              setUnreadIncidents(unreadNow);
+              try {
+                const ev = new CustomEvent('staffUnreadIncidents', { detail: { count: unreadNow } });
+                window.dispatchEvent(ev);
+              } catch {}
+            }
+          }
+        }
+      } else {
+        toast({
+          title: "Failed to Update Incident",
+          description: data.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('[StaffDashboard] Error updating incident:', error);
       toast({
-        title: "Incident Resolved",
-        description: "Incident has been marked as resolved.",
+        title: "Error",
+        description: "An error occurred while updating the incident.",
+        variant: "destructive",
       });
     }
-
-    // Refresh incidents
-    const stationIncidents =
-      incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
-    setIncidents(stationIncidents);
-    setUnreadIncidents(
-      stationIncidents.filter((i) => i.status === "reported").length
-    ); // + CHỈ COUNT pending cho bell notification
   };
 
   const renderVehicleManagement = () => (
@@ -1339,87 +1569,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Active Returns (Current Rentals) */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Active Rentals (Returns)</CardTitle>
-            <Button variant="outline" size="sm" onClick={fetchReservations} disabled={reservationsLoading} className="gap-2">
-              <RefreshCw className={`h-4 w-4 ${reservationsLoading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-          <CardDescription>
-            Customers currently renting and expected return time
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {reservationsLoading ? (
-            <div className="text-center py-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-muted-foreground">Loading active rentals...</p>
-            </div>
-          ) : (
-            (() => {
-              const activeStatuses = ["active", "in_progress", "confirmed", "rented"]; 
-              const active = reservations
-                .filter((r: any) => activeStatuses.includes((r.status || '').toLowerCase()))
-                .sort((a: any, b: any) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
-
-              if (active.length === 0) {
-                return (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No active rentals</p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-3">
-                  {active.map((bk: any) => {
-                    const vehicleInfo = getVehicleInfo(bk.vehicleId);
-                    const license = bk.licensePlate || bk.vehicleUniqueId || vehicleInfo?.uniqueId;
-                    const model = bk.vehicleModel || vehicleInfo?.name || `Vehicle ${bk.vehicleId}`;
-                    return (
-                      <div key={bk.reservationId} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 rounded">
-                            <Car className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">{bk.userName || `User ${bk.userId}`}</p>
-                            {bk.userPhone && (
-                              <p className="text-sm text-muted-foreground">{bk.userPhone}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="hidden md:block text-sm text-muted-foreground">
-                          <p className="font-medium text-foreground">{model}</p>
-                          <p>Plate/ID: {license || 'N/A'}</p>
-                        </div>
-                        <div className="text-right text-sm flex items-end gap-3">
-                          <div className="flex items-center gap-1 justify-end text-muted-foreground">
-                            <Clock className="h-4 w-4" />
-                            <span>
-                              {new Date(bk.startTime).toLocaleString("vi-VN")} → {new Date(bk.endTime).toLocaleString("vi-VN")}
-                            </span>
-                          </div>
-                          <Badge variant="secondary" className="capitalize mt-1">{bk.status}</Badge>
-                          <Button size="sm" className="bg-primary" onClick={() => handleQuickReturn(bk)}>
-                            Complete Return
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()
-          )}
-        </CardContent>
-      </Card>
 
       {/* Vehicle List */}
       <Card>
@@ -3066,7 +3215,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       .filter((r: any) =>
         bookingStatuses.includes((r.status || "").toLowerCase())
       )
-      .filter((r: any) => withinRange(r.createdAt || r.startTime));
+      // Prioritize filtering by startTime (pickup date) instead of createdAt
+      .filter((r: any) => withinRange(r.startTime || r.createdAt));
 
     const canceledBookings = reservations
       .filter((r: any) => {
@@ -3451,6 +3601,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         "vi-VN"
                       )}
                     </p>
+                    {selectedReservation.confirmedBy && (
+                      <p className="col-span-2">
+                        <span className="font-medium">Confirmed By:</span>{" "}
+                        Staff
+                      </p>
+                    )}
+                    {selectedReservation.confirmedAt && (
+                      <p className="col-span-2">
+                        <span className="font-medium">Confirmed At:</span>{" "}
+                        {new Date(selectedReservation.confirmedAt).toLocaleString(
+                          "vi-VN"
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -3832,23 +3996,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   <h1 className="text-4xl md:text-5xl font-bold text-white">
                     {t("common.staffDashboard")}
                   </h1>
-
-                  {/* Incident Notification Bell */}
-                  <div className="relative">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsIncidentPanelOpen(true)}
-                      className="text-white hover:bg-white/20"
-                    >
-                      <Bell className="h-6 w-6" />
-                      {unreadIncidents > 0 && (
-                        <Badge className="absolute -top-2 -right-2 bg-red-500 text-white min-w-[20px] h-5 flex items-center justify-center text-xs">
-                          {unreadIncidents}
-                        </Badge>
-                      )}
-                    </Button>
-                  </div>
                 </div>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
@@ -3941,7 +4088,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-7">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
@@ -4176,22 +4323,83 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </div>
       </div>
 
-      {/* Incident Notifications Panel */}
+      {/* Unified Notifications Panel */}
       <Dialog open={isIncidentPanelOpen} onOpenChange={setIsIncidentPanelOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Incident Reports ({incidents.length})
+              <Bell className="h-5 w-5" /> Notifications
             </DialogTitle>
             <DialogDescription>
-              New incident reports from customers in your station
+              Battery alerts and incident reports in your station
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {incidents.length > 0 ? (
-              incidents.map((incident) => (
+          <Tabs defaultValue="battery" className="mt-1">
+            <TabsList className="grid grid-cols-2">
+              <TabsTrigger value="battery" className="flex items-center gap-2">
+                <Battery className="h-4 w-4" />
+                Battery Alerts {lowBatteryCount > 0 ? `(${lowBatteryCount})` : ''}
+              </TabsTrigger>
+              <TabsTrigger value="incidents" className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                {(() => {
+                  const pending = incidents.filter((i) => i.status === 'reported').length;
+                  return `Incident Reports ${pending > 0 ? `(${pending})` : ''}`;
+                })()}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="battery" className="mt-4">
+              {lowBatteryCount > 0 ? (
+                <div className="space-y-3">
+                  {lowBatteryVehicles.map((v: any) => {
+                    const level = v.batteryLevel ?? v.battery ?? 0;
+                    const critical = typeof level === 'number' && level <= 10;
+                    return (
+                      <div
+                        key={`low-${v.vehicleId || v.uniqueVehicleId}`}
+                        className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                          critical
+                            ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+                            : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm truncate">
+                              {v.modelId || 'Unknown Vehicle'}
+                            </h4>
+                            <Badge 
+                              variant={critical ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {level}%
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            ID: {v.uniqueVehicleId || `#${v.vehicleId}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            📍 {v.location || 'Unknown Location'}
+                          </p>
+                        </div>
+                        {/* Reserved space for future actions (start charge / complete) */}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">No low battery vehicles</div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="incidents" className="mt-4">
+              <div className="space-y-4">
+                {incidents.filter((i) => i.status !== 'resolved').length > 0 ? (
+                  incidents
+                    .filter((i) => i.status !== 'resolved')
+                    .map((incident) => (
                 <Card
                   key={incident.id}
                   className="border-l-4 border-l-orange-500"
@@ -4231,17 +4439,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            handleIncidentAction(incident.id, "accept")
-                          }
+                          onClick={() => handleIncidentAction(incident.id, "accept")}
                         >
                           Accept
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() =>
-                            handleIncidentAction(incident.id, "resolve")
-                          }
+                          onClick={() => handleIncidentAction(incident.id, "resolve")}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Resolve
@@ -4250,28 +4454,30 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </CardContent>
                 </Card>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No Active Incidents
-                </h3>
-                <p className="text-muted-foreground">
-                  All incidents have been resolved.
-                </p>
+                    ))
+                ) : (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      No Active Incidents
+                    </h3>
+                    <p className="text-muted-foreground">
+                      All incidents have been resolved.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </TabsContent>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsIncidentPanelOpen(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsIncidentPanelOpen(false)}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
