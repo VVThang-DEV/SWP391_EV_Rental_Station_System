@@ -213,14 +213,14 @@ const DocumentUpload = ({
     }, 200);
   };
 
- /* const openCamera = (documentType: string) => {
+  const openCamera = (documentType: string) => {
     // In a real app, this would open camera or file picker with camera option
     const input = fileInputRefs.current[documentType];
     if (input) {
       input.setAttribute("capture", "environment");
       input.click();
     }
-  };*/
+  };
 
   const handlePreview = (documentType: string) => {
     const file = uploadedDocuments[documentType];
@@ -370,7 +370,15 @@ const DocumentUpload = ({
                   <FileText className="h-4 w-4 mr-2" />
                   Choose File
                 </Button>
-              
+                <Button
+                  className="btn"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openCamera(documentType)}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Take Photo
+                </Button>
               </div>
             </>
           )}
