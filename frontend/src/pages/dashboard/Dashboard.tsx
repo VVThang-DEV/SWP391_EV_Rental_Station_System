@@ -153,9 +153,16 @@ const Dashboard = ({ user }: DashboardProps) => {
         const res = await apiService.getReservations();
         const reservations = res.reservations || [];
 
-        // Only show truly active rentals (not pending/confirmed)
+        // Determine current time window rentals
+        const now = Date.now();
+        const normalized = (s: string) => (s || "").toLowerCase();
+
         const activeLike = reservations
-          .filter((r) => ["active", "in_progress", "rented"].includes((r.status || "").toLowerCase()))
+          .filter((r) => {
+            const status = normalized(r.status);
+            if (["active", "in_progress", "rented", "confirmed"].includes(status)) return true;
+            return false;
+          })
           .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
 
         if (activeLike) {
@@ -186,6 +193,9 @@ const Dashboard = ({ user }: DashboardProps) => {
             duration: "",
             batteryLevel: batteryLevel ?? undefined,
             createdAt: activeLike.createdAt,
+            // carry exact timestamps for logic
+            _startAt: new Date(activeLike.startTime).getTime(),
+            _endAt: new Date(activeLike.endTime).getTime(),
           };
 
           setDashboardData({
@@ -457,8 +467,14 @@ const Dashboard = ({ user }: DashboardProps) => {
           {/* Current Rental */}
           {(() => {
             const cr = dashboardData.currentRental as any;
-            const show = cr && ["active", "in_progress", "rented"].includes((cr.status || "").toLowerCase());
-            return show;
+            if (!cr) return false;
+            const status = (cr.status || "").toLowerCase();
+            if (["active", "in_progress", "rented", "confirmed"].includes(status)) return true;
+            // fallback check with timestamps if provided
+            const now = Date.now();
+            const start = cr._startAt ?? new Date(cr.startDate).getTime();
+            const end = cr._endAt ?? new Date(cr.endDate).getTime();
+            return now >= start && now <= end;
           })() ? (
             <Card className="card-premium">
               <CardHeader>
