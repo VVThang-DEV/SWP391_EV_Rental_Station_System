@@ -467,6 +467,30 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     damages: [] as string[],
   });
 
+  // Vehicle Return Checkout state
+  const [isReturnCheckoutOpen, setIsReturnCheckoutOpen] = useState(false);
+  const [returnSearchQuery, setReturnSearchQuery] = useState("");
+  const [returnSearchType, setReturnSearchType] = useState<"reservation" | "phone" | "name">("reservation");
+  const [selectedReturnBooking, setSelectedReturnBooking] = useState<any | null>(null);
+  const [returnInspectionData, setReturnInspectionData] = useState({
+    batteryLevel: 100,
+    mileage: 0,
+    exteriorCondition: "good",
+    interiorCondition: "good",
+    tiresCondition: "good",
+    damages: [] as string[],
+    notes: "",
+  });
+  const [returnFeeCalculation, setReturnFeeCalculation] = useState({
+    baseRental: 0,
+    lateFee: 0,
+    damageFee: 0,
+    additionalCharges: 0,
+    depositRefund: 0,
+    totalRefund: 0,
+    totalDue: 0,
+  });
+
   // Incident notification state
   const [incidents, setIncidents] = useState<IncidentData[]>([]);
   const [unreadIncidents, setUnreadIncidents] = useState(0);
@@ -1370,6 +1394,151 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }));
   };
 
+  // Vehicle Return Checkout Functions
+  const calculateReturnFees = (booking: any, inspection: typeof returnInspectionData) => {
+    const now = new Date();
+    const endTime = new Date(booking.endTime);
+    const isLate = now > endTime;
+    const lateHours = isLate ? Math.ceil((now.getTime() - endTime.getTime()) / (1000 * 60 * 60)) : 0;
+
+    const baseRental = booking.totalAmount || 0;
+    const lateFee = isLate ? Math.min(baseRental * 0.1 * lateHours, baseRental * 0.5) : 0;
+
+    let damageFee = 0;
+    if (inspection.damages.length > 0) {
+      damageFee = inspection.damages.length * 500000;
+    }
+    if (inspection.exteriorCondition === "poor" || inspection.interiorCondition === "poor") {
+      damageFee += 1000000;
+    }
+    if (inspection.tiresCondition === "poor") {
+      damageFee += 2000000;
+    }
+
+    const batteryChargeFee = inspection.batteryLevel < 50 ? 500000 : 0;
+    const additionalCharges = batteryChargeFee;
+    const totalDue = lateFee + damageFee + additionalCharges;
+    const depositRefund = Math.max(0, (booking.depositAmount || 0) - totalDue);
+    const totalRefund = depositRefund;
+
+    return {
+      baseRental,
+      lateFee,
+      damageFee,
+      additionalCharges,
+      depositRefund,
+      totalRefund,
+      totalDue,
+    };
+  };
+
+  const handleStartReturnCheckout = (booking: any) => {
+    setSelectedReturnBooking(booking);
+    const vehicle = apiVehicles?.find((v) => v.vehicleId === booking.vehicleId);
+    if (vehicle) {
+      setReturnInspectionData({
+        batteryLevel: vehicle.batteryLevel || 100,
+        mileage: vehicle.mileage || 0,
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        damages: [],
+        notes: "",
+      });
+    }
+    const fees = calculateReturnFees(booking, returnInspectionData);
+    setReturnFeeCalculation(fees);
+    setIsReturnCheckoutOpen(true);
+  };
+
+  const handleUpdateReturnInspection = (updates: Partial<typeof returnInspectionData>) => {
+    const newData = { ...returnInspectionData, ...updates };
+    setReturnInspectionData(newData);
+    if (selectedReturnBooking) {
+      const fees = calculateReturnFees(selectedReturnBooking, newData);
+      setReturnFeeCalculation(fees);
+    }
+  };
+
+  const handleToggleReturnDamage = (damage: string) => {
+    const damages = returnInspectionData.damages.includes(damage)
+      ? returnInspectionData.damages.filter((d) => d !== damage)
+      : [...returnInspectionData.damages, damage];
+    handleUpdateReturnInspection({ damages });
+  };
+
+  const handleCompleteReturnCheckout = async () => {
+    if (!selectedReturnBooking) return;
+
+    if (!returnInspectionData.batteryLevel || !returnInspectionData.mileage) {
+      toast({
+        title: "Incomplete Inspection",
+        description: "Please fill in battery level and mileage",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Update vehicle
+      await staffApiService.updateVehicle(selectedReturnBooking.vehicleId, {
+        batteryLevel: returnInspectionData.batteryLevel,
+        mileage: returnInspectionData.mileage,
+        condition:
+          returnInspectionData.damages.length > 0 ||
+          returnInspectionData.exteriorCondition === "poor" ||
+          returnInspectionData.interiorCondition === "poor"
+            ? "fair"
+            : "good",
+        status: "available",
+        notes: returnInspectionData.notes || undefined,
+      });
+
+      toast({
+        title: "✅ Return Completed",
+        description: `Vehicle ${selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId} has been returned successfully.`,
+        duration: 3000,
+      });
+
+      // Refresh data
+      await Promise.all([refetchVehicles(), fetchReservations()]);
+
+      // Close dialog
+      setIsReturnCheckoutOpen(false);
+      setSelectedReturnBooking(null);
+      setReturnSearchQuery("");
+    } catch (error) {
+      console.error("Return checkout error:", error);
+      toast({
+        title: "❌ Return Failed",
+        description: "Failed to complete return. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter active rentals for return
+  const getActiveRentalsForReturn = () => {
+    const activeStatuses = ["active", "in_progress", "confirmed", "rented"];
+    return reservations
+      .filter((r: any) => activeStatuses.includes((r.status || "").toLowerCase()))
+      .filter((r: any) => {
+        if (!returnSearchQuery) return true;
+        const query = returnSearchQuery.toLowerCase();
+        switch (returnSearchType) {
+          case "reservation":
+            return r.reservationId?.toString().includes(query);
+          case "phone":
+            return (r.userPhone || "").toLowerCase().includes(query);
+          case "name":
+            return (r.userName || "").toLowerCase().includes(query);
+          default:
+            return true;
+        }
+      })
+      .sort((a: any, b: any) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+  };
+
   // Function xử lý incident
   const handleIncidentAction = async (
     incidentId: string,
@@ -1569,6 +1738,154 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Vehicle Return Checkout */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Vehicle Return Checkout
+              </CardTitle>
+              <CardDescription>
+                Process vehicle returns when customers bring vehicles back to station
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchReservations} disabled={reservationsLoading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${reservationsLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Search Bar */}
+          <div className="flex gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={
+                  returnSearchType === "reservation"
+                    ? "Search by Reservation ID..."
+                    : returnSearchType === "phone"
+                    ? "Search by Phone Number..."
+                    : "Search by Customer Name..."
+                }
+                value={returnSearchQuery}
+                onChange={(e) => setReturnSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={returnSearchType} onValueChange={(v: any) => setReturnSearchType(v)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="reservation">Reservation ID</SelectItem>
+                <SelectItem value="phone">Phone Number</SelectItem>
+                <SelectItem value="name">Customer Name</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Active Rentals List */}
+          {reservationsLoading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading active rentals...</p>
+            </div>
+          ) : (() => {
+            const activeRentals = getActiveRentalsForReturn();
+            if (activeRentals.length === 0) {
+              return (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium">No Active Rentals Found</p>
+                  <p className="text-sm">All vehicles have been returned or no bookings match your search.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {activeRentals.map((bk: any) => {
+                  const vehicleInfo = getVehicleInfo(bk.vehicleId);
+                  const license = bk.licensePlate || bk.vehicleUniqueId || vehicleInfo?.uniqueId;
+                  const model = bk.vehicleModel || vehicleInfo?.name || `Vehicle ${bk.vehicleId}`;
+                  const isOverdue = new Date() > new Date(bk.endTime);
+
+                  return (
+                    <Card
+                      key={bk.reservationId}
+                      className={`hover:shadow-md transition-shadow ${
+                        isOverdue ? "border-destructive/50 bg-destructive/5" : ""
+                      }`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="p-3 bg-primary/10 rounded-lg">
+                              <Car className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-semibold">Reservation #{bk.reservationId}</h4>
+                                <Badge variant={isOverdue ? "destructive" : "secondary"}>
+                                  {isOverdue ? "Overdue" : bk.status}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Customer:</span>
+                                  <p className="font-medium">{bk.userName || `User ${bk.userId}`}</p>
+                                  <p className="text-xs text-muted-foreground">{bk.userPhone || "N/A"}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Vehicle:</span>
+                                  <p className="font-medium">{model}</p>
+                                  <p className="text-xs text-muted-foreground">Plate/ID: {license || "N/A"}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Rental Period:</span>
+                                  <p className="font-medium">
+                                    {new Date(bk.startTime).toLocaleDateString("vi-VN")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Due: {new Date(bk.endTime).toLocaleTimeString("vi-VN", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Deposit:</span>
+                                  <p className="font-medium text-green-600">
+                                    {(bk.depositAmount || 0).toLocaleString("vi-VN")} VND
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-primary"
+                              onClick={() => handleStartReturnCheckout(bk)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Process Return
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Vehicle List */}
       <Card>
@@ -4733,6 +5050,255 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               onClick={() => setIsIncidentDetailsOpen(false)}
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vehicle Return Checkout Dialog */}
+      <Dialog open={isReturnCheckoutOpen} onOpenChange={setIsReturnCheckoutOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Process Vehicle Return
+            </DialogTitle>
+            <DialogDescription>
+              Complete inspection and process return for Reservation #{selectedReturnBooking?.reservationId}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedReturnBooking && (
+            <div className="space-y-6">
+              {/* Booking Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Booking Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <Label className="text-muted-foreground">Customer</Label>
+                      <p className="font-medium">{selectedReturnBooking.userName || `User ${selectedReturnBooking.userId}`}</p>
+                      <p className="text-xs text-muted-foreground">{selectedReturnBooking.userPhone || "N/A"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Vehicle</Label>
+                      <p className="font-medium">{selectedReturnBooking.vehicleModel || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        ID: {selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Start Time</Label>
+                      <p className="font-medium">
+                        {new Date(selectedReturnBooking.startTime).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Expected Return</Label>
+                      <p className="font-medium">
+                        {new Date(selectedReturnBooking.endTime).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Vehicle Inspection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Vehicle Inspection</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="returnBatteryLevel">
+                        Battery Level (%) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="returnBatteryLevel"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={returnInspectionData.batteryLevel}
+                        onChange={(e) =>
+                          handleUpdateReturnInspection({ batteryLevel: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="returnMileage">
+                        Current Mileage (km) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="returnMileage"
+                        type="number"
+                        min="0"
+                        value={returnInspectionData.mileage}
+                        onChange={(e) =>
+                          handleUpdateReturnInspection({ mileage: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="returnExterior">Exterior Condition</Label>
+                      <Select
+                        value={returnInspectionData.exteriorCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ exteriorCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnInterior">Interior Condition</Label>
+                      <Select
+                        value={returnInspectionData.interiorCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ interiorCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnTires">Tires Condition</Label>
+                      <Select
+                        value={returnInspectionData.tiresCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ tiresCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Damages Found (if any)</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {[
+                        "Scratches",
+                        "Dents",
+                        "Broken lights",
+                        "Cracked windshield",
+                        "Worn tires",
+                        "Interior stains",
+                        "Missing parts",
+                        "Other damages",
+                      ].map((damage) => (
+                        <label
+                          key={damage}
+                          className="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={returnInspectionData.damages.includes(damage)}
+                            onChange={() => handleToggleReturnDamage(damage)}
+                            className="rounded"
+                          />
+                          <span>{damage}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="returnNotes">Inspection Notes</Label>
+                    <Textarea
+                      id="returnNotes"
+                      value={returnInspectionData.notes}
+                      onChange={(e) => handleUpdateReturnInspection({ notes: e.target.value })}
+                      placeholder="Document any issues, observations, or customer feedback..."
+                      rows={3}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Fee Calculation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Fee Calculation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Base Rental:</span>
+                      <span className="font-medium">{returnFeeCalculation.baseRental.toLocaleString("vi-VN")} VND</span>
+                    </div>
+                    {returnFeeCalculation.lateFee > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Late Fee:</span>
+                        <span className="font-medium">+{returnFeeCalculation.lateFee.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    {returnFeeCalculation.damageFee > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Damage Fee:</span>
+                        <span className="font-medium">+{returnFeeCalculation.damageFee.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    {returnFeeCalculation.additionalCharges > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Additional Charges:</span>
+                        <span className="font-medium">+{returnFeeCalculation.additionalCharges.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Total Due:</span>
+                        <span className={returnFeeCalculation.totalDue > 0 ? "text-destructive" : "text-green-600"}>
+                          {returnFeeCalculation.totalDue > 0 ? "+" : ""}
+                          {returnFeeCalculation.totalDue.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-green-600 mt-2">
+                        <span>Deposit Refund:</span>
+                        <span className="font-semibold">
+                          {returnFeeCalculation.totalRefund.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReturnCheckoutOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCompleteReturnCheckout} className="bg-primary">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Complete Return
             </Button>
           </DialogFooter>
         </DialogContent>
