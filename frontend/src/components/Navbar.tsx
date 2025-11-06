@@ -143,6 +143,11 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
                   />
                 )}
 
+                {/* Customer notifications bell */}
+                {user.role !== "staff" && user.role !== "admin" && (
+                  <CustomerNotificationsButton />
+                )}
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -496,3 +501,139 @@ const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButt
 };
 
 export default Navbar;
+
+interface CustomerIncidentItem {
+  incidentId: number;
+  type: string;
+  description: string;
+  status: string; // 'reported' | 'in_progress' | 'resolved'
+  reportedAt?: string;
+}
+
+const CustomerNotificationsButton = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [incidents, setIncidents] = useState<CustomerIncidentItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          if (isMounted) {
+            setIncidents([]);
+            setUnreadCount(0);
+          }
+          return;
+        }
+        const res = await fetch('http://localhost:5000/api/incidents/user', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!isMounted) return;
+        if (res.ok) {
+          const data = await res.json();
+          const list: any[] = data?.incidents || data?.data?.incidents || [];
+          const normalized: CustomerIncidentItem[] = list.map((i) => ({
+            incidentId: i.incidentId ?? i.id ?? 0,
+            type: i.type || '',
+            description: i.description || '',
+            status: (i.status || 'reported'),
+            reportedAt: i.reportedAt,
+          }));
+          setIncidents(normalized);
+          const pending = normalized.filter((i) => (i.status || 'reported') !== 'resolved').length;
+          setUnreadCount(pending);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      if (isMounted) {
+        setIncidents([]);
+        setUnreadCount(0);
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 30000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+
+  const statusLabel = (status: string) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'reported') return 'Send';
+    if (s === 'in_progress') return 'Accepted';
+    if (s === 'resolved') return 'Approve';
+    return status || 'Unknown';
+  };
+
+  const statusClass = (status: string) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'reported') return 'text-yellow-600 bg-yellow-100';
+    if (s === 'in_progress') return 'text-blue-600 bg-blue-100';
+    if (s === 'resolved') return 'text-green-700 bg-green-100';
+    return 'text-muted-foreground bg-secondary';
+  };
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-label={`Incident notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+      >
+        <Bell className="h-5 w-5" />
+      </Button>
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] h-4 min-w-4 px-1 flex items-center justify-center leading-none">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-md shadow-lg z-50">
+          <div className="p-3 border-b border-border">
+            <div className="text-sm font-medium">Incident Updates</div>
+            <div className="text-xs text-muted-foreground">Status from staff about your reports</div>
+          </div>
+          <div className="max-h-80 overflow-auto">
+            {incidents.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">No incidents yet</div>
+            ) : (
+              incidents.slice(0, 10).map((it) => (
+                <div key={it.incidentId} className="p-3 border-b border-border last:border-b-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium truncate">{it.type || 'Incident'}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">{it.description}</div>
+                    </div>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${statusClass(it.status)}`}>
+                      {statusLabel(it.status)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="p-2 flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => setIsOpen(false)}>Close</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
