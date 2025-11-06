@@ -210,7 +210,7 @@ public class StaffService : IStaffService
                 return new CustomerVerificationResponse
                 {
                     Success = false,
-                    Message = "Failed to verify customer"
+                    Message = "Failed to verify customer. Customer may not have any documents uploaded, or documents are in an invalid state."
                 };
             }
 
@@ -222,6 +222,8 @@ public class StaffService : IStaffService
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[StaffService.VerifyCustomerAsync] Exception: {ex.Message}");
+            Console.WriteLine($"[StaffService.VerifyCustomerAsync] Stack trace: {ex.StackTrace}");
             return new CustomerVerificationResponse
             {
                 Success = false,

@@ -576,8 +576,23 @@ public class StaffRepository : IStaffRepository
             await using var conn = _connFactory();
             await conn.OpenAsync();
 
-            // Only approve user documents, don't complete the checkout yet
-            // Checkout will be completed later in Pickup Management after final verification
+            // First, check if customer has any documents
+            const string checkDocumentsSql = @"
+                SELECT COUNT(*) 
+                FROM user_documents 
+                WHERE user_id = @UserId";
+            
+            await using var checkCmd = new SqlCommand(checkDocumentsSql, conn);
+            checkCmd.Parameters.AddWithValue("@UserId", customerId);
+            var docCount = (int)await checkCmd.ExecuteScalarAsync();
+
+            if (docCount == 0)
+            {
+                Console.WriteLine($"[VerifyCustomerAsync] No documents found for customer {customerId}");
+                return false;
+            }
+
+            // Update pending documents to approved
             const string updateDocumentsSql = @"
                 UPDATE user_documents
                 SET status = 'approved',
@@ -597,13 +612,32 @@ public class StaffRepository : IStaffRepository
             }
             else
             {
-                Console.WriteLine($"[VerifyCustomerAsync] No pending documents found for customer {customerId}");
-                return false;
+                // Check if documents are already approved
+                const string checkApprovedSql = @"
+                    SELECT COUNT(*) 
+                    FROM user_documents 
+                    WHERE user_id = @UserId AND status = 'approved'";
+                
+                await using var checkApprovedCmd = new SqlCommand(checkApprovedSql, conn);
+                checkApprovedCmd.Parameters.AddWithValue("@UserId", customerId);
+                var approvedCount = (int)await checkApprovedCmd.ExecuteScalarAsync();
+
+                if (approvedCount > 0)
+                {
+                    Console.WriteLine($"[VerifyCustomerAsync] Customer {customerId} already has {approvedCount} approved documents. Verification allowed.");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[VerifyCustomerAsync] No pending documents found for customer {customerId}, and no approved documents either");
+                    return false;
+                }
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[VerifyCustomerAsync] Error: {ex.Message}");
+            Console.WriteLine($"[VerifyCustomerAsync] Stack trace: {ex.StackTrace}");
             return false;
         }
     }

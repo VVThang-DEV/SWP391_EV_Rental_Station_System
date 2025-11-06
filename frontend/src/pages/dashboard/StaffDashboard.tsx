@@ -825,12 +825,25 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to verify customer");
+        // Try to get error message from response
+        let errorMessage = "Could not verify customer documents";
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // If response is not JSON, use default message
+          console.error("Failed to parse error response:", e);
+        }
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
+      
       toast({
         title: "✅ Customer Verified",
-        description: "Customer identity and documents have been approved.",
+        description: result.message || "Customer identity and documents have been approved.",
       });
 
       // Close the dialog
@@ -841,9 +854,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       await fetchPendingCustomers();
     } catch (error) {
       console.error("Error verifying customer:", error);
+      const errorMessage = error instanceof Error ? error.message : "Could not verify customer documents";
       toast({
         title: "❌ Verification Failed",
-        description: "Could not verify customer documents",
+        description: errorMessage,
         variant: "destructive",
       });
     }
