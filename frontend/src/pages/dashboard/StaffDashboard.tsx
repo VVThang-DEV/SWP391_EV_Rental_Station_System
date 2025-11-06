@@ -758,6 +758,32 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     });
   };
 
+  // Quick check-in from Vehicle Management active rentals list
+  const handleQuickReturn = async (reservation: any) => {
+    try {
+      // Mark vehicle available
+      await staffApiService.updateVehicle(reservation.vehicleId, {
+        status: "available",
+      });
+
+      // Refresh data
+      await Promise.all([refetchVehicles(), fetchReservations()]);
+
+      toast({
+        title: "✅ Return Completed",
+        description: `Vehicle ${reservation.vehicleUniqueId || reservation.vehicleId} marked as available.`,
+        duration: 3000,
+      });
+    } catch (e) {
+      console.error("Quick return failed", e);
+      toast({
+        title: "❌ Return Failed",
+        description: "Could not complete return. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Format document type for display (match registration form names)
   const formatDocumentType = (docType: string): string => {
     const typeMap: Record<string, string> = {
@@ -1569,6 +1595,87 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Active Returns (Current Rentals) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Active Rentals (Returns)</CardTitle>
+            <Button variant="outline" size="sm" onClick={fetchReservations} disabled={reservationsLoading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${reservationsLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+          <CardDescription>
+            Customers currently renting and expected return time
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {reservationsLoading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading active rentals...</p>
+            </div>
+          ) : (
+            (() => {
+              const activeStatuses = ["active", "in_progress", "confirmed", "rented"]; 
+              const active = reservations
+                .filter((r: any) => activeStatuses.includes((r.status || '').toLowerCase()))
+                .sort((a: any, b: any) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+
+              if (active.length === 0) {
+                return (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No active rentals</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  {active.map((bk: any) => {
+                    const vehicleInfo = getVehicleInfo(bk.vehicleId);
+                    const license = bk.licensePlate || bk.vehicleUniqueId || vehicleInfo?.uniqueId;
+                    const model = bk.vehicleModel || vehicleInfo?.name || `Vehicle ${bk.vehicleId}`;
+                    return (
+                      <div key={bk.reservationId} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-primary/10 rounded">
+                            <Car className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold">{bk.userName || `User ${bk.userId}`}</p>
+                            {bk.userPhone && (
+                              <p className="text-sm text-muted-foreground">{bk.userPhone}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="hidden md:block text-sm text-muted-foreground">
+                          <p className="font-medium text-foreground">{model}</p>
+                          <p>Plate/ID: {license || 'N/A'}</p>
+                        </div>
+                        <div className="text-right text-sm flex items-end gap-3">
+                          <div className="flex items-center gap-1 justify-end text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span>
+                              {new Date(bk.startTime).toLocaleString("vi-VN")} → {new Date(bk.endTime).toLocaleString("vi-VN")}
+                            </span>
+                          </div>
+                          <Badge variant="secondary" className="capitalize mt-1">{bk.status}</Badge>
+                          <Button size="sm" className="bg-primary" onClick={() => handleQuickReturn(bk)}>
+                            Complete Return
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
+          )}
+        </CardContent>
+      </Card>
 
       {/* Vehicle List */}
       <Card>
@@ -4088,7 +4195,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           {/* Tabs */}
           <FadeIn delay={300}>
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="grid w-full grid-cols-7">
                 <TabsTrigger value="vehicles">Vehicle Management</TabsTrigger>
                 <TabsTrigger value="customers">
                   Customer Verification
