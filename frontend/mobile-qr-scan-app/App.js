@@ -371,15 +371,21 @@ export default function App() {
                       </Text>
                     </View>
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Vehicle:</Text>
+                      <Text style={styles.detailLabel}>Customer ID:</Text>
                       <Text style={styles.detailValue}>
-                        {result.vehicleName ?? "Unknown"}
+                        #{result.reservation.userId}
                       </Text>
                     </View>
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Customer:</Text>
                       <Text style={styles.detailValue}>
                         {result.userName ?? "Unknown"}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Vehicle:</Text>
+                      <Text style={styles.detailValue}>
+                        {result.vehicleName ?? "Unknown"}
                       </Text>
                     </View>
                     <View style={styles.detailRow}>
