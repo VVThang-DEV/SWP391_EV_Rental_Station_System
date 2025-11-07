@@ -9,6 +9,7 @@ using EVRentalApi.Application.Services;
 using EVRentalApi.Infrastructure.Repositories;
 using EVRentalApi.Infrastructure.Email;
 using EVRentalApi.Models;
+using Microsoft.AspNetCore.Authorization;
 using System.Collections.Generic;
 using Microsoft.Extensions.FileProviders;
 
@@ -70,6 +71,10 @@ builder.Services.AddScoped<IQRCodeService, QRCodeService>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
+
+// DI: Incident management
+builder.Services.AddScoped<IIncidentRepository, IncidentRepository>();
+builder.Services.AddScoped<IIncidentService, IncidentService>();
 
 // Add controllers
 builder.Services.AddControllers();
@@ -1030,6 +1035,356 @@ app.MapPost("/api/wallet/withdraw", [Microsoft.AspNetCore.Authorization.Authoriz
     }
 });
 
+// Staff deduct from customer wallet (for late fees, damages, etc.)
+app.MapPost("/api/staff/wallet/deduct", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection, IEmailService emailService, StaffDeductWalletRequest req) =>
+{
+    Console.WriteLine($"[Staff Deduct Wallet] CustomerId={req.CustomerId}, Amount={req.Amount}, Reason={req.Reason}, ReservationId={req.ReservationId}");
+    
+    var staffIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (staffIdClaim == null || !int.TryParse(staffIdClaim.Value, out int staffId))
+    {
+        Console.WriteLine("[Staff Deduct Wallet] Unauthorized: No valid staff ID");
+        return Results.Unauthorized();
+    }
+
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    
+    var trans = conn.BeginTransaction();
+    try
+    {
+        // Get customer information for email
+        var getCustomerCmd = new SqlCommand("SELECT email, full_name FROM dbo.users WHERE user_id = @customerId", conn, trans);
+        getCustomerCmd.Parameters.AddWithValue("@customerId", req.CustomerId);
+        var customerReader = await getCustomerCmd.ExecuteReaderAsync();
+        string customerEmail = "";
+        string customerName = "";
+        if (await customerReader.ReadAsync())
+        {
+            customerEmail = customerReader.IsDBNull(0) ? "" : customerReader.GetString(0);
+            customerName = customerReader.IsDBNull(1) ? "Khách hàng" : customerReader.GetString(1);
+        }
+        await customerReader.CloseAsync();
+
+        // Check customer balance
+        var checkBalanceCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @customerId", conn, trans);
+        checkBalanceCmd.Parameters.AddWithValue("@customerId", req.CustomerId);
+        var currentBalanceResult = await checkBalanceCmd.ExecuteScalarAsync();
+        var currentBalance = currentBalanceResult == DBNull.Value ? 0m : (decimal)currentBalanceResult;
+        
+        Console.WriteLine($"[Staff Deduct Wallet] Customer {req.CustomerId} current balance: {currentBalance}");
+        
+        if (currentBalance < req.Amount)
+        {
+            await trans.RollbackAsync();
+            await conn.CloseAsync();
+            return Results.BadRequest(new { success = false, message = "Khách hàng không đủ số dư trong ví", currentBalance, required = req.Amount });
+        }
+
+        // Insert payment record
+        var transactionId = $"LATE_FEE_{req.ReservationId}_{DateTime.Now.Ticks}";
+        var cmd1 = new SqlCommand(@"
+            INSERT INTO dbo.payments (user_id, reservation_id, method_type, amount, status, transaction_type, transaction_id, created_at, updated_at)
+            VALUES (@customerId, @reservationId, 'wallet', @amount, 'success', 'late_fee', @transactionId, GETDATE(), GETDATE());
+            SELECT CAST(SCOPE_IDENTITY() as int);", conn, trans);
+        cmd1.Parameters.AddWithValue("@customerId", req.CustomerId);
+        cmd1.Parameters.AddWithValue("@reservationId", (object?)req.ReservationId ?? DBNull.Value);
+        cmd1.Parameters.AddWithValue("@amount", req.Amount);
+        cmd1.Parameters.AddWithValue("@transactionId", transactionId);
+        
+        var paymentId = (int)await cmd1.ExecuteScalarAsync();
+
+        // Update wallet balance (subtract)
+        var cmd2 = new SqlCommand("UPDATE dbo.users SET wallet_balance = ISNULL(wallet_balance, 0) - @amount WHERE user_id = @customerId", conn, trans);
+        cmd2.Parameters.AddWithValue("@customerId", req.CustomerId);
+        cmd2.Parameters.AddWithValue("@amount", req.Amount);
+        await cmd2.ExecuteNonQueryAsync();
+
+        // Get new balance
+        var cmd3 = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @customerId", conn, trans);
+        cmd3.Parameters.AddWithValue("@customerId", req.CustomerId);
+        var balanceResult = await cmd3.ExecuteScalarAsync();
+        var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+
+        trans.Commit();
+        
+        // Send email notification to customer
+        if (!string.IsNullOrEmpty(customerEmail))
+        {
+            try
+            {
+                string emailSubject;
+                string emailBody;
+                
+                if (req.Reason?.Contains("Phí trễ giờ") == true)
+                {
+                    // Extract late hours and price per hour from reason
+                    var reasonParts = req.Reason.Split('×');
+                    var lateHours = "N/A";
+                    var pricePerHour = "N/A";
+                    if (reasonParts.Length >= 2)
+                    {
+                        var hoursMatch = System.Text.RegularExpressions.Regex.Match(reasonParts[0], @"(\d+)\s*giờ");
+                        if (hoursMatch.Success) lateHours = hoursMatch.Groups[1].Value;
+                        
+                        var priceMatch = System.Text.RegularExpressions.Regex.Match(reasonParts[1], @"([\d.,]+)\s*VND");
+                        if (priceMatch.Success) pricePerHour = priceMatch.Groups[1].Value.Replace(",", ".");
+                    }
+
+                    emailSubject = $"Thông báo: Phí trễ giờ đã được trừ từ ví - Booking #{req.ReservationId}";
+                    emailBody = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }}
+        .amount-box {{ background: #fff3cd; padding: 20px; margin: 20px 0; border-radius: 8px; border: 2px solid #ffc107; text-align: center; }}
+        .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 12px; }}
+        .highlight {{ color: #d32f2f; font-weight: bold; font-size: 18px; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1>⚠️ Thông báo phí trễ giờ</h1>
+        </div>
+        <div class='content'>
+            <p>Xin chào <strong>{customerName}</strong>,</p>
+            
+            <p>Chúng tôi thông báo rằng phí trễ giờ đã được trừ từ ví của bạn sau khi trả xe.</p>
+            
+            <div class='info-box'>
+                <h3>📋 Thông tin giao dịch</h3>
+                <p><strong>Booking ID:</strong> #{req.ReservationId}</p>
+                <p><strong>Số giờ muộn:</strong> {lateHours} giờ</p>
+                <p><strong>Giá thuê xe 1 giờ:</strong> {pricePerHour} VND</p>
+            </div>
+            
+            <div class='amount-box'>
+                <p style='margin: 0; color: #666;'>Số tiền đã trừ</p>
+                <p class='highlight' style='margin: 10px 0;'>{req.Amount:N0} VND</p>
+                <p style='margin: 0; font-size: 14px; color: #666;'>
+                    ({lateHours} giờ × {pricePerHour} VND/giờ)
+                </p>
+            </div>
+            
+            <div class='info-box'>
+                <h3>💰 Số dư ví</h3>
+                <p><strong>Số dư trước:</strong> {currentBalance:N0} VND</p>
+                <p><strong>Số dư sau:</strong> <span class='highlight'>{newBalance:N0} VND</span></p>
+            </div>
+            
+            <p>Bạn có thể xem chi tiết giao dịch trong <strong>Transaction History</strong> trên trang Wallet của mình.</p>
+            
+            <p>Nếu có thắc mắc, vui lòng liên hệ với chúng tôi.</p>
+            
+            <div class='footer'>
+                <p>Trân trọng,<br>Đội ngũ EVRentals</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>";
+                }
+                else if (req.Reason?.Contains("Phí hư hỏng") == true)
+                {
+                    // Extract damage details from reason
+                    var damageDetails = req.Reason ?? "Không có chi tiết";
+                    
+                    emailSubject = $"Thông báo: Phí hư hỏng xe đã được trừ từ ví - Booking #{req.ReservationId}";
+                    emailBody = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545; }}
+        .amount-box {{ background: #f8d7da; padding: 20px; margin: 20px 0; border-radius: 8px; border: 2px solid #dc3545; text-align: center; }}
+        .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 12px; }}
+        .highlight {{ color: #d32f2f; font-weight: bold; font-size: 18px; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1>⚠️ Thông báo phí hư hỏng xe</h1>
+        </div>
+        <div class='content'>
+            <p>Xin chào <strong>{customerName}</strong>,</p>
+            
+            <p>Chúng tôi thông báo rằng phí hư hỏng xe đã được trừ từ ví của bạn sau khi kiểm tra xe trả về.</p>
+            
+            <div class='info-box'>
+                <h3>📋 Thông tin giao dịch</h3>
+                <p><strong>Booking ID:</strong> #{req.ReservationId}</p>
+                <p><strong>Lý do trừ tiền:</strong></p>
+                <p style='margin-left: 20px;'>{damageDetails}</p>
+            </div>
+            
+            <div class='amount-box'>
+                <p style='margin: 0; color: #666;'>Số tiền đã trừ</p>
+                <p class='highlight' style='margin: 10px 0;'>{req.Amount:N0} VND</p>
+            </div>
+            
+            <div class='info-box'>
+                <h3>💰 Số dư ví</h3>
+                <p><strong>Số dư trước:</strong> {currentBalance:N0} VND</p>
+                <p><strong>Số dư sau:</strong> <span class='highlight'>{newBalance:N0} VND</span></p>
+            </div>
+            
+            <p>Bạn có thể xem chi tiết giao dịch trong <strong>Transaction History</strong> trên trang Wallet của mình.</p>
+            
+            <p>Nếu có thắc mắc về phí hư hỏng, vui lòng liên hệ với chúng tôi để được giải đáp.</p>
+            
+            <div class='footer'>
+                <p>Trân trọng,<br>Đội ngũ EVRentals</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>";
+                }
+                else
+                {
+                    // Generic email for other deductions
+                    emailSubject = $"Thông báo: Số tiền đã được trừ từ ví - Booking #{req.ReservationId}";
+                    emailBody = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }}
+        .amount-box {{ background: #fff3cd; padding: 20px; margin: 20px 0; border-radius: 8px; border: 2px solid #ffc107; text-align: center; }}
+        .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 12px; }}
+        .highlight {{ color: #d32f2f; font-weight: bold; font-size: 18px; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1>⚠️ Thông báo trừ tiền từ ví</h1>
+        </div>
+        <div class='content'>
+            <p>Xin chào <strong>{customerName}</strong>,</p>
+            
+            <p>Chúng tôi thông báo rằng một khoản tiền đã được trừ từ ví của bạn.</p>
+            
+            <div class='info-box'>
+                <h3>📋 Thông tin giao dịch</h3>
+                <p><strong>Booking ID:</strong> #{req.ReservationId}</p>
+                <p><strong>Lý do:</strong> {req.Reason ?? "Không có chi tiết"}</p>
+            </div>
+            
+            <div class='amount-box'>
+                <p style='margin: 0; color: #666;'>Số tiền đã trừ</p>
+                <p class='highlight' style='margin: 10px 0;'>{req.Amount:N0} VND</p>
+            </div>
+            
+            <div class='info-box'>
+                <h3>💰 Số dư ví</h3>
+                <p><strong>Số dư trước:</strong> {currentBalance:N0} VND</p>
+                <p><strong>Số dư sau:</strong> <span class='highlight'>{newBalance:N0} VND</span></p>
+            </div>
+            
+            <p>Bạn có thể xem chi tiết giao dịch trong <strong>Transaction History</strong> trên trang Wallet của mình.</p>
+            
+            <p>Nếu có thắc mắc, vui lòng liên hệ với chúng tôi.</p>
+            
+            <div class='footer'>
+                <p>Trân trọng,<br>Đội ngũ EVRentals</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>";
+                }
+
+                await emailService.SendAsync(customerEmail, emailSubject, emailBody);
+                Console.WriteLine($"[Staff Deduct Wallet] Email notification sent to {customerEmail}");
+            }
+            catch (Exception emailEx)
+            {
+                Console.WriteLine($"[Staff Deduct Wallet] Failed to send email: {emailEx.Message}");
+                // Don't fail the transaction if email fails
+            }
+        }
+        
+        Console.WriteLine($"[Staff Deduct Wallet] Success: paymentId={paymentId}, newBalance={newBalance}");
+        return Results.Ok(new { success = true, message = "Đã trừ tiền từ ví khách hàng thành công", paymentId, newBalance, amount = req.Amount });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Staff Deduct Wallet] Error: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        await trans.RollbackAsync();
+        return Results.BadRequest(new { success = false, message = $"Lỗi khi trừ tiền: {ex.Message}" });
+    }
+    finally
+    {
+        await conn.CloseAsync();
+    }
+});
+
+// Staff endpoint to complete return and update reservation status
+app.MapPost("/api/staff/reservations/{reservationId}/complete-return", [Microsoft.AspNetCore.Authorization.Authorize] async (
+    int reservationId,
+    HttpContext context,
+    Func<SqlConnection> getConnection,
+    IReservationRepository reservationRepository) =>
+{
+    Console.WriteLine($"[Complete Return] ReservationId={reservationId}");
+    
+    var staffIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (staffIdClaim == null || !int.TryParse(staffIdClaim.Value, out int staffId))
+    {
+        Console.WriteLine("[Complete Return] Unauthorized: No valid staff ID");
+        return Results.Unauthorized();
+    }
+
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    
+    try
+    {
+        // Update reservation status to completed
+        var success = await reservationRepository.UpdateReservationStatusAsync(reservationId, "completed");
+        
+        if (success)
+        {
+            Console.WriteLine($"[Complete Return] ✅ Reservation {reservationId} status updated to 'completed'");
+            return Results.Ok(new { success = true, message = "Reservation completed successfully" });
+        }
+        else
+        {
+            Console.WriteLine($"[Complete Return] ❌ Failed to update reservation {reservationId} status");
+            return Results.BadRequest(new { success = false, message = "Failed to update reservation status" });
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Complete Return] Error: {ex.Message}");
+        return Results.BadRequest(new { success = false, message = $"Error completing return: {ex.Message}" });
+    }
+    finally
+    {
+        await conn.CloseAsync();
+    }
+});
+
 // Update payment with reservation_id (for wallet payments)
 app.MapPut("/api/wallet/update-payment", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection, UpdatePaymentRequest req) =>
 {
@@ -1145,7 +1500,7 @@ app.MapGet("/api/wallet/transactions", [Microsoft.AspNetCore.Authorization.Autho
             amount = reader.GetDecimal(5),
             status = reader.GetString(6),
             transactionId = reader.IsDBNull(7) ? null : reader.GetString(7),
-            transactionType = reader.GetString(8),
+            transactionType = reader.IsDBNull(8) ? "payment" : reader.GetString(8), // Default to "payment" if null
             createdAt = reader.GetDateTime(9),
             updatedAt = reader.GetDateTime(10)
         });
@@ -1474,11 +1829,142 @@ app.MapPost("/api/wallet/confirm-payment", [Microsoft.AspNetCore.Authorization.A
 });
 
 app.Run("http://0.0.0.0:5000");
+// Incident endpoints
+// Create incident (customer reports)
+app.MapPost("/api/incidents", [Authorize] async (CreateIncidentRequest req, IIncidentService incidentService, HttpContext context) =>
+{
+    Console.WriteLine($"[Incident API] Received incident report: VehicleId={req.VehicleId}, Type={req.Type}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        Console.WriteLine("[Incident API] Unauthorized: No valid user ID");
+        return Results.Unauthorized();
+    }
+
+    Console.WriteLine($"[Incident API] User ID: {userId}");
+
+    var result = await incidentService.CreateIncidentAsync(req, userId);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[Incident API] ✅ Incident created successfully: {result.Incident?.IncidentId}");
+    }
+    else
+    {
+        Console.WriteLine($"[Incident API] ❌ Failed to create incident: {result.Message}");
+    }
+
+    // Always return 200 with success flag to avoid client JSON parse errors and surface validation messages
+    return Results.Ok(new {
+        success = result.Success,
+        message = result.Message,
+        incident = result.Incident
+    });
+});
+
+// Get incidents by station (staff view)
+app.MapGet("/api/incidents/station/{stationId}", [Authorize] async (int stationId, IIncidentService incidentService) =>
+{
+    Console.WriteLine($"[Incident API] Getting incidents for station: {stationId}");
+    
+    var incidents = await incidentService.GetIncidentsByStationAsync(stationId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        incidents = incidents 
+    });
+});
+
+// Get user incidents (customer view)
+app.MapGet("/api/incidents/user", [Authorize] async (IIncidentService incidentService, HttpContext context) =>
+{
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    var incidents = await incidentService.GetUserIncidentsAsync(userId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        incidents = incidents 
+    });
+});
+
+// Get incident by ID
+app.MapGet("/api/incidents/{id}", [Authorize] async (int id, IIncidentService incidentService) =>
+{
+    var incident = await incidentService.GetIncidentByIdAsync(id);
+    
+    if (incident == null)
+    {
+        return Results.NotFound(new { success = false, message = "Incident not found" });
+    }
+    
+    return Results.Ok(new { 
+        success = true, 
+        incident = incident 
+    });
+});
+
+// Update incident (staff actions)
+app.MapPut("/api/incidents/{id}", [Authorize] async (int id, UpdateIncidentRequest req, IIncidentService incidentService, HttpContext context) =>
+{
+    Console.WriteLine($"[Incident API] Updating incident {id}: Status={req.Status}, Priority={req.Priority}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    int? handledBy = null;
+    
+    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+    {
+        handledBy = userId;
+        Console.WriteLine($"[Incident API] Handled by user: {userId}");
+    }
+
+    var result = await incidentService.UpdateIncidentAsync(id, req, handledBy);
+    
+    if (result.Success)
+    {
+        Console.WriteLine($"[Incident API] ✅ Incident updated successfully");
+        return Results.Ok(new { 
+            success = true, 
+            message = result.Message,
+            incident = result.Incident 
+        });
+    }
+    
+    Console.WriteLine($"[Incident API] ❌ Failed to update incident: {result.Message}");
+    return Results.BadRequest(new { success = false, message = result.Message });
+});
+
+// Get unread incident count for notification bell
+app.MapGet("/api/incidents/station/{stationId}/unread-count", [Authorize] async (int stationId, IIncidentService incidentService) =>
+{
+    var count = await incidentService.GetUnreadIncidentCountAsync(stationId);
+    
+    return Results.Ok(new { 
+        success = true, 
+        count = count 
+    });
+});
+
+// Recent incidents (optionally filter by status/station)
+app.MapGet("/api/incidents/recent", [Authorize] async (HttpContext context, IIncidentService incidentService, int? stationId, string? status, int? limit) =>
+{
+    var lim = limit.GetValueOrDefault(20);
+    var incidents = await incidentService.GetRecentIncidentsAsync(stationId, status, lim);
+    return Results.Ok(new { success = true, incidents });
+});
+
+app.Run("http://localhost:5000");
 
 record LoginRequest(string Email, string Password);
 record DepositRequest(decimal Amount, string MethodType, string? TransactionId);
 record WithdrawRequest(decimal Amount, string? Reason, string? TransactionId, int? ReservationId);
 record UpdatePaymentRequest(int ReservationId, decimal Amount);
+record StaffDeductWalletRequest(int CustomerId, decimal Amount, string? Reason, int? ReservationId);
 record MoMoWebhookRequest(string IntentId, string Status, decimal Amount, string? TransactionId);
 record MoMoConfirmRequest(string IntentId, decimal Amount, string Method);
 

@@ -128,7 +128,6 @@ E:\New folder (7)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\
 E:\New folder (7)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\ref\EVRentalApi.dll
 E:\New folder (7)\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.staticwebassets.runtime.json
 D:\SWP391_25\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\appsettings.json
-D:\SWP391_25\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.staticwebassets.runtime.json
 D:\SWP391_25\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.staticwebassets.endpoints.json
 D:\SWP391_25\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.exe
 D:\SWP391_25\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.deps.json

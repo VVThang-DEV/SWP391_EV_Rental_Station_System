@@ -576,8 +576,23 @@ public class StaffRepository : IStaffRepository
             await using var conn = _connFactory();
             await conn.OpenAsync();
 
-            // Only approve user documents, don't complete the checkout yet
-            // Checkout will be completed later in Pickup Management after final verification
+            // First, check if customer has any documents
+            const string checkDocumentsSql = @"
+                SELECT COUNT(*) 
+                FROM user_documents 
+                WHERE user_id = @UserId";
+            
+            await using var checkCmd = new SqlCommand(checkDocumentsSql, conn);
+            checkCmd.Parameters.AddWithValue("@UserId", customerId);
+            var docCount = (int)await checkCmd.ExecuteScalarAsync();
+
+            if (docCount == 0)
+            {
+                Console.WriteLine($"[VerifyCustomerAsync] No documents found for customer {customerId}");
+                return false;
+            }
+
+            // Update pending documents to approved
             const string updateDocumentsSql = @"
                 UPDATE user_documents
                 SET status = 'approved',
@@ -597,13 +612,32 @@ public class StaffRepository : IStaffRepository
             }
             else
             {
-                Console.WriteLine($"[VerifyCustomerAsync] No pending documents found for customer {customerId}");
-                return false;
+                // Check if documents are already approved
+                const string checkApprovedSql = @"
+                    SELECT COUNT(*) 
+                    FROM user_documents 
+                    WHERE user_id = @UserId AND status = 'approved'";
+                
+                await using var checkApprovedCmd = new SqlCommand(checkApprovedSql, conn);
+                checkApprovedCmd.Parameters.AddWithValue("@UserId", customerId);
+                var approvedCount = (int)await checkApprovedCmd.ExecuteScalarAsync();
+
+                if (approvedCount > 0)
+                {
+                    Console.WriteLine($"[VerifyCustomerAsync] Customer {customerId} already has {approvedCount} approved documents. Verification allowed.");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[VerifyCustomerAsync] No pending documents found for customer {customerId}, and no approved documents either");
+                    return false;
+                }
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[VerifyCustomerAsync] Error: {ex.Message}");
+            Console.WriteLine($"[VerifyCustomerAsync] Stack trace: {ex.StackTrace}");
             return false;
         }
     }
@@ -637,14 +671,17 @@ public class StaffRepository : IStaffRepository
 
             Console.WriteLine($"[ConfirmReservation] Confirming reservation {reservationId} for user {userId}, vehicle {vehicleId}");
 
-            // Update reservation status to confirmed
+            // Update reservation status to confirmed and stamp confirmed_by/at
             const string updateReservationSql = @"
                 UPDATE reservations 
-                SET status = 'confirmed' 
+                SET status = 'confirmed', 
+                    confirmed_by = @StaffId,
+                    confirmed_at = GETDATE()
                 WHERE reservation_id = @ReservationId";
 
             await using var updateReservationCmd = new SqlCommand(updateReservationSql, conn);
             updateReservationCmd.Parameters.AddWithValue("@ReservationId", reservationId);
+            updateReservationCmd.Parameters.AddWithValue("@StaffId", staffId);
             var reservationUpdated = await updateReservationCmd.ExecuteNonQueryAsync();
 
             if (reservationUpdated > 0)
@@ -925,6 +962,8 @@ public class StaffRepository : IStaffRepository
                     r.cancellation_reason,
                     r.cancelled_by,
                     r.cancelled_at,
+                    r.confirmed_by,
+                    r.confirmed_at,
                     u.full_name as user_name,
                     u.email as user_email,
                     u.phone as user_phone,
@@ -965,6 +1004,10 @@ public class StaffRepository : IStaffRepository
                         ? null : reader.GetString(reader.GetOrdinal("cancelled_by")),
                     CancelledAt = reader.IsDBNull(reader.GetOrdinal("cancelled_at")) 
                         ? null : reader.GetDateTime(reader.GetOrdinal("cancelled_at")),
+                    ConfirmedBy = reader.IsDBNull(reader.GetOrdinal("confirmed_by")) 
+                        ? null : reader.GetInt32(reader.GetOrdinal("confirmed_by")),
+                    ConfirmedAt = reader.IsDBNull(reader.GetOrdinal("confirmed_at")) 
+                        ? null : reader.GetDateTime(reader.GetOrdinal("confirmed_at")),
                     UserName = reader.GetString(reader.GetOrdinal("user_name")),
                     UserEmail = reader.GetString(reader.GetOrdinal("user_email")),
                     UserPhone = reader.GetString(reader.GetOrdinal("user_phone")),

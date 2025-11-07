@@ -29,6 +29,8 @@ public class ReservationDto
     public string? CancellationReason { get; set; }
     public string? CancelledBy { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public int? ConfirmedBy { get; set; }
+    public DateTime? ConfirmedAt { get; set; }
     public string? StationName { get; set; }
     public string? VehicleName { get; set; }
     
