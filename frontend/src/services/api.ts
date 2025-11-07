@@ -835,6 +835,21 @@ class StaffApiService {
     return response.json();
   }
 
+  // Complete return and update reservation status
+  async completeReturn(reservationId: number): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/reservations/${reservationId}/complete-return`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error("Failed to complete return");
+    }
+    return response.json();
+  }
+
   // Payment Management
   async getStationPayments(): Promise<any> {
     const token = localStorage.getItem("token");
@@ -847,6 +862,49 @@ class StaffApiService {
       throw new Error("Failed to fetch station payments");
     }
     return response.json();
+  }
+
+  // Deduct from customer wallet (for late fees, damages, etc.)
+  async deductFromCustomerWallet(
+    customerId: number,
+    amount: number,
+    reason: string,
+    reservationId?: number
+  ): Promise<any> {
+    const token = localStorage.getItem("token");
+    console.log("[StaffApi] Deducting from customer wallet:", {
+      customerId,
+      amount,
+      reason,
+      reservationId,
+      endpoint: `${this.baseUrl}/wallet/deduct`
+    });
+    
+    const response = await fetch(`${this.baseUrl}/wallet/deduct`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        customerId,
+        amount,
+        reason,
+        reservationId,
+      }),
+    });
+    
+    console.log("[StaffApi] Deduct wallet response status:", response.status);
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      console.error("[StaffApi] Deduct wallet error:", error);
+      throw new Error(error.message || "Failed to deduct from customer wallet");
+    }
+    
+    const result = await response.json();
+    console.log("[StaffApi] Deduct wallet success:", result);
+    return result;
   }
 }
 

@@ -559,7 +559,7 @@ const Index = ({ user }: IndexProps) => {
                 <div className="space-y-4">
                   {filteredVehicles.map((vehicle) => (
                     <Card
-                      key={vehicle.id}
+                      key={`${vehicle.vehicleId || vehicle.id}-${vehicle.uniqueVehicleId || vehicle.id}`}
                       className="hover:shadow-md transition-shadow"
                     >
                       <CardContent className="p-6">
@@ -632,7 +632,7 @@ const Index = ({ user }: IndexProps) => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredVehicles.map((vehicle) => (
-                    <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                    <VehicleCard key={`${vehicle.vehicleId || vehicle.id}-${vehicle.uniqueVehicleId || vehicle.id}`} vehicle={vehicle} />
                   ))}
                 </div>
               )}
@@ -772,7 +772,7 @@ const Index = ({ user }: IndexProps) => {
               {!vehiclesLoading && !vehiclesError && availableVehicles.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                   {availableVehicles.slice(0, 6).map((vehicle) => (
-                    <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                    <VehicleCard key={`${vehicle.vehicleId || vehicle.id}-${vehicle.uniqueVehicleId || vehicle.id}`} vehicle={vehicle} />
                   ))}
                 </div>
               )}

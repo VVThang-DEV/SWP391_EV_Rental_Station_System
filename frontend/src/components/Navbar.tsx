@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
-import BatteryAlertBell from "@/components/BatteryAlertBell";
+import { Bell } from "lucide-react";
+import { incidentStorage } from "@/lib/incident-storage";
+import { staffApiService } from "@/services/api";
 
 interface NavbarProps {
   user?: {
@@ -36,10 +38,32 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [staffStationId, setStaffStationId] = useState<string | undefined>(undefined);
 
   const isActive = (path: string) => location.pathname === path;
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
+  // Ensure we have a stationId for staff in the navbar
+  useEffect(() => {
+    const loadStationId = async () => {
+      if (!user || user.role !== 'staff') return;
+      // If user already has stationId, use it
+      if ((user as any)?.stationId) {
+        setStaffStationId((user as any).stationId?.toString?.());
+        return;
+      }
+      try {
+        const profile = await staffApiService.getStaffProfile();
+        if (profile?.stationId != null) {
+          setStaffStationId(profile.stationId.toString());
+        }
+      } catch (e) {
+        // ignore; the notifications button will fall back to local storage
+      }
+    };
+    loadStationId();
+  }, [user?.role, (user as any)?.stationId]);
 
   return (
     <nav className="bg-background/95 backdrop-blur-md border-b border-border sticky top-0 z-50">
@@ -101,9 +125,27 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                {/* Battery Alert Bell - only show for staff */}
+                {/* Unified Notifications trigger for staff */}
                 {user.role === "staff" && (
-                  <BatteryAlertBell />
+                  <StaffNotificationsButton
+                    onClick={() => {
+                      if (location.pathname === '/dashboard/staff') {
+                        try {
+                          const ev = new CustomEvent('openStaffNotifications');
+                          window.dispatchEvent(ev);
+                        } catch {}
+                      } else {
+                        try { localStorage.setItem('openStaffNotifications','1'); } catch {}
+                        navigate('/dashboard/staff');
+                      }
+                    }}
+                    stationId={(user as any)?.stationId || staffStationId}
+                  />
+                )}
+
+                {/* Customer notifications bell */}
+                {user.role !== "staff" && user.role !== "admin" && (
+                  <CustomerNotificationsButton />
                 )}
 
                 <DropdownMenu>
@@ -315,4 +357,283 @@ const Navbar = ({ user, onLogout }: NavbarProps) => {
   );
 };
 
+interface StaffNotificationsButtonProps {
+  stationId?: string;
+  onClick: () => void;
+}
+
+const StaffNotificationsButton = ({ stationId, onClick }: StaffNotificationsButtonProps) => {
+  const [unreadIncidents, setUnreadIncidents] = useState(0);
+  const [batteryCount, setBatteryCount] = useState(0);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadCount = async () => {
+      if (!stationId) {
+        // Hydrate battery count from local storage if available
+        try {
+          const stored = localStorage.getItem('staffNotifCounts');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (typeof parsed?.battery === 'number') setBatteryCount(parsed.battery);
+          }
+        } catch {}
+        if (isActive) setUnreadIncidents(0);
+        return;
+      }
+
+      // Try backend unread-count first
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(
+          `http://localhost:5000/api/incidents/station/${stationId}/unread-count`,
+          {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const count =
+            typeof data?.count === 'number'
+              ? data.count
+              : typeof data?.data?.count === 'number'
+              ? data.data.count
+              : 0;
+          if (isActive) setUnreadIncidents(count);
+          return;
+        }
+      } catch {
+        // ignore and fallback
+      }
+
+      // Fallback 2: fetch full list by station and count reported
+      try {
+        const token = localStorage.getItem('token');
+        const listRes = await fetch(
+          `http://localhost:5000/api/incidents/station/${stationId}`,
+          {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const incidents = (listData?.incidents || []).filter((i: any) => (i?.status || 'reported') === 'reported');
+          if (isActive) setUnreadIncidents(incidents.length);
+          return;
+        }
+      } catch {
+        // ignore and try local fallback
+      }
+
+      // Fallback to local storage incidents
+      try {
+        const localCount = incidentStorage.getPendingIncidentsByStation(String(stationId)).length;
+        if (isActive) setUnreadIncidents(localCount);
+      } catch {
+        if (isActive) setUnreadIncidents(0);
+      }
+    };
+
+    // Seed battery count at mount
+    try {
+      const stored = localStorage.getItem('staffNotifCounts');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed?.battery === 'number') setBatteryCount(parsed.battery);
+      }
+    } catch {}
+
+    loadCount();
+    const interval = setInterval(loadCount, 30000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') loadCount();
+    };
+    document.addEventListener('visibilitychange', onVis);
+
+    // Listen to in-app updates from StaffDashboard if available
+    const onExternal = (e: any) => {
+      const count = Number(e?.detail?.count);
+      if (!Number.isNaN(count)) setUnreadIncidents(count);
+    };
+    window.addEventListener('staffUnreadIncidents', onExternal as any);
+
+    const onCounts = (e: any) => {
+      const b = Number(e?.detail?.battery);
+      if (!Number.isNaN(b)) setBatteryCount(b);
+      const i = Number(e?.detail?.incidents);
+      if (!Number.isNaN(i)) setUnreadIncidents(i);
+    };
+    window.addEventListener('staffNotifCounts', onCounts as any);
+    return () => {
+      isActive = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('staffUnreadIncidents', onExternal as any);
+      window.removeEventListener('staffNotifCounts', onCounts as any);
+    };
+  }, [stationId]);
+
+  const total = Math.max(0, (unreadIncidents || 0) + (batteryCount || 0));
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onClick}
+        aria-label={`Notifications${total > 0 ? ` (${total})` : ''}`}
+      >
+        <Bell className="h-5 w-5" />
+      </Button>
+      {total > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] h-4 min-w-4 px-1 flex items-center justify-center leading-none">
+          {total > 99 ? '99+' : total}
+        </span>
+      )}
+    </div>
+  );
+};
+
 export default Navbar;
+
+interface CustomerIncidentItem {
+  incidentId: number;
+  type: string;
+  description: string;
+  status: string; // 'reported' | 'in_progress' | 'resolved'
+  reportedAt?: string;
+}
+
+const CustomerNotificationsButton = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [incidents, setIncidents] = useState<CustomerIncidentItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          if (isMounted) {
+            setIncidents([]);
+            setUnreadCount(0);
+          }
+          return;
+        }
+        const res = await fetch('http://localhost:5000/api/incidents/user', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!isMounted) return;
+        if (res.ok) {
+          const data = await res.json();
+          const list: any[] = data?.incidents || data?.data?.incidents || [];
+          const normalized: CustomerIncidentItem[] = list.map((i) => ({
+            incidentId: i.incidentId ?? i.id ?? 0,
+            type: i.type || '',
+            description: i.description || '',
+            status: (i.status || 'reported'),
+            reportedAt: i.reportedAt,
+          }));
+          setIncidents(normalized);
+          const pending = normalized.filter((i) => (i.status || 'reported') !== 'resolved').length;
+          setUnreadCount(pending);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      if (isMounted) {
+        setIncidents([]);
+        setUnreadCount(0);
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 30000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+
+  const statusLabel = (status: string) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'reported') return 'Send';
+    if (s === 'in_progress') return 'Accepted';
+    if (s === 'resolved') return 'Approve';
+    return status || 'Unknown';
+  };
+
+  const statusClass = (status: string) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'reported') return 'text-yellow-600 bg-yellow-100';
+    if (s === 'in_progress') return 'text-blue-600 bg-blue-100';
+    if (s === 'resolved') return 'text-green-700 bg-green-100';
+    return 'text-muted-foreground bg-secondary';
+  };
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-label={`Incident notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+      >
+        <Bell className="h-5 w-5" />
+      </Button>
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] h-4 min-w-4 px-1 flex items-center justify-center leading-none">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-md shadow-lg z-50">
+          <div className="p-3 border-b border-border">
+            <div className="text-sm font-medium">Incident Updates</div>
+            <div className="text-xs text-muted-foreground">Status from staff about your reports</div>
+          </div>
+          <div className="max-h-80 overflow-auto">
+            {incidents.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">No incidents yet</div>
+            ) : (
+              incidents.slice(0, 10).map((it) => (
+                <div key={it.incidentId} className="p-3 border-b border-border last:border-b-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium truncate">{it.type || 'Incident'}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">{it.description}</div>
+                    </div>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${statusClass(it.status)}`}>
+                      {statusLabel(it.status)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="p-2 flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => setIsOpen(false)}>Close</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -110,7 +110,8 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
     setIsLoading(true);
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const baseUrl =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
       // Call backend: register
       const registerRes = await fetch(`${baseUrl}/auth/register`, {
@@ -164,9 +165,9 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
       const res = await fetch(`${baseUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          email: formData.email, 
-          password: formData.password 
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
         }),
       });
 
@@ -175,13 +176,16 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
       }
 
       const data = await res.json();
-      
+
       // Save token and user info to localStorage
       if (data?.token) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("role", String(data.role || "customer"));
-        localStorage.setItem("fullName", String(data.fullName || formData.fullName));
-        
+        localStorage.setItem(
+          "fullName",
+          String(data.fullName || formData.fullName)
+        );
+
         // Complete the registration process
         const userData: UserType = {
           id: `user_${Date.now()}`,
@@ -189,19 +193,20 @@ export const RegisterForm = ({ onRegister }: RegisterFormProps) => {
           email: formData.email,
           role: "customer",
         };
-        
+
         onRegister(userData);
-        
+
         toast({
           title: t("register.welcome"),
           description: t("register.accountCreated"),
         });
-        
+
         // Navigate to personal info update with fromRegistration flag
         navigate("/personal-info-update", {
           state: {
             fromRegistration: true,
             user: userData,
+            dateOfBirth: formData.dateOfBirth, // Pass the date of birth from registration
           },
         });
       }

@@ -31,6 +31,7 @@ import { useTranslation } from "@/contexts/TranslationContext";
 import { bookingStorage } from "@/lib/booking-storage";
 import { incidentStorage } from "@/lib/incident-storage";
 import { useEffect, useState } from "react";
+import { apiService } from "@/services/api";
 import {
   Car,
   Clock,
@@ -143,22 +144,91 @@ const Dashboard = ({ user }: DashboardProps) => {
   //   });
   // }, []);
 
-  //DATA MOCK TEST
+  // Load dashboard data with live reservations if available (fallback to local storage)
   useEffect(() => {
-    // Lấy dữ liệu thực từ storage
-    const stats = bookingStorage.getDashboardStats();
-    const currentRental = bookingStorage.getCurrentRental();
-    const recentRentals = bookingStorage.getRecentRentals(3);
+    const loadData = async () => {
+      const stats = bookingStorage.getDashboardStats();
 
-    setDashboardData({
-      stats,
-      // + Sử dụng mock data nếu không có current rental
-      currentRental: currentRental || mockCurrentRental,
-      // + Sử dụng mock data nếu không có recent rentals
-      recentRentals: recentRentals.length > 0 ? recentRentals : mockRecentRentals,
-    });
+      try {
+        const res = await apiService.getReservations();
+        const reservations = res.reservations || [];
+
+        // Determine current time window rentals
+        const now = Date.now();
+        const normalized = (s: string) => (s || "").toLowerCase();
+
+        const activeLike = reservations
+          .filter((r) => {
+            const status = normalized(r.status);
+            if (["active", "in_progress", "rented", "confirmed"].includes(status)) return true;
+            return false;
+          })
+          .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
+
+        if (activeLike) {
+          let batteryLevel: number | null = null;
+          try {
+            const vehicle = await apiService.getVehicleById(activeLike.vehicleId);
+            batteryLevel = typeof vehicle.batteryLevel === "number" ? vehicle.batteryLevel : null;
+          } catch {
+            batteryLevel = null;
+          }
+
+          const currentRental: any = {
+            id: `RES_${activeLike.reservationId}`,
+            reservationId: activeLike.reservationId,
+            vehicle: `Vehicle #${activeLike.vehicleId}`,
+            vehicleId: String(activeLike.vehicleId),
+            vehicleBrand: "",
+            vehicleYear: new Date(activeLike.startTime).getFullYear(),
+            vehicleImage: "",
+            startDate: new Date(activeLike.startTime).toISOString().split("T")[0],
+            endDate: new Date(activeLike.endTime).toISOString().split("T")[0],
+            startTime: new Date(activeLike.startTime).toLocaleTimeString(),
+            endTime: new Date(activeLike.endTime).toLocaleTimeString(),
+            pickupLocation: (activeLike as any).stationName || `Station #${activeLike.stationId}`,
+            dropoffLocation: (activeLike as any).stationName || `Station #${activeLike.stationId}`,
+            status: activeLike.status || "active",
+            totalCost: 0,
+            duration: "",
+            batteryLevel: batteryLevel ?? undefined,
+            createdAt: activeLike.createdAt,
+            // carry exact timestamps for logic
+            _startAt: new Date(activeLike.startTime).getTime(),
+            _endAt: new Date(activeLike.endTime).getTime(),
+          };
+
+          setDashboardData({
+            stats,
+            currentRental,
+            recentRentals: bookingStorage.getRecentRentals(3),
+          });
+          return;
+        }
+        // API có dữ liệu nhưng không có rental đang active → ẩn Current Rental
+        setDashboardData({
+          stats,
+          currentRental: null,
+          recentRentals: bookingStorage.getRecentRentals(3),
+        });
+        return;
+      } catch {
+        // ignore and use storage fallback
+      }
+
+      // Fallback: only show storage current rental if it's active
+      const storageCurrent = bookingStorage.getCurrentRental();
+      const storageActive = storageCurrent && ["active", "in_progress", "rented"].includes((storageCurrent.status || "").toLowerCase()) ? storageCurrent : null;
+
+      setDashboardData({
+        stats,
+        currentRental: storageActive,
+        recentRentals: bookingStorage.getRecentRentals(3),
+      });
+    };
+
+    loadData();
   }, []);
-  // END MOCK TEST
 
 
   if (!user) {
@@ -227,40 +297,60 @@ const Dashboard = ({ user }: DashboardProps) => {
      return;
    }
 
+   // Check if user has current rental
+   if (!dashboardData.currentRental) {
+     toast({
+       title: "No Active Rental",
+       description: "You need to have an active rental to report an incident.",
+       variant: "destructive",
+     });
+     return;
+   }
+
    setIsSubmittingIncident(true);
    try {
-    //  const token = localStorage.getItem('token');
-    //  const response = await fetch('http://localhost:5000/api/incidents', {
-    //    method: 'POST',
-    //    headers: {
-    //      'Authorization': `Bearer ${token}`,
-    //      'Content-Type': 'application/json',
-    //    },
-    //    body: JSON.stringify({
-    //      rental_id: dashboardData.currentRental?.reservationId,
-    //      vehicle_id: dashboardData.currentRental?.vehicleId,
-    //      description: `${incidentType}: ${incidentDescription}`,
-    //      status: 'reported',
-    //    }),
-    //  });
-    //  if (response.ok) {
+     const token = localStorage.getItem('token');
+     if (!token) {
+       toast({
+         title: "Unauthorized",
+         description: "Please login to report an incident.",
+         variant: "destructive",
+       });
+       return;
+     }
 
-    // Mock: Lưu vào localStorage trước
-     const newIncident = incidentStorage.addIncident({
-       reservationId: dashboardData.currentRental?.reservationId || 123,
-       vehicleId: dashboardData.currentRental?.vehicleId || "VF8001",
-       stationId: "district-1", // Mock station ID
-       customerId: user?.id || "customer-1",
-       customerName: user?.name || "Customer Name",
-       type: incidentType,
-       description: incidentDescription,
-       status: 'reported',
-       priority: incidentType.includes('accident') || incidentType.includes('battery-empty') ? 'urgent' : 'medium',
-    });
+     // Determine priority based on incident type
+     let priority = 'medium';
+     if (incidentType.includes('accident') || incidentType.includes('emergency')) {
+       priority = 'urgent';
+     } else if (incidentType.includes('breakdown') || incidentType.includes('battery-empty')) {
+       priority = 'high';
+     }
 
-     console.log('Incident created:', newIncident);
-     // Giả lập thành công
-     
+    const response = await fetch('http://localhost:5000/api/incidents', {
+       method: 'POST',
+       headers: {
+         'Authorization': `Bearer ${token}`,
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({
+        reservationId: dashboardData.currentRental?.reservationId || null,
+         type: incidentType,
+         description: incidentDescription,
+         priority: priority,
+       }),
+     });
+
+    // Safely parse response (handles 404/empty body)
+    let data: any = {};
+    const text = await response.text();
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {};
+    }
+
+     if (response.ok && data.success) {
        toast({
          title: "Incident Reported Successfully",
          description: "Our staff will contact you shortly to assist.",
@@ -268,18 +358,18 @@ const Dashboard = ({ user }: DashboardProps) => {
        setIsIncidentDialogOpen(false);
        setIncidentType("");
        setIncidentDescription("");
-    //  } else {
-    //    toast({
-    //      title: "Failed to Report Incident",
-    //      description: "Please try again or contact support directly.",
-    //      variant: "destructive",
-    //    });
-    //  }
+     } else {
+       toast({
+         title: "Failed to Report Incident",
+         description: data.message || "Please try again or contact support directly.",
+         variant: "destructive",
+       });
+     }
    } catch (error) {
      console.error('Error reporting incident:', error);
      toast({
        title: "Error",
-       description: "An error occurred while reporting the incident.",
+       description: "An error occurred while reporting the incident. Please try again.",
        variant: "destructive",
      });
    } finally {
@@ -375,7 +465,17 @@ const Dashboard = ({ user }: DashboardProps) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Current Rental */}
-          {dashboardData.currentRental ? (
+          {(() => {
+            const cr = dashboardData.currentRental as any;
+            if (!cr) return false;
+            const status = (cr.status || "").toLowerCase();
+            if (["active", "in_progress", "rented", "confirmed"].includes(status)) return true;
+            // fallback check with timestamps if provided
+            const now = Date.now();
+            const start = cr._startAt ?? new Date(cr.startDate).getTime();
+            const end = cr._endAt ?? new Date(cr.endDate).getTime();
+            return now >= start && now <= end;
+          })() ? (
             <Card className="card-premium">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -407,9 +507,20 @@ const Dashboard = ({ user }: DashboardProps) => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Battery Level</span>
-                    <span className="font-medium">85%</span>
+                    <span className="font-medium">
+                      {typeof (dashboardData.currentRental as any)?.batteryLevel === "number"
+                        ? `${(dashboardData.currentRental as any).batteryLevel}%`
+                        : "--%"}
+                    </span>
                   </div>
-                  <Progress value={85} className="h-2" />
+                  <Progress
+                    value={
+                      typeof (dashboardData.currentRental as any)?.batteryLevel === "number"
+                        ? (dashboardData.currentRental as any).batteryLevel
+                        : 0
+                    }
+                    className="h-2"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">

@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-gramm="false" data-gramm_editor="false" data-grammarly="false">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="grammarly" content="false" />
     <title>EVRentals - Premium Electric Vehicle Rentals</title>
     <meta name="description" content="Premium electric vehicle rentals - Rent EVs by the hour or day. Clean, efficient, and sustainable transportation." />
     <meta name="author" content="EVRentals" />
@@ -17,8 +18,49 @@
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
   </head>
 
-  <body>
+  <body data-gramm="false" data-gramm_editor="false" data-grammarly="false">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Suppress Grammarly console noise
+      (function(){
+        try {
+          const mute = (orig, keywords) => function(...args){
+            if (args && args.some(a => typeof a === 'string' && keywords.some(k => a.includes(k)))) return;
+            return orig.apply(console, args);
+          };
+          console.error = mute(console.error, ['Grammarly', 'iterable']);
+          console.warn = mute(console.warn, ['Grammarly', 'iterable']);
+
+          // Remove Grammarly injected nodes if any
+          const isGrammNode = (n) => {
+            if (!n) return false;
+            if (n.id && n.id.toLowerCase().includes('grammarly')) return true;
+            const cls = (n.className || '').toString().toLowerCase();
+            return cls.includes('grammarly') || cls.includes('gr_-');
+          };
+          const purge = (root) => {
+            try {
+              const all = root.querySelectorAll('[id*="grammarly"], [class*="grammarly"], [class*="gr_"]');
+              all.forEach(el => el.remove());
+            } catch {}
+          };
+          purge(document);
+          const mo = new MutationObserver(muts => {
+            for (const m of muts) {
+              if (m.addedNodes) {
+                m.addedNodes.forEach(n => {
+                  try {
+                    if (n.nodeType === 1 && isGrammNode(n)) n.remove();
+                    if (n.querySelectorAll) purge(n);
+                  } catch {}
+                });
+              }
+            }
+          });
+          mo.observe(document.documentElement, { childList: true, subtree: true });
+        } catch {}
+      })();
+    </script>
   </body>
 </html>

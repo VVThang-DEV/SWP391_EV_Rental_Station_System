@@ -265,23 +265,143 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
   // Load incidents effect
   useEffect(() => {
-    const loadIncidents = () => {
-      const stationIncidents =
-        incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
-      setIncidents(stationIncidents);
-      setUnreadIncidents(
-        stationIncidents.filter((i) => i.status === "reported").length
-      ); // + CHỈ COUNT pending cho bell notification
+    const loadIncidents = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        // Get station ID from staff profile or user
+        const stationId = staffProfile?.stationId || user?.stationId;
+        if (!stationId) {
+          console.warn('[StaffDashboard] No station ID found');
+          return;
+        }
+
+        // Load incidents from API
+        const response = await fetch(`http://localhost:5000/api/incidents/station/${stationId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        let mappedIncidents: IncidentData[] = [];
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.incidents) {
+            // Map API incidents to IncidentData format
+            mappedIncidents = data.incidents.map((inc: any) => ({
+              id: inc.incidentId.toString(),
+              reservationId: inc.reservationId || 0,
+              vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+              stationId: inc.stationId?.toString() || stationId.toString(),
+              customerId: inc.userId?.toString() || 'Unknown',
+              customerName: inc.customerName || 'Unknown Customer',
+              type: inc.type || 'other',
+              description: inc.description || '',
+              status: inc.status || 'reported',
+              priority: inc.priority || 'medium',
+              reportedAt: inc.reportedAt || new Date().toISOString(),
+              resolvedAt: inc.resolvedAt,
+              staffNotes: inc.staffNotes,
+            }));
+          }
+        }
+
+        // Fallback: if no station incidents, get current user's incidents
+        if (mappedIncidents.length === 0) {
+          const userResp = await fetch('http://localhost:5000/api/incidents/user', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (userResp.ok) {
+            const udata = await userResp.json();
+            if (udata.success && udata.incidents) {
+              mappedIncidents = udata.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || (stationId?.toString?.() || '0'),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+            }
+          }
+        }
+
+        // Final fallback: recent incidents across all stations (status=reported)
+        if (mappedIncidents.length === 0) {
+          const recentResp = await fetch('http://localhost:5000/api/incidents/recent?status=reported&limit=20', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          if (recentResp.ok) {
+            const rdata = await recentResp.json();
+            if (rdata.success && rdata.incidents) {
+              mappedIncidents = rdata.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || (stationId?.toString?.() || '0'),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+            }
+          }
+        }
+
+        setIncidents(mappedIncidents);
+        setUnreadIncidents(
+          mappedIncidents.filter((i) => i.status === 'reported').length
+        );
+
+        // Also load unread count for notification bell
+        const countResponse = await fetch(`http://localhost:5000/api/incidents/station/${stationId}/unread-count`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (countResponse.ok) {
+          const countData = await countResponse.json();
+          if (countData.success && countData.count !== undefined) {
+            setUnreadIncidents(countData.count);
+          }
+        }
+      } catch (error) {
+        console.error('[StaffDashboard] Error loading incidents:', error);
+      }
     };
 
-    // Load incidents khi component mount
-    loadIncidents();
+    // Load incidents when component mounts or staff profile changes
+    if (staffProfile?.stationId || user?.stationId) {
+      loadIncidents();
+    }
 
     // Auto-refresh mỗi 5 giây
     const interval = setInterval(loadIncidents, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [staffProfile?.stationId, user?.stationId]);
 
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -347,18 +467,89 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     damages: [] as string[],
   });
 
+  // Vehicle Return Checkout state
+  const [isReturnCheckoutOpen, setIsReturnCheckoutOpen] = useState(false);
+  const [returnSearchQuery, setReturnSearchQuery] = useState("");
+  const [returnSearchType, setReturnSearchType] = useState<"reservation" | "phone" | "name">("reservation");
+  const [selectedReturnBooking, setSelectedReturnBooking] = useState<any | null>(null);
+  const [returnInspectionData, setReturnInspectionData] = useState({
+    batteryLevel: 100,
+    mileage: 0,
+    exteriorCondition: "good",
+    interiorCondition: "good",
+    tiresCondition: "good",
+    damages: [] as string[],
+    notes: "",
+  });
+  const [returnTimeStatus, setReturnTimeStatus] = useState<"early" | "on_time" | "late">("on_time");
+  const [lateHours, setLateHours] = useState<number>(0);
+  const [damagePaymentMethod, setDamagePaymentMethod] = useState<"cash" | "wallet">("cash");
+  const [returnFeeCalculation, setReturnFeeCalculation] = useState({
+    baseRental: 0,
+    lateFee: 0,
+    damageFee: 0,
+    additionalCharges: 0,
+    depositRefund: 0,
+    totalRefund: 0,
+    totalDue: 0,
+  });
+
   // Incident notification state
   const [incidents, setIncidents] = useState<IncidentData[]>([]);
   const [unreadIncidents, setUnreadIncidents] = useState(0);
   const [isIncidentPanelOpen, setIsIncidentPanelOpen] = useState(false);
 
-  const [incidentFilter, setIncidentFilter] = useState("all"); // all, reported, in_progress, resolved
+  // Battery alerts (reuse station vehicles data)
+  const { data: stationVehicles } = useStationVehicles();
+  const [lowBatteryVehicles, setLowBatteryVehicles] = useState<any[]>([]);
+  const [lowBatteryCount, setLowBatteryCount] = useState(0);
+
+  useEffect(() => {
+    if (stationVehicles && Array.isArray(stationVehicles)) {
+      const lows = stationVehicles.filter((v: any) => {
+        const level = (v.batteryLevel ?? v.battery ?? 100);
+        return typeof level === 'number' && level < 20; // threshold
+      });
+      setLowBatteryVehicles(lows);
+      setLowBatteryCount(lows.length);
+    }
+  }, [stationVehicles]);
+
+  // Persist counts for Navbar badge
+  useEffect(() => {
+    try {
+      const payload = { incidents: unreadIncidents, battery: lowBatteryCount };
+      localStorage.setItem('staffNotifCounts', JSON.stringify(payload));
+      const ev = new CustomEvent('staffNotifCounts', { detail: payload } as any);
+      window.dispatchEvent(ev);
+    } catch {}
+  }, [unreadIncidents, lowBatteryCount]);
+
+  const [incidentFilter, setIncidentFilter] = useState("reported"); // all, reported, in_progress, resolved
   const [incidentPriorityFilter, setIncidentPriorityFilter] = useState("all"); // all, low, medium, high, urgent
   const [incidentSearchQuery, setIncidentSearchQuery] = useState("");
   const [selectedIncidentForDetails, setSelectedIncidentForDetails] =
     useState<IncidentData | null>(null);
   const [isIncidentDetailsOpen, setIsIncidentDetailsOpen] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
+
+  // Open notifications if triggered from navbar
+  useEffect(() => {
+    try {
+      const flag = localStorage.getItem('openStaffNotifications');
+      if (flag === '1') {
+        setIsIncidentPanelOpen(true);
+        localStorage.removeItem('openStaffNotifications');
+      }
+    } catch {}
+  }, []);
+
+  // Listen for in-app event from Navbar to open notifications
+  useEffect(() => {
+    const handler = () => setIsIncidentPanelOpen(true);
+    window.addEventListener('openStaffNotifications', handler as any);
+    return () => window.removeEventListener('openStaffNotifications', handler as any);
+  }, []);
 
   // Load unassigned vehicles when dialog opens
   useEffect(() => {
@@ -450,6 +641,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       rented: apiVehicles?.filter((v) => v.status === "rented").length || 0,
       maintenance:
         apiVehicles?.filter((v) => v.status === "maintenance").length || 0,
+      awaiting_processing:
+        apiVehicles?.filter((v) => v.status === "awaiting_processing").length || 0,
       total: apiVehicles?.length || 0,
     },
     todayStats: {
@@ -632,12 +825,25 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to verify customer");
+        // Try to get error message from response
+        let errorMessage = "Could not verify customer documents";
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // If response is not JSON, use default message
+          console.error("Failed to parse error response:", e);
+        }
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
+      
       toast({
         title: "✅ Customer Verified",
-        description: "Customer identity and documents have been approved.",
+        description: result.message || "Customer identity and documents have been approved.",
       });
 
       // Close the dialog
@@ -648,9 +854,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       await fetchPendingCustomers();
     } catch (error) {
       console.error("Error verifying customer:", error);
+      const errorMessage = error instanceof Error ? error.message : "Could not verify customer documents";
       toast({
         title: "❌ Verification Failed",
-        description: "Could not verify customer documents",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -1206,35 +1413,530 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }));
   };
 
+  // Vehicle Return Checkout Functions
+  const calculateReturnFees = (
+    booking: any,
+    inspection: typeof returnInspectionData,
+    timeStatus: "early" | "on_time" | "late",
+    lateHoursInput: number,
+    vehiclePricePerHour: number
+  ) => {
+    const baseRental = booking.totalAmount || 0;
+    
+    // Calculate late fee based on return time status
+    let lateFee = 0;
+    if (timeStatus === "late" && lateHoursInput > 0) {
+      // Late fee = số giờ muộn * giá 1 giờ thuê xe
+      lateFee = lateHoursInput * vehiclePricePerHour;
+    }
+
+    let damageFee = 0;
+    if (inspection.damages.length > 0) {
+      damageFee = inspection.damages.length * 500000;
+    }
+    if (inspection.exteriorCondition === "poor" || inspection.interiorCondition === "poor") {
+      damageFee += 1000000;
+    }
+    if (inspection.tiresCondition === "poor") {
+      damageFee += 2000000;
+    }
+
+    const batteryChargeFee = inspection.batteryLevel < 50 ? 500000 : 0;
+    const additionalCharges = batteryChargeFee;
+    const totalDue = lateFee + damageFee + additionalCharges;
+    const depositRefund = Math.max(0, (booking.depositAmount || 0) - totalDue);
+    const totalRefund = depositRefund;
+
+    return {
+      baseRental,
+      lateFee,
+      damageFee,
+      additionalCharges,
+      depositRefund,
+      totalRefund,
+      totalDue,
+    };
+  };
+
+  const handleStartReturnCheckout = (booking: any) => {
+    setSelectedReturnBooking(booking);
+    const vehicle = apiVehicles?.find((v) => v.vehicleId === booking.vehicleId);
+    
+    // Determine return time status
+    const now = new Date();
+    const endTime = new Date(booking.endTime);
+    const diffMs = now.getTime() - endTime.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    
+    let initialStatus: "early" | "on_time" | "late" = "on_time";
+    let initialLateHours = 0;
+    
+    if (diffHours < -0.5) {
+      // More than 30 minutes early
+      initialStatus = "early";
+    } else if (diffHours > 0.5) {
+      // More than 30 minutes late
+      initialStatus = "late";
+      // Calculate rounded late hours (làm tròn thành giờ chẵn)
+      // Ví dụ: endTime = 7:00, actual = 8:30 -> làm tròn thành 9:00 -> trễ 2 giờ
+      const actualReturnTime = new Date(now);
+      // Round up to next hour (làm tròn lên giờ chẵn)
+      // Nếu có phút hoặc giây > 0, làm tròn lên giờ tiếp theo
+      if (now.getMinutes() > 0 || now.getSeconds() > 0 || now.getMilliseconds() > 0) {
+        actualReturnTime.setHours(actualReturnTime.getHours() + 1);
+      }
+      actualReturnTime.setMinutes(0);
+      actualReturnTime.setSeconds(0);
+      actualReturnTime.setMilliseconds(0);
+      // Calculate late hours: (rounded return time - expected return time) in hours
+      const roundedLateHours = Math.ceil((actualReturnTime.getTime() - endTime.getTime()) / (1000 * 60 * 60));
+      initialLateHours = Math.max(1, roundedLateHours);
+    }
+    
+    setReturnTimeStatus(initialStatus);
+    setLateHours(initialLateHours);
+    
+    if (vehicle) {
+      setReturnInspectionData({
+        batteryLevel: vehicle.batteryLevel || 100,
+        mileage: vehicle.mileage || 0,
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        damages: [],
+        notes: "",
+      });
+      
+      // Calculate fees with vehicle price per hour
+      const fees = calculateReturnFees(
+        booking,
+        {
+          batteryLevel: vehicle.batteryLevel || 100,
+          mileage: vehicle.mileage || 0,
+          exteriorCondition: "good",
+          interiorCondition: "good",
+          tiresCondition: "good",
+          damages: [],
+          notes: "",
+        },
+        initialStatus,
+        initialLateHours,
+        vehicle.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+    setIsReturnCheckoutOpen(true);
+  };
+
+  const handleUpdateReturnInspection = (updates: Partial<typeof returnInspectionData>) => {
+    const newData = { ...returnInspectionData, ...updates };
+    setReturnInspectionData(newData);
+    if (selectedReturnBooking) {
+      const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+      const fees = calculateReturnFees(
+        selectedReturnBooking,
+        newData,
+        returnTimeStatus,
+        lateHours,
+        vehicle?.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+  };
+
+  const handleReturnTimeStatusChange = (status: "early" | "on_time" | "late") => {
+    setReturnTimeStatus(status);
+    if (status !== "late") {
+      setLateHours(0);
+    }
+    if (selectedReturnBooking) {
+      const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+      const fees = calculateReturnFees(
+        selectedReturnBooking,
+        returnInspectionData,
+        status,
+        status === "late" ? lateHours : 0,
+        vehicle?.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+  };
+
+  const handleLateHoursChange = (hours: number) => {
+    const roundedHours = Math.max(0, Math.ceil(hours));
+    setLateHours(roundedHours);
+    if (selectedReturnBooking) {
+      const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+      const fees = calculateReturnFees(
+        selectedReturnBooking,
+        returnInspectionData,
+        returnTimeStatus,
+        roundedHours,
+        vehicle?.pricePerHour || 0
+      );
+      setReturnFeeCalculation(fees);
+    }
+  };
+
+  const handleToggleReturnDamage = (damage: string) => {
+    const damages = returnInspectionData.damages.includes(damage)
+      ? returnInspectionData.damages.filter((d) => d !== damage)
+      : [...returnInspectionData.damages, damage];
+    handleUpdateReturnInspection({ damages });
+  };
+
+  const handleCompleteReturnCheckout = async () => {
+    if (!selectedReturnBooking) return;
+
+    if (!returnInspectionData.batteryLevel || !returnInspectionData.mileage) {
+      toast({
+        title: "Incomplete Inspection",
+        description: "Please fill in battery level and mileage",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate late hours if status is late
+    if (returnTimeStatus === "late" && lateHours <= 0) {
+      toast({
+        title: "Invalid Late Hours",
+        description: "Vui lòng nhập số giờ muộn khi khách trả xe trễ giờ",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if there are damages/issues
+    const hasDamages = 
+      returnInspectionData.damages.length > 0 ||
+      returnInspectionData.exteriorCondition === "poor" ||
+      returnInspectionData.interiorCondition === "poor" ||
+      returnInspectionData.tiresCondition === "poor";
+    
+    const totalDamageFees = returnFeeCalculation.damageFee + returnFeeCalculation.additionalCharges;
+    const hasDamageFees = totalDamageFees > 0;
+
+    // Validate payment method if there are damage fees
+    if (hasDamageFees && !damagePaymentMethod) {
+      toast({
+        title: "Chọn phương thức thanh toán",
+        description: "Vui lòng chọn phương thức thanh toán cho phí hư hỏng",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Step 1: Deduct late fee from customer wallet FIRST (before updating vehicle)
+      let walletDeductResult = null;
+      let damageWalletDeductResult = null;
+      let allDeductionsSuccessful = true;
+      
+      if (returnTimeStatus === "late" && returnFeeCalculation.lateFee > 0) {
+        try {
+          walletDeductResult = await staffApiService.deductFromCustomerWallet(
+            selectedReturnBooking.userId,
+            returnFeeCalculation.lateFee,
+            `Phí trễ giờ: ${lateHours} giờ × ${(() => {
+              const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+              return vehicle?.pricePerHour?.toLocaleString("vi-VN") || "N/A";
+            })()} VND/giờ`,
+            selectedReturnBooking.reservationId
+          );
+          console.log("Late fee deducted successfully:", walletDeductResult);
+        } catch (walletError: any) {
+          console.error("Wallet deduction error:", walletError);
+          allDeductionsSuccessful = false;
+          toast({
+            title: "⚠️ Warning",
+            description: `Không thể trừ phí trễ giờ từ ví khách hàng: ${walletError.message || "Không đủ số dư hoặc lỗi hệ thống"}`,
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      }
+
+      // Step 2: Handle damage fees based on payment method
+      if (hasDamageFees) {
+        if (damagePaymentMethod === "wallet") {
+          // Deduct damage fee and additional charges from wallet
+          try {
+            const damageReason = `Phí hư hỏng xe: ${returnInspectionData.damages.length > 0 ? `Các hư hỏng: ${returnInspectionData.damages.join(", ")}. ` : ""}${returnFeeCalculation.damageFee > 0 ? `Phí hư hỏng: ${returnFeeCalculation.damageFee.toLocaleString("vi-VN")} VND. ` : ""}${returnFeeCalculation.additionalCharges > 0 ? `Phụ phí: ${returnFeeCalculation.additionalCharges.toLocaleString("vi-VN")} VND. ` : ""}Tổng: ${totalDamageFees.toLocaleString("vi-VN")} VND`;
+            
+            damageWalletDeductResult = await staffApiService.deductFromCustomerWallet(
+              selectedReturnBooking.userId,
+              totalDamageFees,
+              damageReason,
+              selectedReturnBooking.reservationId
+            );
+            console.log("Damage fees deducted successfully from wallet:", damageWalletDeductResult);
+          } catch (walletError: any) {
+            console.error("Wallet deduction error for damages:", walletError);
+            allDeductionsSuccessful = false;
+            toast({
+              title: "⚠️ Warning",
+              description: `Không thể trừ phí hư hỏng từ ví: ${walletError.message || "Không đủ số dư hoặc lỗi hệ thống"}`,
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
+        } else {
+          // Cash payment - no wallet deduction needed
+          console.log("Damage fees will be paid in cash");
+        }
+      }
+
+      // Step 3: Determine vehicle status based on damages and return time
+      // If no damages and on time/early: set to "available"
+      // If there are damages: set to "awaiting_processing"
+      let vehicleStatus = "available";
+      if (hasDamages) {
+        vehicleStatus = "awaiting_processing";
+      }
+
+      // Step 4: Update vehicle status and condition
+      try {
+        await staffApiService.updateVehicle(selectedReturnBooking.vehicleId, {
+          batteryLevel: returnInspectionData.batteryLevel,
+          mileage: returnInspectionData.mileage,
+          condition:
+            returnInspectionData.damages.length > 0 ||
+            returnInspectionData.exteriorCondition === "poor" ||
+            returnInspectionData.interiorCondition === "poor"
+              ? "fair"
+              : "good",
+          status: vehicleStatus,
+          notes: returnInspectionData.notes || undefined,
+        });
+        console.log(`✅ Vehicle status updated to '${vehicleStatus}' successfully`);
+      } catch (vehicleUpdateError: any) {
+        console.error("Failed to update vehicle status:", vehicleUpdateError);
+        toast({
+          title: "⚠️ Warning",
+          description: `Không thể cập nhật trạng thái xe: ${vehicleUpdateError.message || "Lỗi hệ thống"}`,
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+
+      // Step 5: Update reservation status to completed
+      try {
+        await staffApiService.completeReturn(selectedReturnBooking.reservationId);
+        console.log(`✅ Reservation ${selectedReturnBooking.reservationId} status updated to 'completed'`);
+      } catch (reservationUpdateError: any) {
+        console.error("Failed to update reservation status:", reservationUpdateError);
+        toast({
+          title: "⚠️ Warning",
+          description: `Không thể cập nhật trạng thái đặt xe: ${reservationUpdateError.message || "Lỗi hệ thống"}`,
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+
+      const lateFeeMessage = returnTimeStatus === "late" && returnFeeCalculation.lateFee > 0
+        ? ` Phí trễ giờ: ${returnFeeCalculation.lateFee.toLocaleString("vi-VN")} VND (${lateHours} giờ × ${(() => {
+            const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+            return vehicle?.pricePerHour?.toLocaleString("vi-VN") || "N/A";
+          })()} VND/giờ)${walletDeductResult ? ` - Đã trừ từ ví khách hàng. Số dư còn lại: ${walletDeductResult.newBalance?.toLocaleString("vi-VN") || "N/A"} VND` : ""}.`
+        : "";
+
+      const damageFeeMessage = hasDamageFees
+        ? ` Phí hư hỏng: ${totalDamageFees.toLocaleString("vi-VN")} VND - ${damagePaymentMethod === "wallet" ? `Đã trừ từ ví${damageWalletDeductResult ? `. Số dư còn lại: ${damageWalletDeductResult.newBalance?.toLocaleString("vi-VN") || "N/A"} VND` : ""}` : "Thanh toán bằng tiền mặt"}.`
+        : "";
+
+      const statusMessage = hasDamages
+        ? " Xe đã được đưa vào trạng thái chờ xử lý do có hư hỏng."
+        : "";
+
+      toast({
+        title: "✅ Return Completed",
+        description: `Vehicle ${selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId} has been returned successfully.${lateFeeMessage}${damageFeeMessage}${statusMessage}`,
+        duration: 5000,
+      });
+
+      // Refresh data and ensure filter shows available vehicles
+      await Promise.all([refetchVehicles(), fetchReservations()]);
+      
+      // If vehicle is now available (no damages), set filter to show available vehicles
+      if (!hasDamages && vehicleStatus === "available") {
+        setFilterStatus("available");
+        toast({
+          title: "✅ Xe đã sẵn sàng cho thuê",
+          description: `Xe ${selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId} đã được cập nhật và hiển thị trong danh sách xe cho thuê.`,
+          duration: 3000,
+        });
+      }
+
+      // Close dialog and reset state
+      setIsReturnCheckoutOpen(false);
+      setSelectedReturnBooking(null);
+      setReturnSearchQuery("");
+      setReturnTimeStatus("on_time");
+      setLateHours(0);
+      setDamagePaymentMethod("cash");
+      setReturnInspectionData({
+        batteryLevel: 100,
+        mileage: 0,
+        exteriorCondition: "good",
+        interiorCondition: "good",
+        tiresCondition: "good",
+        damages: [],
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Return checkout error:", error);
+      toast({
+        title: "❌ Return Failed",
+        description: error instanceof Error ? error.message : "Failed to complete return. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter active rentals for return
+  const getActiveRentalsForReturn = () => {
+    const activeStatuses = ["active", "in_progress", "confirmed", "rented"];
+    return reservations
+      .filter((r: any) => activeStatuses.includes((r.status || "").toLowerCase()))
+      .filter((r: any) => {
+        if (!returnSearchQuery) return true;
+        const query = returnSearchQuery.toLowerCase();
+        switch (returnSearchType) {
+          case "reservation":
+            return r.reservationId?.toString().includes(query);
+          case "phone":
+            return (r.userPhone || "").toLowerCase().includes(query);
+          case "name":
+            return (r.userName || "").toLowerCase().includes(query);
+          default:
+            return true;
+        }
+      })
+      .sort((a: any, b: any) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+  };
+
   // Function xử lý incident
-  const handleIncidentAction = (
+  const handleIncidentAction = async (
     incidentId: string,
     action: "accept" | "resolve"
   ) => {
-    if (action === "accept") {
-      incidentStorage.updateIncident(incidentId, { status: "in_progress" });
-      toast({
-        title: "Incident Accepted",
-        description: "You are now handling this incident.",
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: "Unauthorized",
+          description: "Please login to perform this action.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let updateData: any = {};
+      if (action === "accept") {
+        updateData = { status: "in_progress" };
+      } else if (action === "resolve") {
+        updateData = { status: "resolved" };
+      }
+
+      const response = await fetch(`http://localhost:5000/api/incidents/${incidentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
       });
-    } else if (action === "resolve") {
-      incidentStorage.updateIncident(incidentId, {
-        status: "resolved",
-        resolvedAt: new Date().toISOString(),
-      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Optimistic local update: accept moves to in_progress but DOES NOT change bell count
+        // Only resolving should decrement the bell count
+        setIncidents((prev) => {
+          const updated = prev.map((i) =>
+            i.id === incidentId
+              ? { ...i, status: action === "accept" ? "in_progress" : "resolved" }
+              : i
+          );
+          if (action === "resolve") {
+            const unread = updated.filter((i) => i.status === "reported").length;
+            setUnreadIncidents(unread);
+            try {
+              const ev = new CustomEvent('staffUnreadIncidents', { detail: { count: unread } });
+              window.dispatchEvent(ev);
+            } catch {}
+          }
+          return updated;
+        });
+
+        if (action === "accept") {
+          toast({
+            title: "Incident Accepted",
+            description: "You are now handling this incident.",
+          });
+        } else if (action === "resolve") {
+          toast({
+            title: "Incident Resolved",
+            description: "Incident has been marked as resolved.",
+          });
+          // Keep item visible only until resolved; nothing else needed here
+        }
+
+        // Refresh incidents by reloading
+        const stationId = staffProfile?.stationId || user?.stationId;
+        if (stationId) {
+          const refreshResponse = await fetch(`http://localhost:5000/api/incidents/station/${stationId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success && refreshData.incidents) {
+              const mappedIncidents: IncidentData[] = refreshData.incidents.map((inc: any) => ({
+                id: inc.incidentId.toString(),
+                reservationId: inc.reservationId || 0,
+                vehicleId: inc.vehicleId?.toString() || inc.vehicleName || 'Unknown',
+                stationId: inc.stationId?.toString() || stationId.toString(),
+                customerId: inc.userId?.toString() || 'Unknown',
+                customerName: inc.customerName || 'Unknown Customer',
+                type: inc.type || 'other',
+                description: inc.description || '',
+                status: inc.status || 'reported',
+                priority: inc.priority || 'medium',
+                reportedAt: inc.reportedAt || new Date().toISOString(),
+                resolvedAt: inc.resolvedAt,
+                staffNotes: inc.staffNotes,
+              }));
+
+              setIncidents(mappedIncidents);
+              const unreadNow = mappedIncidents.filter((i) => i.status === "reported").length;
+              setUnreadIncidents(unreadNow);
+              try {
+                const ev = new CustomEvent('staffUnreadIncidents', { detail: { count: unreadNow } });
+                window.dispatchEvent(ev);
+              } catch {}
+            }
+          }
+        }
+      } else {
+        toast({
+          title: "Failed to Update Incident",
+          description: data.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('[StaffDashboard] Error updating incident:', error);
       toast({
-        title: "Incident Resolved",
-        description: "Incident has been marked as resolved.",
+        title: "Error",
+        description: "An error occurred while updating the incident.",
+        variant: "destructive",
       });
     }
-
-    // Refresh incidents
-    const stationIncidents =
-      incidentStorage.getIncidentsByStation("district-1"); // + THAY ĐỔI: Lấy TẤT CẢ incidents
-    setIncidents(stationIncidents);
-    setUnreadIncidents(
-      stationIncidents.filter((i) => i.status === "reported").length
-    ); // + CHỈ COUNT pending cho bell notification
   };
 
   const renderVehicleManagement = () => (
@@ -1314,6 +2016,154 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </Card>
       </div>
 
+      {/* Vehicle Return Checkout */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Vehicle Return Checkout
+              </CardTitle>
+              <CardDescription>
+                Process vehicle returns when customers bring vehicles back to station
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchReservations} disabled={reservationsLoading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${reservationsLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Search Bar */}
+          <div className="flex gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={
+                  returnSearchType === "reservation"
+                    ? "Search by Reservation ID..."
+                    : returnSearchType === "phone"
+                    ? "Search by Phone Number..."
+                    : "Search by Customer Name..."
+                }
+                value={returnSearchQuery}
+                onChange={(e) => setReturnSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={returnSearchType} onValueChange={(v: any) => setReturnSearchType(v)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="reservation">Reservation ID</SelectItem>
+                <SelectItem value="phone">Phone Number</SelectItem>
+                <SelectItem value="name">Customer Name</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Active Rentals List */}
+          {reservationsLoading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading active rentals...</p>
+            </div>
+          ) : (() => {
+            const activeRentals = getActiveRentalsForReturn();
+            if (activeRentals.length === 0) {
+              return (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Car className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium">No Active Rentals Found</p>
+                  <p className="text-sm">All vehicles have been returned or no bookings match your search.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {activeRentals.map((bk: any) => {
+                  const vehicleInfo = getVehicleInfo(bk.vehicleId);
+                  const license = bk.licensePlate || bk.vehicleUniqueId || vehicleInfo?.uniqueId;
+                  const model = bk.vehicleModel || vehicleInfo?.name || `Vehicle ${bk.vehicleId}`;
+                  const isOverdue = new Date() > new Date(bk.endTime);
+
+                  return (
+                    <Card
+                      key={bk.reservationId}
+                      className={`hover:shadow-md transition-shadow ${
+                        isOverdue ? "border-destructive/50 bg-destructive/5" : ""
+                      }`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="p-3 bg-primary/10 rounded-lg">
+                              <Car className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-semibold">Reservation #{bk.reservationId}</h4>
+                                <Badge variant={isOverdue ? "destructive" : "secondary"}>
+                                  {isOverdue ? "Overdue" : bk.status}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Customer:</span>
+                                  <p className="font-medium">{bk.userName || `User ${bk.userId}`}</p>
+                                  <p className="text-xs text-muted-foreground">{bk.userPhone || "N/A"}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Vehicle:</span>
+                                  <p className="font-medium">{model}</p>
+                                  <p className="text-xs text-muted-foreground">Plate/ID: {license || "N/A"}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Rental Period:</span>
+                                  <p className="font-medium">
+                                    {new Date(bk.startTime).toLocaleDateString("vi-VN")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Due: {new Date(bk.endTime).toLocaleTimeString("vi-VN", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Deposit:</span>
+                                  <p className="font-medium text-green-600">
+                                    {(bk.depositAmount || 0).toLocaleString("vi-VN")} VND
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-primary"
+                              onClick={() => handleStartReturnCheckout(bk)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Process Return
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* Vehicle List */}
       <Card>
         <CardHeader>
@@ -1329,14 +2179,45 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   className="pl-10 w-64 text-black"
                 />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleFilterChange("all")}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                {t("common.filter")}
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant={filterStatus === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("all")}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filterStatus === "available" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("available")}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Available
+                </Button>
+                <Button
+                  variant={filterStatus === "rented" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("rented")}
+                >
+                  Rented
+                </Button>
+                <Button
+                  variant={filterStatus === "maintenance" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("maintenance")}
+                >
+                  Maintenance
+                </Button>
+                <Button
+                  variant={filterStatus === "awaiting_processing" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("awaiting_processing")}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  Awaiting Processing
+                </Button>
+              </div>
               <Button
                 size="sm"
                 onClick={() => setIsAddVehicleDialogOpen(true)}
@@ -1368,20 +2249,32 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               </div>
             ) : (
               vehicleList
-                .filter((vehicle) =>
-                  searchQuery
-                    ? vehicle.name
+                .filter((vehicle) => {
+                  // Filter by status
+                  if (filterStatus !== "all" && vehicle.status !== filterStatus) {
+                    return false;
+                  }
+                  // Filter by search query
+                  if (searchQuery) {
+                    return (
+                      vehicle.name
                         .toLowerCase()
                         .includes(searchQuery.toLowerCase()) ||
                       vehicle.id
                         .toLowerCase()
                         .includes(searchQuery.toLowerCase())
-                    : true
-                )
-                .map((vehicle) => (
+                    );
+                  }
+                  return true;
+                })
+                .map((vehicle) => {
+                  const isAwaitingProcessing = vehicle.status === "awaiting_processing";
+                  return (
                   <div
                     key={vehicle.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    className={`flex items-center justify-between p-4 border rounded-lg ${
+                      isAwaitingProcessing ? "opacity-50 grayscale pointer-events-none" : ""
+                    }`}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="p-3 bg-muted rounded-full">
@@ -1403,6 +2296,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             Customer: {vehicle.customer || "N/A"}
                           </p>
                         )}
+                        {isAwaitingProcessing && (
+                          <p className="text-sm text-destructive font-medium">
+                            ⚠️ Xe đang chờ xử lý - Không cho thuê
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1420,10 +2318,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             ? "default"
                             : vehicle.status === "rented"
                             ? "secondary"
+                            : vehicle.status === "awaiting_processing"
+                            ? "destructive"
                             : "destructive"
                         }
                       >
-                        {vehicle.status}
+                        {vehicle.status === "awaiting_processing" ? "Chờ xử lý" : vehicle.status}
                       </Badge>
 
                       <div className="flex space-x-2">
@@ -1432,12 +2332,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                           variant="outline"
                           disabled={
                             vehicle.status === "rented" ||
-                            vehicle.status === "pending"
+                            vehicle.status === "pending" ||
+                            isAwaitingProcessing
                           }
                           onClick={() => handleEditVehicle(vehicle)}
                           title={
                             vehicle.status === "rented" ||
-                            vehicle.status === "pending"
+                            vehicle.status === "pending" ||
+                            isAwaitingProcessing
                               ? "Cannot edit vehicle with this status"
                               : "Edit vehicle"
                           }
@@ -1512,7 +2414,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
             )}
           </div>
         </CardContent>
@@ -2959,7 +3862,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       .filter((r: any) =>
         bookingStatuses.includes((r.status || "").toLowerCase())
       )
-      .filter((r: any) => withinRange(r.createdAt || r.startTime));
+      // Prioritize filtering by startTime (pickup date) instead of createdAt
+      .filter((r: any) => withinRange(r.startTime || r.createdAt));
 
     const canceledBookings = reservations
       .filter((r: any) => {
@@ -3344,6 +4248,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         "vi-VN"
                       )}
                     </p>
+                    {selectedReservation.confirmedBy && (
+                      <p className="col-span-2">
+                        <span className="font-medium">Confirmed By:</span>{" "}
+                        Staff
+                      </p>
+                    )}
+                    {selectedReservation.confirmedAt && (
+                      <p className="col-span-2">
+                        <span className="font-medium">Confirmed At:</span>{" "}
+                        {new Date(selectedReservation.confirmedAt).toLocaleString(
+                          "vi-VN"
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -3725,23 +4643,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   <h1 className="text-4xl md:text-5xl font-bold text-white">
                     {t("common.staffDashboard")}
                   </h1>
-
-                  {/* Incident Notification Bell */}
-                  <div className="relative">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsIncidentPanelOpen(true)}
-                      className="text-white hover:bg-white/20"
-                    >
-                      <Bell className="h-6 w-6" />
-                      {unreadIncidents > 0 && (
-                        <Badge className="absolute -top-2 -right-2 bg-red-500 text-white min-w-[20px] h-5 flex items-center justify-center text-xs">
-                          {unreadIncidents}
-                        </Badge>
-                      )}
-                    </Button>
-                  </div>
                 </div>
                 <p className="text-xl text-white/90 mb-2">{stationData.name}</p>
                 <p className="text-white/80">
@@ -4069,22 +4970,83 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </div>
       </div>
 
-      {/* Incident Notifications Panel */}
+      {/* Unified Notifications Panel */}
       <Dialog open={isIncidentPanelOpen} onOpenChange={setIsIncidentPanelOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Incident Reports ({incidents.length})
+              <Bell className="h-5 w-5" /> Notifications
             </DialogTitle>
             <DialogDescription>
-              New incident reports from customers in your station
+              Battery alerts and incident reports in your station
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {incidents.length > 0 ? (
-              incidents.map((incident) => (
+          <Tabs defaultValue="battery" className="mt-1">
+            <TabsList className="grid grid-cols-2">
+              <TabsTrigger value="battery" className="flex items-center gap-2">
+                <Battery className="h-4 w-4" />
+                Battery Alerts {lowBatteryCount > 0 ? `(${lowBatteryCount})` : ''}
+              </TabsTrigger>
+              <TabsTrigger value="incidents" className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                {(() => {
+                  const pending = incidents.filter((i) => i.status === 'reported').length;
+                  return `Incident Reports ${pending > 0 ? `(${pending})` : ''}`;
+                })()}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="battery" className="mt-4">
+              {lowBatteryCount > 0 ? (
+                <div className="space-y-3">
+                  {lowBatteryVehicles.map((v: any) => {
+                    const level = v.batteryLevel ?? v.battery ?? 0;
+                    const critical = typeof level === 'number' && level <= 10;
+                    return (
+                      <div
+                        key={`low-${v.vehicleId || v.uniqueVehicleId}`}
+                        className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                          critical
+                            ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+                            : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm truncate">
+                              {v.modelId || 'Unknown Vehicle'}
+                            </h4>
+                            <Badge 
+                              variant={critical ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {level}%
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            ID: {v.uniqueVehicleId || `#${v.vehicleId}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            📍 {v.location || 'Unknown Location'}
+                          </p>
+                        </div>
+                        {/* Reserved space for future actions (start charge / complete) */}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">No low battery vehicles</div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="incidents" className="mt-4">
+              <div className="space-y-4">
+                {incidents.filter((i) => i.status !== 'resolved').length > 0 ? (
+                  incidents
+                    .filter((i) => i.status !== 'resolved')
+                    .map((incident) => (
                 <Card
                   key={incident.id}
                   className="border-l-4 border-l-orange-500"
@@ -4124,17 +5086,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            handleIncidentAction(incident.id, "accept")
-                          }
+                          onClick={() => handleIncidentAction(incident.id, "accept")}
                         >
                           Accept
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() =>
-                            handleIncidentAction(incident.id, "resolve")
-                          }
+                          onClick={() => handleIncidentAction(incident.id, "resolve")}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Resolve
@@ -4143,28 +5101,30 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </CardContent>
                 </Card>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No Active Incidents
-                </h3>
-                <p className="text-muted-foreground">
-                  All incidents have been resolved.
-                </p>
+                    ))
+                ) : (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      No Active Incidents
+                    </h3>
+                    <p className="text-muted-foreground">
+                      All incidents have been resolved.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </TabsContent>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsIncidentPanelOpen(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsIncidentPanelOpen(false)}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
@@ -4420,6 +5380,407 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               onClick={() => setIsIncidentDetailsOpen(false)}
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vehicle Return Checkout Dialog */}
+      <Dialog open={isReturnCheckoutOpen} onOpenChange={setIsReturnCheckoutOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Process Vehicle Return
+            </DialogTitle>
+            <DialogDescription>
+              Complete inspection and process return for Reservation #{selectedReturnBooking?.reservationId}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedReturnBooking && (
+            <div className="space-y-6">
+              {/* Booking Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Booking Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <Label className="text-muted-foreground">Customer</Label>
+                      <p className="font-medium">{selectedReturnBooking.userName || `User ${selectedReturnBooking.userId}`}</p>
+                      <p className="text-xs text-muted-foreground">{selectedReturnBooking.userPhone || "N/A"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Vehicle</Label>
+                      <p className="font-medium">{selectedReturnBooking.vehicleModel || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        ID: {selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Start Time</Label>
+                      <p className="font-medium">
+                        {new Date(selectedReturnBooking.startTime).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Expected Return</Label>
+                      <p className="font-medium">
+                        {new Date(selectedReturnBooking.endTime).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Return Time Status */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Return Time Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="returnTimeStatus">
+                      Thời gian trả xe <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={returnTimeStatus}
+                      onValueChange={(value: "early" | "on_time" | "late") =>
+                        handleReturnTimeStatusChange(value)
+                      }
+                    >
+                      <SelectTrigger id="returnTimeStatus" className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="early">Sớm hơn</SelectItem>
+                        <SelectItem value="on_time">Đúng giờ</SelectItem>
+                        <SelectItem value="late">Trễ giờ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {returnTimeStatus === "late" && (
+                    <div>
+                      <Label htmlFor="lateHours">
+                        Số giờ muộn (làm tròn thành giờ chẵn) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="lateHours"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={lateHours}
+                        onChange={(e) => handleLateHoursChange(parseInt(e.target.value) || 0)}
+                        className="mt-2"
+                        placeholder="Nhập số giờ muộn"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Ví dụ: Trả xe lúc 8:30, dự kiến 7:00 → Làm tròn thành 9:00 → Trễ 2 giờ
+                      </p>
+                      {selectedReturnBooking && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Giá 1 giờ thuê xe: {(() => {
+                            const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
+                            return vehicle?.pricePerHour ? `${vehicle.pricePerHour.toLocaleString("vi-VN")} VND` : "N/A";
+                          })()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {returnTimeStatus === "early" && (
+                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
+                      <p className="text-sm text-green-800 dark:text-green-200">
+                        ✓ Khách trả xe sớm hơn dự kiến. Không có phí phạt.
+                      </p>
+                    </div>
+                  )}
+
+                  {returnTimeStatus === "on_time" && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        ✓ Khách trả xe đúng giờ. Không có phí phạt.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Vehicle Inspection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Vehicle Inspection</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="returnBatteryLevel">
+                        Battery Level (%) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="returnBatteryLevel"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={returnInspectionData.batteryLevel}
+                        onChange={(e) =>
+                          handleUpdateReturnInspection({ batteryLevel: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="returnMileage">
+                        Current Mileage (km) <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="returnMileage"
+                        type="number"
+                        min="0"
+                        value={returnInspectionData.mileage}
+                        onChange={(e) =>
+                          handleUpdateReturnInspection({ mileage: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="returnExterior">Exterior Condition</Label>
+                      <Select
+                        value={returnInspectionData.exteriorCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ exteriorCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnInterior">Interior Condition</Label>
+                      <Select
+                        value={returnInspectionData.interiorCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ interiorCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="returnTires">Tires Condition</Label>
+                      <Select
+                        value={returnInspectionData.tiresCondition}
+                        onValueChange={(v) => handleUpdateReturnInspection({ tiresCondition: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="fair">Fair</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Damages Found (if any)</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {[
+                        "Scratches",
+                        "Dents",
+                        "Broken lights",
+                        "Cracked windshield",
+                        "Worn tires",
+                        "Interior stains",
+                        "Missing parts",
+                        "Other damages",
+                      ].map((damage) => (
+                        <label
+                          key={damage}
+                          className="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={returnInspectionData.damages.includes(damage)}
+                            onChange={() => handleToggleReturnDamage(damage)}
+                            className="rounded"
+                          />
+                          <span>{damage}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="returnNotes">Inspection Notes</Label>
+                    <Textarea
+                      id="returnNotes"
+                      value={returnInspectionData.notes}
+                      onChange={(e) => handleUpdateReturnInspection({ notes: e.target.value })}
+                      placeholder="Document any issues, observations, or customer feedback..."
+                      rows={3}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Fee Calculation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Fee Calculation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Base Rental:</span>
+                      <span className="font-medium">{returnFeeCalculation.baseRental.toLocaleString("vi-VN")} VND</span>
+                    </div>
+                    {returnFeeCalculation.lateFee > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Late Fee:</span>
+                        <span className="font-medium">+{returnFeeCalculation.lateFee.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    {returnFeeCalculation.damageFee > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Damage Fee:</span>
+                        <span className="font-medium">+{returnFeeCalculation.damageFee.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    {returnFeeCalculation.additionalCharges > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>Additional Charges:</span>
+                        <span className="font-medium">+{returnFeeCalculation.additionalCharges.toLocaleString("vi-VN")} VND</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Total Due:</span>
+                        <span className={returnFeeCalculation.totalDue > 0 ? "text-destructive" : "text-green-600"}>
+                          {returnFeeCalculation.totalDue > 0 ? "+" : ""}
+                          {returnFeeCalculation.totalDue.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-green-600 mt-2">
+                        <span>Deposit Refund:</span>
+                        <span className="font-semibold">
+                          {returnFeeCalculation.totalRefund.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Damage Payment Method Selection */}
+              {(returnFeeCalculation.damageFee > 0 || returnFeeCalculation.additionalCharges > 0) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Phương thức thanh toán phí hư hỏng
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <Label>Chọn phương thức thanh toán cho phí hư hỏng</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setDamagePaymentMethod("cash")}
+                          className={`p-4 border-2 rounded-lg transition-all ${
+                            damagePaymentMethod === "cash"
+                              ? "border-primary bg-primary/10"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-5 w-5" />
+                            <div className="text-left">
+                              <div className="font-semibold">Tiền mặt</div>
+                              <div className="text-xs text-muted-foreground">Khách hàng thanh toán trực tiếp</div>
+                            </div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDamagePaymentMethod("wallet")}
+                          className={`p-4 border-2 rounded-lg transition-all ${
+                            damagePaymentMethod === "wallet"
+                              ? "border-primary bg-primary/10"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="h-5 w-5" />
+                            <div className="text-left">
+                              <div className="font-semibold">Trừ từ ví</div>
+                              <div className="text-xs text-muted-foreground">Tự động trừ từ ví khách hàng</div>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                      {damagePaymentMethod === "wallet" && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            ⚠️ Số tiền sẽ được trừ tự động từ ví khách hàng và thông báo qua email.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsReturnCheckoutOpen(false);
+                setSelectedReturnBooking(null);
+                setReturnTimeStatus("on_time");
+                setLateHours(0);
+                setDamagePaymentMethod("cash");
+                setReturnInspectionData({
+                  batteryLevel: 100,
+                  mileage: 0,
+                  exteriorCondition: "good",
+                  interiorCondition: "good",
+                  tiresCondition: "good",
+                  damages: [],
+                  notes: "",
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCompleteReturnCheckout} className="bg-primary">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Complete Return
             </Button>
           </DialogFooter>
         </DialogContent>

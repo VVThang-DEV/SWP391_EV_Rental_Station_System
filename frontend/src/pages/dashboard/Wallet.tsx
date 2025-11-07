@@ -69,6 +69,7 @@ interface Transaction {
   date: string;
   status: "completed" | "pending" | "failed";
   paymentMethod?: string;
+  transactionType?: string; // Original transaction type from API
 }
 
 const Wallet = ({ user }: WalletProps) => {
@@ -130,24 +131,41 @@ const Wallet = ({ user }: WalletProps) => {
             let amount: number;
             let description: string;
 
-            switch (t.transactionType) {
+            // Ensure transactionType is always a string
+            const transactionType = t.transactionType || t.transaction_type || "payment";
+            
+            console.log("Processing transaction:", {
+              paymentId: t.paymentId,
+              transactionType: transactionType,
+              amount: t.amount,
+              reservationId: t.reservationId
+            });
+
+            switch (transactionType.toLowerCase()) {
               case "deposit":
                 type = "deposit";
                 amount = t.amount;
                 description = `Wallet Top-up via ${t.methodType}`;
                 break;
+              case "late_fee":
+                type = "payment";
+                amount = -t.amount;
+                description = `Phí trễ giờ cho Booking #${
+                  t.reservationId || t.rentalId || "N/A"
+                }`;
+                break;
               case "payment":
                 type = "payment";
                 amount = -t.amount;
                 description = `Payment for Booking #${
-                  t.reservationId || t.rentalId
+                  t.reservationId || t.rentalId || "N/A"
                 }`;
                 break;
               case "refund":
                 type = "refund";
                 amount = t.amount;
                 description = `Refund for Booking #${
-                  t.reservationId || t.rentalId
+                  t.reservationId || t.rentalId || "N/A"
                 }`;
                 break;
               case "withdrawal":
@@ -158,7 +176,7 @@ const Wallet = ({ user }: WalletProps) => {
               default:
                 type = "payment";
                 amount = -t.amount;
-                description = "Transaction";
+                description = `Transaction${t.reservationId ? ` for Booking #${t.reservationId}` : ""}`;
             }
 
             return {
@@ -169,6 +187,7 @@ const Wallet = ({ user }: WalletProps) => {
               date: t.createdAt,
               status: t.status,
               paymentMethod: t.methodType,
+              transactionType: transactionType, // Store original transaction type (always lowercase)
             };
           });
           setTransactions(mappedTransactions);
@@ -806,9 +825,16 @@ const Wallet = ({ user }: WalletProps) => {
                                   )}
                                 </div>
                                 <div>
-                                  <p className="font-medium">
-                                    {transaction.description}
-                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium">
+                                      {transaction.description}
+                                    </p>
+                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        Phí trễ giờ
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-2 mt-1">
                                     <p className="text-xs text-muted-foreground">
                                       {new Date(
@@ -886,9 +912,16 @@ const Wallet = ({ user }: WalletProps) => {
                                   <ArrowUpRight className="h-5 w-5" />
                                 </div>
                                 <div>
-                                  <p className="font-medium">
-                                    {transaction.description}
-                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium">
+                                      {transaction.description}
+                                    </p>
+                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        Phí trễ giờ
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-muted-foreground mt-1">
                                     {new Date(transaction.date).toLocaleString(
                                       "vi-VN",
@@ -930,9 +963,16 @@ const Wallet = ({ user }: WalletProps) => {
                                   <ArrowDownRight className="h-5 w-5" />
                                 </div>
                                 <div>
-                                  <p className="font-medium">
-                                    {transaction.description}
-                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium">
+                                      {transaction.description}
+                                    </p>
+                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        Phí trễ giờ
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-muted-foreground mt-1">
                                     {new Date(transaction.date).toLocaleString(
                                       "vi-VN",
@@ -974,9 +1014,16 @@ const Wallet = ({ user }: WalletProps) => {
                                   <RefreshCw className="h-5 w-5" />
                                 </div>
                                 <div>
-                                  <p className="font-medium">
-                                    {transaction.description}
-                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium">
+                                      {transaction.description}
+                                    </p>
+                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        Phí trễ giờ
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-muted-foreground mt-1">
                                     {new Date(transaction.date).toLocaleString(
                                       "vi-VN",
@@ -1196,14 +1243,21 @@ const Wallet = ({ user }: WalletProps) => {
 
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type:</span>
-                  <span className="font-medium capitalize">
-                    {selectedTransaction.type}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium capitalize">
+                      {selectedTransaction.type}
+                    </span>
+                    {(selectedTransaction.transactionType?.toLowerCase() === "late_fee" || selectedTransaction.transactionType === "late_fee") && (
+                      <Badge variant="destructive" className="text-xs">
+                        Phí trễ giờ
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Description:</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-right max-w-[60%]">
                     {selectedTransaction.description}
                   </span>
                 </div>
