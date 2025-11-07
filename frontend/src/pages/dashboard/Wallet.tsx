@@ -1007,6 +1007,7 @@ const Wallet = ({ user }: WalletProps) => {
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-lg text-red-600 dark:text-red-400">
+                                  -
                                   {formatCurrency(Math.abs(transaction.amount))}
                                 </p>
                                 <Badge variant="default" className="mt-1">
