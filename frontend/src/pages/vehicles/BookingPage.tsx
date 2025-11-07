@@ -337,6 +337,7 @@ const BookingPage = () => {
 
   // State for user data
   const [userData, setUserData] = useState({
+    userId: 0,
     fullName: "",
     email: "",
     phone: "",
@@ -353,6 +354,7 @@ const BookingPage = () => {
         if (!token) {
           // If not logged in, use default values
           setUserData({
+            userId: 0,
             fullName: "",
             email: "",
             phone: "",
@@ -366,6 +368,7 @@ const BookingPage = () => {
         if (response.success && response.user) {
           const user = response.user;
           setUserData({
+            userId: user.userId || 0,
             fullName: user.fullName || "",
             email: user.email || "",
             phone: user.phone || "",
@@ -376,6 +379,7 @@ const BookingPage = () => {
         console.error("Error loading user data:", error);
         // If error, use empty values
         setUserData({
+          userId: 0,
           fullName: "",
           email: "",
           phone: "",
@@ -1421,6 +1425,58 @@ const BookingPage = () => {
                   reservationId: reservationId,
                 }));
 
+                // ✅ SAVE QR CODE TO DATABASE
+                if (reservationId) {
+                  try {
+                    console.log(
+                      "[QR] Saving QR code to database for reservation:",
+                      reservationId
+                    );
+
+                    // Generate QR code data - EXACT format as example
+                    const qrCodeData = JSON.stringify({
+                      reservationId: reservationId,
+                      vehicleId: vehicle.id,
+                      stationId: 1, // Default station ID
+                      userId: userData.userId || 0,
+                      startTime: reservationResponse.reservation.startTime,
+                      endTime: reservationResponse.reservation.endTime,
+                      status: "pending",
+                      accessCode: `ACCESS_${reservationId}_${Date.now()}`,
+                      timestamp: new Date().toISOString(),
+                    });
+
+                    const token = localStorage.getItem("token");
+                    const qrResponse = await fetch(
+                      "http://localhost:5000/api/qr/save",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          reservationId: reservationId,
+                          qrCodeData: qrCodeData,
+                        }),
+                      }
+                    );
+
+                    if (qrResponse.ok) {
+                      console.log(
+                        "[QR] ✅ QR code saved successfully to database"
+                      );
+                    } else {
+                      console.log(
+                        "[QR] ⚠️ Failed to save QR code, but continuing..."
+                      );
+                    }
+                  } catch (qrError) {
+                    console.error("[QR] Error saving QR code:", qrError);
+                    // Continue even if QR save fails
+                  }
+                }
+
                 // ✅ UPDATE PAYMENT VỚI RESERVATION_ID
                 if (reservationId && bookingData.paymentMethod === "wallet") {
                   try {
@@ -1731,18 +1787,18 @@ const BookingPage = () => {
           <div className="inline-block p-4 bg-white rounded-xl shadow-md border-2 border-amber-200">
             <QRCodeSVG
               value={JSON.stringify({
-                bookingId: `EV-${Date.now().toString().slice(-6)}`,
+                reservationId: bookingData.reservationId || 0,
                 vehicleId: vehicle.id,
-                vehicleName: vehicle.name,
-                customerName: bookingData.customerInfo.fullName,
-                pickupLocation: vehicle.location,
-                startDate: bookingData.startDate,
-                startTime: bookingData.startTime,
-                endDate: bookingData.endDate,
-                endTime: bookingData.endTime,
-                rentalDuration: bookingData.rentalDuration,
-                totalCost: totalCost,
-                accessCode: `ACCESS_${Date.now().toString().slice(-8)}`,
+                stationId: 1,
+                userId: userData.userId || 0,
+                startTime:
+                  bookingData.startDate + "T" + bookingData.startTime + ":00",
+                endTime:
+                  bookingData.endDate + "T" + bookingData.endTime + ":00",
+                status: "pending",
+                accessCode: `ACCESS_${
+                  bookingData.reservationId || 0
+                }_${Date.now()}`,
                 timestamp: new Date().toISOString(),
               })}
               size={180}
