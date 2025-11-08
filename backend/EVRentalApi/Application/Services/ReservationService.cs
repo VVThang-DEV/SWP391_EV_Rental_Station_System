@@ -23,6 +23,7 @@ public class ReservationService : IReservationService
     private readonly IVehicleRepository _vehicleRepository;
     private readonly IConfiguration _config;
     private readonly IPasswordResetService _passwordResetService;
+    private readonly IQRCodeService _qrCodeService;
 
     public ReservationService(
         IReservationRepository reservationRepository,
@@ -30,7 +31,8 @@ public class ReservationService : IReservationService
         IUserRepository userRepository,
         IVehicleRepository vehicleRepository,
         IConfiguration config,
-        IPasswordResetService passwordResetService)
+        IPasswordResetService passwordResetService,
+        IQRCodeService qrCodeService)
     {
         _reservationRepository = reservationRepository;
         _emailService = emailService;
@@ -38,6 +40,7 @@ public class ReservationService : IReservationService
         _vehicleRepository = vehicleRepository;
         _config = config;
         _passwordResetService = passwordResetService;
+        _qrCodeService = qrCodeService;
     }
 
     public async Task<ReservationResponse> CreateReservationAsync(CreateReservationRequest request)
@@ -79,6 +82,10 @@ public class ReservationService : IReservationService
                 Message = "Failed to create reservation"
             };
         }
+
+        // Note: QR code will be saved from frontend after reservation is created
+        // Frontend generates QR code and sends it to /api/qr/save endpoint
+        // This keeps QR generation on client-side as designed
 
         // Send confirmation email to customer
         if (result.Success && result.Reservation != null)

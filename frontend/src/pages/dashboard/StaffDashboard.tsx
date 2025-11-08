@@ -2308,14 +2308,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 >
                   Maintenance
                 </Button>
-                <Button
-                  variant={filterStatus === "awaiting_processing" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleFilterChange("awaiting_processing")}
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  Awaiting Processing
-                </Button>
               </div>
               <Button
                 size="sm"

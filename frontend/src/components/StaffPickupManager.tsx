@@ -61,7 +61,8 @@ const StaffPickupManager: React.FC = () => {
   // Load pending pickups from API
   const [bookings, setBookings] = useState<PendingBooking[]>([]);
   const [loading, setLoading] = useState(false);
-  const { data: pendingVehicles, refetch: refetchPendingVehicles } = usePendingVehicles();
+  const { data: pendingVehicles, refetch: refetchPendingVehicles } =
+    usePendingVehicles();
 
   // Fetch pending customers for verification
   useEffect(() => {
@@ -70,86 +71,146 @@ const StaffPickupManager: React.FC = () => {
         setLoading(true);
         const customers = await staffApiService.getCustomersForVerification();
         console.log("📦 Loaded customers for pickup:", customers);
-        
+
         // Map API data to PendingBooking format
-        const mappedBookings: PendingBooking[] = customers.map((customer: any) => {
-          const hasDocuments = customer.documents && customer.documents.length > 0;
-          const allDocsApproved = hasDocuments && customer.documents.every((doc: any) => doc.status === 'approved');
-          const hasLicense = customer.documents && customer.documents.some((doc: any) => 
-            doc.documentType === 'driverLicense' && doc.status === 'approved'
-          );
-          
-          // Determine status based on verifications
-          // NOTE: qrScanned is always false initially, so status will never be "ready" on first load
-          // Status will only become "ready" after all 3 verifications (QR, License, Docs) are completed
-          let status: "pending" | "ready" | "incomplete" = "pending";
-          if (hasDocuments && !allDocsApproved) {
-            status = "incomplete";
-          }
-          // Don't set status to "ready" here - it requires QR scan which happens later
-          
-          // Parse pickup date/time from StartTime
-          let pickupDate = "N/A";
-          let pickupTime = "N/A";
-          let returnDate = "N/A";
-          let returnTime = "N/A";
-          
-          try {
-            if (customer.startTime) {
-              const start = new Date(customer.startTime);
-              if (!isNaN(start.getTime())) {
-                pickupDate = start.toLocaleDateString('en-CA'); // YYYY-MM-DD format
-                
-                // For hourly rental, pickup slot is 30 minutes
-                // Display the END of pickup slot (deadline for customer to arrive)
-                // Check if this is hourly rental (duration < 24 hours and same day)
-                const end = customer.endTime ? new Date(customer.endTime) : null;
-                const isHourlyRental = end && 
-                  start.toDateString() === end.toDateString() && 
-                  (end.getTime() - start.getTime()) < 24 * 60 * 60 * 1000;
-                
-                if (isHourlyRental) {
-                  // Add 30 minutes to show pickup deadline (end of pickup slot)
-                  const pickupDeadline = new Date(start.getTime() + 30 * 60 * 1000);
-                  pickupTime = pickupDeadline.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-                } else {
-                  // Daily rental - show start time as-is
-                  pickupTime = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const mappedBookings: PendingBooking[] = await Promise.all(
+          customers.map(async (customer: any) => {
+            const hasDocuments =
+              customer.documents && customer.documents.length > 0;
+            const allDocsApproved =
+              hasDocuments &&
+              customer.documents.every((doc: any) => doc.status === "approved");
+            const hasLicense =
+              customer.documents &&
+              customer.documents.some(
+                (doc: any) =>
+                  doc.documentType === "driverLicense" &&
+                  doc.status === "approved"
+              );
+
+            // Check if QR code was scanned for this reservation
+            let qrScanned = false;
+            try {
+              const token = localStorage.getItem("token");
+              const qrResponse = await fetch(
+                `http://localhost:5000/api/qr/reservation/${customer.reservationId}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              if (qrResponse.ok) {
+                const qrData = await qrResponse.json();
+                // QR is scanned if it exists and status is 'used'
+                qrScanned =
+                  qrData.success &&
+                  qrData.qrCode &&
+                  qrData.qrCode.status === "used";
+                console.log(
+                  `[QR Check] Reservation ${customer.reservationId}: QR scanned = ${qrScanned}`
+                );
+              }
+            } catch (err) {
+              console.warn(
+                `Failed to check QR status for reservation ${customer.reservationId}:`,
+                err
+              );
+            }
+
+            // Determine status based on verifications
+            let status: "pending" | "ready" | "incomplete" = "pending";
+            if (hasDocuments && !allDocsApproved) {
+              status = "incomplete";
+            } else if (qrScanned && allDocsApproved && hasLicense) {
+              // All verifications complete - ready for pickup
+              status = "ready";
+            }
+
+            // Parse pickup date/time from StartTime
+            let pickupDate = "N/A";
+            let pickupTime = "N/A";
+            let returnDate = "N/A";
+            let returnTime = "N/A";
+
+            try {
+              if (customer.startTime) {
+                const start = new Date(customer.startTime);
+                if (!isNaN(start.getTime())) {
+                  pickupDate = start.toLocaleDateString("en-CA"); // YYYY-MM-DD format
+
+                  // For hourly rental, pickup slot is 30 minutes
+                  // Display the END of pickup slot (deadline for customer to arrive)
+                  // Check if this is hourly rental (duration < 24 hours and same day)
+                  const end = customer.endTime
+                    ? new Date(customer.endTime)
+                    : null;
+                  const isHourlyRental =
+                    end &&
+                    start.toDateString() === end.toDateString() &&
+                    end.getTime() - start.getTime() < 24 * 60 * 60 * 1000;
+
+                  if (isHourlyRental) {
+                    // Add 30 minutes to show pickup deadline (end of pickup slot)
+                    const pickupDeadline = new Date(
+                      start.getTime() + 30 * 60 * 1000
+                    );
+                    pickupTime = pickupDeadline.toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    });
+                  } else {
+                    // Daily rental - show start time as-is
+                    pickupTime = start.toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    });
+                  }
                 }
               }
-            }
-            
-            if (customer.endTime) {
-              const end = new Date(customer.endTime);
-              if (!isNaN(end.getTime())) {
-                returnDate = end.toLocaleDateString('en-CA');
-                returnTime = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+              if (customer.endTime) {
+                const end = new Date(customer.endTime);
+                if (!isNaN(end.getTime())) {
+                  returnDate = end.toLocaleDateString("en-CA");
+                  returnTime = end.toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  });
+                }
               }
+            } catch (err) {
+              console.warn(
+                "Invalid date for reservation:",
+                customer.reservationId
+              );
             }
-          } catch (err) {
-            console.warn("Invalid date for reservation:", customer.reservationId);
-          }
-          
-          return {
-            bookingId: customer.reservationId?.toString() || `BK${customer.userId}`,
-            vehicleId: customer.vehicleId?.toString() || "N/A",
-            vehicleName: customer.vehicleModel || "Unknown Vehicle",
-            customerName: customer.fullName || "Unknown",
-            customerPhone: customer.phone || "N/A",
-            pickupLocation: "Station", // Can be enhanced with actual station data
-            pickupDate: pickupDate,
-            pickupTime: pickupTime,
-            returnDate: returnDate,
-            returnTime: returnTime,
-            totalAmount: customer.totalAmount || 0,
-            depositAmount: customer.depositAmount || 0,
-            documentsVerified: allDocsApproved,
-            licenseVerified: hasLicense,
-            qrScanned: false, // Will be updated when QR is scanned
-            status: status,
-          };
-        });
-        
+
+            return {
+              bookingId:
+                customer.reservationId?.toString() || `BK${customer.userId}`,
+              vehicleId: customer.vehicleId?.toString() || "N/A",
+              vehicleName: customer.vehicleModel || "Unknown Vehicle",
+              customerName: customer.fullName || "Unknown",
+              customerPhone: customer.phone || "N/A",
+              pickupLocation: "Station", // Can be enhanced with actual station data
+              pickupDate: pickupDate,
+              pickupTime: pickupTime,
+              returnDate: returnDate,
+              returnTime: returnTime,
+              totalAmount: customer.totalAmount || 0,
+              depositAmount: customer.depositAmount || 0,
+              documentsVerified: allDocsApproved,
+              licenseVerified: hasLicense,
+              qrScanned: qrScanned, // Checked from backend QR status
+              status: status,
+            };
+          })
+        );
+
         setBookings(mappedBookings);
       } catch (error) {
         console.error("Error loading pending pickups:", error);
@@ -164,6 +225,15 @@ const StaffPickupManager: React.FC = () => {
     };
 
     loadPendingPickups();
+
+    // Auto-refresh every 10 seconds to detect new QR scans
+    const intervalId = setInterval(() => {
+      console.log("[Staff Dashboard] Auto-refreshing QR statuses...");
+      loadPendingPickups();
+    }, 10000); // 10 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
   }, [toast]);
 
   const handleQRScanned = (bookingId: string) => {
@@ -173,7 +243,11 @@ const StaffPickupManager: React.FC = () => {
         if (b.bookingId === bookingId) {
           const updated = { ...b, qrScanned: true };
           // Auto-update status if all verifications complete
-          if (updated.qrScanned && updated.documentsVerified && updated.licenseVerified) {
+          if (
+            updated.qrScanned &&
+            updated.documentsVerified &&
+            updated.licenseVerified
+          ) {
             updated.status = "ready";
           }
           return updated;
@@ -193,7 +267,11 @@ const StaffPickupManager: React.FC = () => {
         if (b.bookingId === bookingId) {
           const updated = { ...b, documentsVerified: true };
           // Auto-update status if all verifications complete
-          if (updated.qrScanned && updated.documentsVerified && updated.licenseVerified) {
+          if (
+            updated.qrScanned &&
+            updated.documentsVerified &&
+            updated.licenseVerified
+          ) {
             updated.status = "ready";
           }
           return updated;
@@ -213,7 +291,11 @@ const StaffPickupManager: React.FC = () => {
         if (b.bookingId === bookingId) {
           const updated = { ...b, licenseVerified: true };
           // Auto-update status if all verifications complete
-          if (updated.qrScanned && updated.documentsVerified && updated.licenseVerified) {
+          if (
+            updated.qrScanned &&
+            updated.documentsVerified &&
+            updated.licenseVerified
+          ) {
             updated.status = "ready";
           }
           return updated;
@@ -235,17 +317,20 @@ const StaffPickupManager: React.FC = () => {
   const handleConfirmUnlock = async (bookingId: string) => {
     try {
       const token = localStorage.getItem("token");
-      
+
       console.log(`[Confirm Unlock] Processing reservation ${bookingId}`);
-      
+
       // Call API to confirm reservation and unlock vehicle
-      const response = await fetch(`http://localhost:5000/api/staff/reservations/${bookingId}/confirm`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/staff/reservations/${bookingId}/confirm`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -258,10 +343,11 @@ const StaffPickupManager: React.FC = () => {
 
       // Remove from pending list
       setBookings((prev) => prev.filter((b) => b.bookingId !== bookingId));
-      
+
       toast({
         title: "✅ Vehicle Unlocked",
-        description: "Customer can now access the vehicle. Reservation confirmed.",
+        description:
+          "Customer can now access the vehicle. Reservation confirmed.",
       });
 
       // Refresh data
@@ -270,7 +356,10 @@ const StaffPickupManager: React.FC = () => {
       console.error("Error confirming unlock:", error);
       toast({
         title: "❌ Failed to Unlock",
-        description: error instanceof Error ? error.message : "Could not confirm reservation. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not confirm reservation. Please try again.",
         variant: "destructive",
       });
     }
@@ -279,21 +368,26 @@ const StaffPickupManager: React.FC = () => {
   const handleDenyPickup = async (bookingId: string, reason: string) => {
     try {
       const token = localStorage.getItem("token");
-      
-      console.log(`[Deny Pickup] Cancelling booking ${bookingId} with reason: ${reason}`);
-      
+
+      console.log(
+        `[Deny Pickup] Cancelling booking ${bookingId} with reason: ${reason}`
+      );
+
       // Call API to cancel/deny the reservation
-      const response = await fetch(`http://localhost:5000/api/reservations/${bookingId}/cancel`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          reason: reason,
-          cancelledBy: "staff",
-        }),
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/reservations/${bookingId}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            reason: reason,
+            cancelledBy: "staff",
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -306,7 +400,7 @@ const StaffPickupManager: React.FC = () => {
 
       // Remove from local state
       setBookings((prev) => prev.filter((b) => b.bookingId !== bookingId));
-      
+
       toast({
         title: "Pickup Denied",
         description: `Booking ${bookingId} has been cancelled. Customer will be notified.`,
@@ -319,7 +413,10 @@ const StaffPickupManager: React.FC = () => {
       console.error("Error denying pickup:", error);
       toast({
         title: "Failed to Deny Pickup",
-        description: error instanceof Error ? error.message : "Could not cancel the booking. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not cancel the booking. Please try again.",
         variant: "destructive",
       });
     }
@@ -427,7 +524,9 @@ const StaffPickupManager: React.FC = () => {
               <CardContent className="py-8">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Loading pending pickups...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading pending pickups...
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -449,7 +548,9 @@ const StaffPickupManager: React.FC = () => {
               <CardContent className="py-8">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Loading ready pickups...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading ready pickups...
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -471,7 +572,9 @@ const StaffPickupManager: React.FC = () => {
               <CardContent className="py-8">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Loading incomplete pickups...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading incomplete pickups...
+                  </p>
                 </div>
               </CardContent>
             </Card>

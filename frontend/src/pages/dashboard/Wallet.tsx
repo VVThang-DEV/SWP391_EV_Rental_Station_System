@@ -132,13 +132,14 @@ const Wallet = ({ user }: WalletProps) => {
             let description: string;
 
             // Ensure transactionType is always a string
-            const transactionType = t.transactionType || t.transaction_type || "payment";
-            
+            const transactionType =
+              t.transactionType || t.transaction_type || "payment";
+
             console.log("Processing transaction:", {
               paymentId: t.paymentId,
               transactionType: transactionType,
               amount: t.amount,
-              reservationId: t.reservationId
+              reservationId: t.reservationId,
             });
 
             switch (transactionType.toLowerCase()) {
@@ -176,7 +177,9 @@ const Wallet = ({ user }: WalletProps) => {
               default:
                 type = "payment";
                 amount = -t.amount;
-                description = `Transaction${t.reservationId ? ` for Booking #${t.reservationId}` : ""}`;
+                description = `Transaction${
+                  t.reservationId ? ` for Booking #${t.reservationId}` : ""
+                }`;
             }
 
             return {
@@ -829,8 +832,14 @@ const Wallet = ({ user }: WalletProps) => {
                                     <p className="font-medium">
                                       {transaction.description}
                                     </p>
-                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
-                                      <Badge variant="destructive" className="text-xs">
+                                    {(transaction.transactionType?.toLowerCase() ===
+                                      "late_fee" ||
+                                      transaction.transactionType ===
+                                        "late_fee") && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs"
+                                      >
                                         Phí trễ giờ
                                       </Badge>
                                     )}
@@ -916,8 +925,14 @@ const Wallet = ({ user }: WalletProps) => {
                                     <p className="font-medium">
                                       {transaction.description}
                                     </p>
-                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
-                                      <Badge variant="destructive" className="text-xs">
+                                    {(transaction.transactionType?.toLowerCase() ===
+                                      "late_fee" ||
+                                      transaction.transactionType ===
+                                        "late_fee") && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs"
+                                      >
                                         Phí trễ giờ
                                       </Badge>
                                     )}
@@ -967,8 +982,14 @@ const Wallet = ({ user }: WalletProps) => {
                                     <p className="font-medium">
                                       {transaction.description}
                                     </p>
-                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
-                                      <Badge variant="destructive" className="text-xs">
+                                    {(transaction.transactionType?.toLowerCase() ===
+                                      "late_fee" ||
+                                      transaction.transactionType ===
+                                        "late_fee") && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs"
+                                      >
                                         Phí trễ giờ
                                       </Badge>
                                     )}
@@ -986,6 +1007,7 @@ const Wallet = ({ user }: WalletProps) => {
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-lg text-red-600 dark:text-red-400">
+                                  -
                                   {formatCurrency(Math.abs(transaction.amount))}
                                 </p>
                                 <Badge variant="default" className="mt-1">
@@ -1018,8 +1040,14 @@ const Wallet = ({ user }: WalletProps) => {
                                     <p className="font-medium">
                                       {transaction.description}
                                     </p>
-                                    {(transaction.transactionType?.toLowerCase() === "late_fee" || transaction.transactionType === "late_fee") && (
-                                      <Badge variant="destructive" className="text-xs">
+                                    {(transaction.transactionType?.toLowerCase() ===
+                                      "late_fee" ||
+                                      transaction.transactionType ===
+                                        "late_fee") && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs"
+                                      >
                                         Phí trễ giờ
                                       </Badge>
                                     )}
@@ -1247,7 +1275,9 @@ const Wallet = ({ user }: WalletProps) => {
                     <span className="font-medium capitalize">
                       {selectedTransaction.type}
                     </span>
-                    {(selectedTransaction.transactionType?.toLowerCase() === "late_fee" || selectedTransaction.transactionType === "late_fee") && (
+                    {(selectedTransaction.transactionType?.toLowerCase() ===
+                      "late_fee" ||
+                      selectedTransaction.transactionType === "late_fee") && (
                       <Badge variant="destructive" className="text-xs">
                         Phí trễ giờ
                       </Badge>
@@ -1272,7 +1302,7 @@ const Wallet = ({ user }: WalletProps) => {
                     }`}
                   >
                     {selectedTransaction.amount > 0 ? "+" : "-"}
-                    {formatCurrency(selectedTransaction.amount)}
+                    {formatCurrency(Math.abs(selectedTransaction.amount))}
                   </span>
                 </div>
 
