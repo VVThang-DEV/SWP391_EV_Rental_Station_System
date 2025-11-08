@@ -1,7 +1,7 @@
 import { useTranslation } from "@/contexts/TranslationContext";
 
 // Exchange rate: 1 USD = 23,000 VND (approximate)
-const USD_TO_VND_RATE = 23000;
+const USD_TO_VND_RATE = 26000;
 
 export const formatCurrency = (
   amount: number,

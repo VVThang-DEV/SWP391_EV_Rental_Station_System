@@ -54,6 +54,7 @@ import {
   Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { convertToVND } from "@/lib/currency";
 import { useChargingContext } from "@/contexts/ChargingContext";
 import { isLowBattery } from "@/lib/vehicle-constants";
 import { QRCodeSVG } from "qrcode.react";
@@ -141,45 +142,45 @@ const BookingPage = () => {
   console.log("[BookingPage] Found apiVehicle:", apiVehicle);
   const vehicle = apiVehicle
     ? {
-        // Map API data to expected format
-        id: apiVehicle.uniqueVehicleId,
-        name: `${apiVehicle.modelId} Vehicle`,
-        brand: "VinFast",
-        model: apiVehicle.modelId,
-        type: "Scooter",
-        year: 2024,
-        seats: 2,
-        range: apiVehicle.maxRangeKm,
-        batteryLevel: apiVehicle.batteryLevel,
-        pricePerHour: apiVehicle.pricePerHour,
-        pricePerDay: apiVehicle.pricePerDay,
-        rating: apiVehicle.rating,
-        reviewCount: apiVehicle.reviewCount,
-        trips: apiVehicle.trips,
-        mileage: apiVehicle.mileage,
-        availability: apiVehicle.status,
-        condition: apiVehicle.condition,
-        image: apiVehicle.image || "",
-        location: apiVehicle.location,
-        stationId: apiVehicle.stationId.toString(),
-        stationName: "Unknown Station",
-        stationAddress: "",
-        features: [],
-        description: "",
-        fuelEfficiency: apiVehicle.fuelEfficiency,
-        lastMaintenance: apiVehicle.lastMaintenance,
-        inspectionDate: apiVehicle.inspectionDate,
-        insuranceExpiry: apiVehicle.insuranceExpiry,
-        createdAt: apiVehicle.createdAt,
-        updatedAt: apiVehicle.updatedAt,
-      }
+      // Map API data to expected format
+      id: apiVehicle.uniqueVehicleId,
+      name: `${apiVehicle.modelId} Vehicle`,
+      brand: "VinFast",
+      model: apiVehicle.modelId,
+      type: "Scooter",
+      year: 2024,
+      seats: 2,
+      range: apiVehicle.maxRangeKm,
+      batteryLevel: apiVehicle.batteryLevel,
+      pricePerHour: apiVehicle.pricePerHour,
+      pricePerDay: apiVehicle.pricePerDay,
+      rating: apiVehicle.rating,
+      reviewCount: apiVehicle.reviewCount,
+      trips: apiVehicle.trips,
+      mileage: apiVehicle.mileage,
+      availability: apiVehicle.status,
+      condition: apiVehicle.condition,
+      image: apiVehicle.image || "",
+      location: apiVehicle.location,
+      stationId: apiVehicle.stationId.toString(),
+      stationName: "Unknown Station",
+      stationAddress: "",
+      features: [],
+      description: "",
+      fuelEfficiency: apiVehicle.fuelEfficiency,
+      lastMaintenance: apiVehicle.lastMaintenance,
+      inspectionDate: apiVehicle.inspectionDate,
+      insuranceExpiry: apiVehicle.insuranceExpiry,
+      createdAt: apiVehicle.createdAt,
+      updatedAt: apiVehicle.updatedAt,
+    }
     : staticVehicle;
 
   // Check if vehicle is currently charging
   const isCharging =
     vehicle &&
     (chargingVehicles.has(vehicle.id) ||
-      chargingVehicles.has(vehicle.uniqueVehicleId || ""));
+      chargingVehicles.has('uniqueVehicleId' in vehicle ? (vehicle as any).uniqueVehicleId : ""));
 
   // Check if vehicle has low battery
   const hasLowBattery = vehicle && isLowBattery(vehicle.batteryLevel);
@@ -277,20 +278,16 @@ const BookingPage = () => {
 
     if (diffHours > 0) {
       if (remainingMinutes > 0) {
-        return `You have ${diffHours} hour${
-          diffHours !== 1 ? "s" : ""
-        } and ${remainingMinutes} minute${
-          remainingMinutes !== 1 ? "s" : ""
-        } to pick up the vehicle`;
+        return `You have ${diffHours} hour${diffHours !== 1 ? "s" : ""
+          } and ${remainingMinutes} minute${remainingMinutes !== 1 ? "s" : ""
+          } to pick up the vehicle`;
       } else {
-        return `You have ${diffHours} hour${
-          diffHours !== 1 ? "s" : ""
-        } to pick up the vehicle`;
+        return `You have ${diffHours} hour${diffHours !== 1 ? "s" : ""
+          } to pick up the vehicle`;
       }
     } else {
-      return `You have ${remainingMinutes} minute${
-        remainingMinutes !== 1 ? "s" : ""
-      } to pick up the vehicle`;
+      return `You have ${remainingMinutes} minute${remainingMinutes !== 1 ? "s" : ""
+        } to pick up the vehicle`;
     }
   };
 
@@ -713,7 +710,67 @@ const BookingPage = () => {
 
   const baseCost = calculateCost();
 
-  const totalCost = baseCost;
+  // Tính tiền cọc = giá cơ bản cho 1 đơn vị thời gian
+  const calculateDeposit = () => {
+    if (bookingData.rentalDuration === "hourly") {
+      return vehicle.pricePerHour; // Cọc = giá 1 giờ
+    } else {
+      return vehicle.pricePerDay; // Cọc = giá 1 ngày  
+    }
+  };
+  const deposit = calculateDeposit();
+  const totalCost = baseCost + deposit;
+  // Tính duration và format hiển thị
+  const getRentalDetails = () => {
+    if (bookingData.rentalDuration === "hourly") {
+      const [startHour, startMinute] = bookingData.startTime.split(":").map(Number);
+      const [endHour, endMinute] = bookingData.endTime.split(":").map(Number);
+
+      let pickupEndHour = startHour;
+      let pickupEndMinute = 0;
+
+      if (startMinute === 0) {
+        pickupEndHour = startHour;
+        pickupEndMinute = 30;
+      } else {
+        pickupEndHour = startHour + 1;
+        pickupEndMinute = 0;
+      }
+
+      const pickupEndTime = pickupEndHour * 60 + pickupEndMinute;
+      let returnTime = endHour * 60 + endMinute;
+      if (endHour === 0 && endMinute === 0) {
+        returnTime = 24 * 60;
+      }
+
+      const diffMinutes = returnTime - pickupEndTime;
+      const hours = Math.ceil(diffMinutes / 60);
+      const actualHours = Math.max(hours, 1);
+
+      return {
+        unit: "hour",
+        unitPrice: vehicle.pricePerHour,
+        quantity: actualHours,
+        displayText: `$${vehicle.pricePerHour.toFixed(2)} × ${actualHours} hour${actualHours !== 1 ? 's' : ''}`
+      };
+    } else {
+      const start = new Date(`${bookingData.startDate}T${bookingData.startTime}`);
+      const end = new Date(`${bookingData.endDate}T${bookingData.endTime}`);
+      const diffMs = end.getTime() - start.getTime();
+      const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      const actualDays = Math.max(days, 1);
+
+      return {
+        unit: "day",
+        unitPrice: vehicle.pricePerDay,
+        quantity: actualDays,
+        displayText: `$${vehicle.pricePerDay.toFixed(2)} × ${actualDays} day${actualDays !== 1 ? 's' : ''}`
+      };
+    }
+  };
+
+  const rentalDetails = getRentalDetails();
+
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setBookingData((prev) => {
@@ -806,14 +863,14 @@ const BookingPage = () => {
                   min={
                     bookingData.rentalDuration === "daily"
                       ? (() => {
-                          const startDate = new Date(bookingData.startDate);
-                          const nextDay = new Date(
-                            startDate.getTime() + 24 * 60 * 60 * 1000
-                          );
-                          return `${nextDay.getFullYear()}-${pad(
-                            nextDay.getMonth() + 1
-                          )}-${pad(nextDay.getDate())}`;
-                        })()
+                        const startDate = new Date(bookingData.startDate);
+                        const nextDay = new Date(
+                          startDate.getTime() + 24 * 60 * 60 * 1000
+                        );
+                        return `${nextDay.getFullYear()}-${pad(
+                          nextDay.getMonth() + 1
+                        )}-${pad(nextDay.getDate())}`;
+                      })()
                       : bookingData.startDate
                   }
                   className="text-black"
@@ -971,18 +1028,18 @@ const BookingPage = () => {
                     <span className="text-sm text-muted-foreground">
                       {bookingData.startTime
                         ? (() => {
-                            const [hour, minute] = bookingData.startTime
-                              .split(":")
-                              .map(Number);
-                            const endHour = minute === 0 ? hour : hour + 1;
-                            const endMinute = minute === 0 ? 30 : 0;
-                            const endTime = `${endHour
-                              .toString()
-                              .padStart(2, "0")}:${endMinute
+                          const [hour, minute] = bookingData.startTime
+                            .split(":")
+                            .map(Number);
+                          const endHour = minute === 0 ? hour : hour + 1;
+                          const endMinute = minute === 0 ? 30 : 0;
+                          const endTime = `${endHour
+                            .toString()
+                            .padStart(2, "0")}:${endMinute
                               .toString()
                               .padStart(2, "0")}`;
-                            return `${bookingData.startTime} - ${endTime}`;
-                          })()
+                          return `${bookingData.startTime} - ${endTime}`;
+                        })()
                         : "Select pickup slot first"}
                     </span>
                   </div>
@@ -1256,13 +1313,119 @@ const BookingPage = () => {
           </div>
         </CardContent>
       </Card>
+      {/* Layout ngang: Terms bên trái, Vehicle Summary bên phải */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Terms & Conditions ở bên trái (đã có sẵn ở trên) */}
+
+        {/* Vehicle Summary Card - Di chuyển từ sidebar */}
+        <Card className="border-2 border-primary/20 shadow-lg">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <img
+                  src={vehicle.image || "/placeholder-vehicle.jpg"}
+                  className="w-16 h-16 object-cover rounded-lg"
+                  alt={vehicle.name}
+                />
+                <div>
+                  {vehicle.name}
+                  <p className="text-sm text-muted-foreground">
+                    {vehicle.location}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Car rental price:</span>
+                  <span className="font-medium text-right">
+                    {rentalDetails.displayText} = ${baseCost.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t pt-2 font-semibold text-blue-600">
+                  <span>Total:</span>
+                  <span>${baseCost.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-gray-600">
+                  <span className="text-sm">VND:</span>
+                  <span className="text-sm">{convertToVND(baseCost).toLocaleString()} ₫</span>
+                </div>
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={() => {
+                  if (!termsAccepted) {
+                    toast({
+                      title: "Terms Required",
+                      description: "Please read and accept the rental agreement terms and conditions to proceed.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setStep(2);
+                }}
+                disabled={!termsAccepted}
+              >
+                {termsAccepted ? "Continue to Payment" : "Accept Terms First"}
+              </Button>
+
+              {step === 1 && !termsAccepted && (
+                <p className="text-sm text-amber-600 text-center">
+                  Please read and accept the rental agreement terms and conditions to proceed.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
+  );
+
+  // Helper function để render Vehicle Summary Card
+  const renderVehicleSummaryCard = () => (
+    <Card className="border-2 border-primary/20 shadow-lg">
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <img
+              src={vehicle.image || "/placeholder-vehicle.jpg"}
+              className="w-16 h-16 object-cover rounded-lg"
+              alt={vehicle.name}
+            />
+            <div>
+              {vehicle.name}
+              <p className="text-sm text-muted-foreground">
+                {vehicle.location}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Car rental price:</span>
+              <span className="font-medium text-right">
+                {rentalDetails.displayText} = ${baseCost.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t pt-2 font-semibold text-blue-600">
+              <span>Total:</span>
+              <span>${baseCost.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-gray-600">
+              <span className="text-sm">VND:</span>
+              <span className="text-sm">{convertToVND(baseCost).toLocaleString()} ₫</span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 
   const renderPaymentStep = () => (
     <div className="space-y-6">
       <PaymentSystem
-        amount={totalCost}
+        amount={baseCost}
         bookingId={`BOOK_${Date.now()}`}
         vehicleId={vehicle.id}
         vehicleName={vehicle.name}
@@ -1441,7 +1604,7 @@ const BookingPage = () => {
                         },
                         body: JSON.stringify({
                           reservationId: reservationId,
-                          amount: totalCost,
+                          amount: baseCost,
                         }),
                       }
                     );
@@ -1517,30 +1680,30 @@ const BookingPage = () => {
               duration:
                 bookingData.rentalDuration === "hourly"
                   ? (() => {
-                      const start = new Date(
-                        `${bookingData.startDate}T${bookingData.startTime}`
-                      );
-                      const end = new Date(
-                        `${bookingData.endDate}T${bookingData.endTime}`
-                      );
-                      const hours = Math.ceil(
-                        (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-                      );
-                      return `${hours} hour${hours !== 1 ? "s" : ""}`;
-                    })()
+                    const start = new Date(
+                      `${bookingData.startDate}T${bookingData.startTime}`
+                    );
+                    const end = new Date(
+                      `${bookingData.endDate}T${bookingData.endTime}`
+                    );
+                    const hours = Math.ceil(
+                      (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+                    );
+                    return `${hours} hour${hours !== 1 ? "s" : ""}`;
+                  })()
                   : (() => {
-                      const start = new Date(
-                        `${bookingData.startDate}T${bookingData.startTime}`
-                      );
-                      const end = new Date(
-                        `${bookingData.endDate}T${bookingData.endTime}`
-                      );
-                      const days = Math.ceil(
-                        (end.getTime() - start.getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      );
-                      return `${days} day${days !== 1 ? "s" : ""}`;
-                    })(),
+                    const start = new Date(
+                      `${bookingData.startDate}T${bookingData.startTime}`
+                    );
+                    const end = new Date(
+                      `${bookingData.endDate}T${bookingData.endTime}`
+                    );
+                    const days = Math.ceil(
+                      (end.getTime() - start.getTime()) /
+                      (1000 * 60 * 60 * 24)
+                    );
+                    return `${days} day${days !== 1 ? "s" : ""}`;
+                  })(),
               customerInfo: bookingData.customerInfo,
               paymentMethod: bookingData.paymentMethod,
             });
@@ -1575,6 +1738,9 @@ const BookingPage = () => {
         paymentMethod={bookingData.paymentMethod as "wallet" | "cash"}
         onBack={() => setStep(1)}
       />
+      
+      {/* Vehicle Summary Card */}
+      {renderVehicleSummaryCard()}
     </div>
   );
 
@@ -1832,19 +1998,17 @@ const BookingPage = () => {
                 {[1, 2, 3].map((stepNumber) => (
                   <div key={stepNumber} className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step >= stepNumber
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= stepNumber
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                        }`}
                     >
                       {stepNumber}
                     </div>
                     {stepNumber < 3 && (
                       <div
-                        className={`w-12 h-0.5 mx-2 ${
-                          step > stepNumber ? "bg-primary" : "bg-secondary"
-                        }`}
+                        className={`w-12 h-0.5 mx-2 ${step > stepNumber ? "bg-primary" : "bg-secondary"
+                          }`}
                       />
                     )}
                   </div>
@@ -1860,164 +2024,16 @@ const BookingPage = () => {
             </div>
           </FadeIn>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-8">
             {/* Main Content */}
-            <div className="lg:col-span-2">
+            <div className="w-full">
               <SlideIn direction="left" delay={300}>
                 {step === 1 && renderBookingDetails()}
                 {step === 2 && renderPaymentStep()}
                 {step === 3 && renderConfirmation()}
               </SlideIn>
             </div>
-
-            {/* Sidebar - Vehicle Summary */}
-            {step < 3 && (
-              <div className="lg:col-span-1">
-                <SlideIn direction="right" delay={400}>
-                  <div className="sticky top-8">
-                    <Card>
-                      <CardContent className="p-6">
-                        <img
-                          src={vehicle.image}
-                          alt={vehicle.name}
-                          className="w-full h-32 object-cover rounded-lg mb-4"
-                        />
-                        <h3 className="font-bold text-lg mb-1">
-                          {vehicle.name}
-                        </h3>
-                        <p className="text-muted-foreground text-sm mb-4">
-                          {vehicle.location}
-                        </p>
-
-                        {baseCost > 0 && (
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between font-bold">
-                              <span>Total Cost:</span>
-                              <span>${totalCost.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Chỉ hiển thị button cho step 1, step 2 không có button nào */}
-                        {step === 1 && (
-                          <Button
-                            className="w-full mt-4 btn-hero"
-                            onClick={() => {
-                              // Validate và chuyển sang payment
-                              if (
-                                !bookingData.startDate ||
-                                !bookingData.endDate ||
-                                !bookingData.startTime ||
-                                !bookingData.endTime ||
-                                !bookingData.customerInfo.fullName ||
-                                !bookingData.customerInfo.email ||
-                                !bookingData.customerInfo.phone ||
-                                !bookingData.customerInfo.driverLicense
-                              ) {
-                                toast({
-                                  title: "Missing Information",
-                                  description:
-                                    "Please fill in all required fields.",
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-
-                              // Validate terms acceptance
-                              if (!termsAccepted) {
-                                toast({
-                                  title: "Terms Not Accepted",
-                                  description:
-                                    "Please read and accept the rental agreement terms and conditions to proceed.",
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-
-                              // VALIDATION CHO HOURLY RENTAL
-                              if (bookingData.rentalDuration === "hourly") {
-                                if (
-                                  bookingData.startDate !== bookingData.endDate
-                                ) {
-                                  toast({
-                                    title: "Invalid Date Range",
-                                    description:
-                                      "For hourly rental, start and end date must be the same.",
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-
-                                const isValidTime = validateHourlyRental(
-                                  bookingData.startTime,
-                                  bookingData.endTime
-                                );
-                                if (!isValidTime) {
-                                  toast({
-                                    title: "Invalid Time Range",
-                                    description:
-                                      "Minimum rental duration is 1 hour.",
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-                              }
-
-                              // VALIDATION CHO DAILY RENTAL
-                              if (bookingData.rentalDuration === "daily") {
-                                const start = new Date(
-                                  `${bookingData.startDate}T${bookingData.startTime}`
-                                );
-                                const end = new Date(
-                                  `${bookingData.endDate}T${bookingData.endTime}`
-                                );
-                                // ✅ FIX: Tính số ngày chính xác
-                                const startDateOnly = new Date(
-                                  bookingData.startDate
-                                );
-                                const endDateOnly = new Date(
-                                  bookingData.endDate
-                                );
-                                const diffMs =
-                                  endDateOnly.getTime() -
-                                  startDateOnly.getTime();
-                                const days = diffMs / (1000 * 60 * 60 * 24);
-
-                                // ✅     Cho phép từ 1 ngày trở lên (không tính giờ)
-                                if (days < 1) {
-                                  toast({
-                                    title: "Invalid Date Range",
-                                    description: `Selected duration: ${days} day(s). Minimum rental duration is 1 day.`,
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-                              }
-
-                              // Chuyển sang payment step
-                              setStep(2);
-                            }}
-                            disabled={!termsAccepted}
-                          >
-                            {termsAccepted
-                              ? "Continue to Payment"
-                              : "Please Accept Terms to Continue"}
-                          </Button>
-                        )}
-
-                        {step === 1 && !termsAccepted && (
-                          <p className="text-sm text-amber-600 text-center mt-2 flex items-center justify-center">
-                            <Shield className="h-4 w-4 mr-1" />
-                            You must accept the rental agreement to proceed
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </SlideIn>
-              </div>
-            )}
-          </div>
+          </div> 
         </div>
       </div>
     </PageTransition>
