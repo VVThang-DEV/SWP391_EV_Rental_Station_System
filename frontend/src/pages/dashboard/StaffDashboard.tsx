@@ -641,6 +641,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       rented: apiVehicles?.filter((v) => v.status === "rented").length || 0,
       maintenance:
         apiVehicles?.filter((v) => v.status === "maintenance").length || 0,
+      awaiting_processing:
+        apiVehicles?.filter((v) => v.status === "awaiting_processing").length || 0,
       total: apiVehicles?.length || 0,
     },
     todayStats: {
@@ -1687,10 +1689,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
       // Step 3: Determine vehicle status based on damages and return time
       // If no damages and on time/early: set to "available"
-      // If there are damages: set to "maintenance"
+      // If there are damages: set to "awaiting_processing"
       let vehicleStatus = "available";
       if (hasDamages) {
-        vehicleStatus = "maintenance";
+        vehicleStatus = "awaiting_processing";
       }
 
       // Step 4: Update vehicle status and condition
@@ -2258,10 +2260,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   return true;
                 })
                 .map((vehicle) => {
+                  const isAwaitingProcessing = vehicle.status === "awaiting_processing";
                   return (
                   <div
                     key={vehicle.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    className={`flex items-center justify-between p-4 border rounded-lg ${
+                      isAwaitingProcessing ? "opacity-50 grayscale pointer-events-none" : ""
+                    }`}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="p-3 bg-muted rounded-full">
@@ -2283,6 +2288,11 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             Customer: {vehicle.customer || "N/A"}
                           </p>
                         )}
+                        {isAwaitingProcessing && (
+                          <p className="text-sm text-destructive font-medium">
+                            ⚠️ Xe đang chờ xử lý - Không cho thuê
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -2300,10 +2310,12 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                             ? "default"
                             : vehicle.status === "rented"
                             ? "secondary"
+                            : vehicle.status === "awaiting_processing"
+                            ? "destructive"
                             : "destructive"
                         }
                       >
-                        {vehicle.status}
+                        {vehicle.status === "awaiting_processing" ? "Chờ xử lý" : vehicle.status}
                       </Badge>
 
                       <div className="flex space-x-2">
@@ -2312,12 +2324,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                           variant="outline"
                           disabled={
                             vehicle.status === "rented" ||
-                            vehicle.status === "pending"
+                            vehicle.status === "pending" ||
+                            isAwaitingProcessing
                           }
                           onClick={() => handleEditVehicle(vehicle)}
                           title={
                             vehicle.status === "rented" ||
-                            vehicle.status === "pending"
+                            vehicle.status === "pending" ||
+                            isAwaitingProcessing
                               ? "Cannot edit vehicle with this status"
                               : "Edit vehicle"
                           }
