@@ -31,7 +31,8 @@ import {
   Lock,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useToast } from "@/hooks/use-toast"; 
+import { useToast } from "@/hooks/use-toast";
+import { convertToVND } from "@/lib/currency"; 
 
 interface PaymentSystemProps {
   amount: number;
@@ -76,12 +77,6 @@ const PaymentSystem = ({
   const [loadingBalance, setLoadingBalance] = useState(true);
 
   const { toast } = useToast();
-
-  // Chuyển đổi USD sang VND
-  const convertToVND = (usdAmount: number) => {
-    const exchangeRate = 26000; // 1 USD = 26,000 VND
-    return Math.round(usdAmount * exchangeRate);
-  };
 
   // Số tiền VND để hiển thị và thanh toán
   const amountVND = convertToVND(amount);
@@ -353,7 +348,7 @@ Thank you for choosing EVRentals!
 
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Original Price:</span>
-                  <span className="text-sm text-muted-foreground">${amount}</span>
+                  <span className="text-sm text-muted-foreground">${amount} ({amountVND.toLocaleString()} ₫)</span>
                 </div>
 
                 {vehicleName && (
@@ -445,7 +440,7 @@ Thank you for choosing EVRentals!
             <li>• Present this booking confirmation to staff</li>
             <li>• Pay the exact amount in cash</li>
             <li>• Receive printed receipt from staff</li>
-          </ul>
+          </ul> 
         </div>
 
         <div className="space-y-2">
@@ -457,7 +452,7 @@ Thank you for choosing EVRentals!
 
           <div className="flex justify-between">
             <span className="text-sm text-muted-foreground">Original Price:</span>
-            <span className="text-sm text-muted-foreground">${amount}</span>
+            <span className="text-sm text-muted-foreground">${amount} ({amountVND.toLocaleString()} ₫)</span>
           </div>
 
           <div className="flex justify-between">
