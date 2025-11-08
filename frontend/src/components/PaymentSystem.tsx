@@ -91,7 +91,7 @@ const PaymentSystem = ({
     const fetchWalletBalance = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!token) {
+        if (!token) { 
           setLoadingBalance(false);
           return;
         }
