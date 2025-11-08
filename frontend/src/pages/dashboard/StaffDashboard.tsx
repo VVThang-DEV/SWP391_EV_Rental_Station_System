@@ -1414,6 +1414,18 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   };
 
   // Vehicle Return Checkout Functions
+  // Damage pricing table (VNĐ)
+  const damagePricing: Record<string, number> = {
+    "Scratches": 300000,              // Xước sơn nhẹ
+    "Dents": 1500000,                  // Móp nhẹ
+    "Broken lights": 500000,           // Đèn hỏng (giá mặc định)
+    "Cracked windshield": 2000000,     // Kính chắn gió nứt/vỡ
+    "Worn tires": 1000000,             // Lốp mòn
+    "Interior stains": 400000,         // Nội thất bẩn
+    "Missing parts": 800000,          // Mất bộ phận
+    "Other damages": 3000000,         // Hư hỏng khác lớn
+  };
+
   const calculateReturnFees = (
     booking: any,
     inspection: typeof returnInspectionData,
@@ -1430,15 +1442,31 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       lateFee = lateHoursInput * vehiclePricePerHour;
     }
 
+    // Calculate damage fee based on specific damage types
     let damageFee = 0;
-    if (inspection.damages.length > 0) {
-      damageFee = inspection.damages.length * 500000;
+    inspection.damages.forEach((damage) => {
+      const price = damagePricing[damage] || 500000; // Default 500k if not found
+      damageFee += price;
+    });
+
+    // Condition-based fees (if condition is poor)
+    if (inspection.exteriorCondition === "poor") {
+      // Exterior poor condition - add fee for exterior damage
+      damageFee += 500000; // Additional fee for poor exterior
     }
-    if (inspection.exteriorCondition === "poor" || inspection.interiorCondition === "poor") {
-      damageFee += 1000000;
+    if (inspection.interiorCondition === "poor") {
+      // Interior poor condition - already covered by "Interior stains" if selected
+      // But if not selected, add base fee
+      if (!inspection.damages.includes("Interior stains")) {
+        damageFee += 400000; // Same as interior stains
+      }
     }
     if (inspection.tiresCondition === "poor") {
-      damageFee += 2000000;
+      // Tires poor condition - already covered by "Worn tires" if selected
+      // But if not selected, add base fee
+      if (!inspection.damages.includes("Worn tires")) {
+        damageFee += 1000000; // Same as worn tires
+      }
     }
 
     const batteryChargeFee = inspection.batteryLevel < 50 ? 500000 : 0;
