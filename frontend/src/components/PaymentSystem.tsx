@@ -353,7 +353,7 @@ Thank you for choosing EVRentals!
 
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Original Price:</span>
-                  <span className="text-sm text-muted-foreground">${amount}</span>
+                  <span className="text-sm text-muted-foreground">${amount} ({amountVND.toLocaleString()} ₫)</span>
                 </div>
 
                 {vehicleName && (
@@ -445,7 +445,7 @@ Thank you for choosing EVRentals!
             <li>• Present this booking confirmation to staff</li>
             <li>• Pay the exact amount in cash</li>
             <li>• Receive printed receipt from staff</li>
-          </ul>
+          </ul> 
         </div>
 
         <div className="space-y-2">
@@ -457,7 +457,7 @@ Thank you for choosing EVRentals!
 
           <div className="flex justify-between">
             <span className="text-sm text-muted-foreground">Original Price:</span>
-            <span className="text-sm text-muted-foreground">${amount}</span>
+            <span className="text-sm text-muted-foreground">${amount} ({amountVND.toLocaleString()} ₫)</span>
           </div>
 
           <div className="flex justify-between">
