@@ -481,6 +481,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     damages: [] as string[],
     notes: "",
     damageImages: [] as { file: File; preview: string; url?: string }[],
+    otherDamageAmount: 0, // Custom amount for "Other damages"
   });
   const [returnTimeStatus, setReturnTimeStatus] = useState<"early" | "on_time" | "late">("on_time");
   const [lateHours, setLateHours] = useState<number>(0);
@@ -1445,8 +1446,16 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     // Calculate damage fee based on specific damage types
     let damageFee = 0;
     inspection.damages.forEach((damage) => {
-      const price = damagePricing[damage] || 500000; // Default 500k if not found
-      damageFee += price;
+      if (damage === "Other damages") {
+        // Only calculate if custom amount is provided
+        if (inspection.otherDamageAmount > 0) {
+          damageFee += inspection.otherDamageAmount;
+        }
+        // If otherDamageAmount is 0 or not provided, don't add any fee
+      } else {
+        const price = damagePricing[damage] || 500000; // Default 500k if not found
+        damageFee += price;
+      }
     });
 
     // Condition-based fees (if condition is poor)
@@ -1534,6 +1543,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         damages: [],
         notes: "",
         damageImages: [],
+        otherDamageAmount: 0,
       });
       
       // Calculate fees with vehicle price per hour
@@ -1548,6 +1558,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           damages: [],
           notes: "",
           damageImages: [],
+          otherDamageAmount: 0,
         },
         initialStatus,
         initialLateHours,
@@ -1882,6 +1893,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         damages: [],
         notes: "",
         damageImages: [],
+        otherDamageAmount: 0,
       });
     } catch (error) {
       console.error("Return checkout error:", error);
@@ -5694,6 +5706,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
                   <div>
                     <Label>Damages Found (if any)</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Chọn các loại hư hỏng phát hiện. Giá phí sẽ được tính tự động.
+                    </p>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {[
                         "Scratches",
@@ -5705,18 +5720,38 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                         "Missing parts",
                         "Other damages",
                       ].map((damage) => (
-                        <label
-                          key={damage}
-                          className="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-muted"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={returnInspectionData.damages.includes(damage)}
-                            onChange={() => handleToggleReturnDamage(damage)}
-                            className="rounded"
-                          />
-                          <span>{damage}</span>
-                        </label>
+                        <div key={damage} className="space-y-2">
+                          <label
+                            className="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-muted"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={returnInspectionData.damages.includes(damage)}
+                              onChange={() => handleToggleReturnDamage(damage)}
+                              className="rounded"
+                            />
+                            <span>{damage}</span>
+                          </label>
+                          {damage === "Other damages" && returnInspectionData.damages.includes("Other damages") && (
+                            <div className="ml-6">
+                              <Label htmlFor="otherDamageAmount" className="text-xs text-muted-foreground">
+                                Nhập số tiền (VNĐ)
+                              </Label>
+                              <Input
+                                id="otherDamageAmount"
+                                type="number"
+                                min="0"
+                                step="1000"
+                                value={returnInspectionData.otherDamageAmount || ""}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  handleUpdateReturnInspection({ otherDamageAmount: value });
+                                }}
+                                className="mt-1 text-sm"
+                              />
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -5907,6 +5942,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   damages: [],
                   notes: "",
                   damageImages: [],
+                  otherDamageAmount: 0,
                 });
               }}
             >
