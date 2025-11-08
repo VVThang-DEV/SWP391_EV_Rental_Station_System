@@ -480,10 +480,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     tiresCondition: "good",
     damages: [] as string[],
     notes: "",
+    damageImages: [] as { file: File; preview: string; url?: string }[],
   });
   const [returnTimeStatus, setReturnTimeStatus] = useState<"early" | "on_time" | "late">("on_time");
   const [lateHours, setLateHours] = useState<number>(0);
-  const [damagePaymentMethod, setDamagePaymentMethod] = useState<"cash" | "wallet">("cash");
   const [returnFeeCalculation, setReturnFeeCalculation] = useState({
     baseRental: 0,
     lateFee: 0,
@@ -1505,6 +1505,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         tiresCondition: "good",
         damages: [],
         notes: "",
+        damageImages: [],
       });
       
       // Calculate fees with vehicle price per hour
@@ -1518,6 +1519,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           tiresCondition: "good",
           damages: [],
           notes: "",
+          damageImages: [],
         },
         initialStatus,
         initialLateHours,
@@ -1585,6 +1587,56 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     handleUpdateReturnInspection({ damages });
   };
 
+  const handleAddDamageImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newImages: { file: File; preview: string; url?: string }[] = [];
+    
+    Array.from(files).forEach((file) => {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload image files only (JPG, PNG, etc.)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Image size should be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const preview = URL.createObjectURL(file);
+      newImages.push({ file, preview });
+    });
+
+    if (newImages.length > 0) {
+      handleUpdateReturnInspection({
+        damageImages: [...returnInspectionData.damageImages, ...newImages],
+      });
+    }
+
+    // Reset input
+    e.target.value = "";
+  };
+
+  const handleRemoveDamageImage = (index: number) => {
+    const image = returnInspectionData.damageImages[index];
+    if (image.preview) {
+      URL.revokeObjectURL(image.preview);
+    }
+    const newImages = returnInspectionData.damageImages.filter((_, i) => i !== index);
+    handleUpdateReturnInspection({ damageImages: newImages });
+  };
+
   const handleCompleteReturnCheckout = async () => {
     if (!selectedReturnBooking) return;
 
@@ -1617,15 +1669,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     const totalDamageFees = returnFeeCalculation.damageFee + returnFeeCalculation.additionalCharges;
     const hasDamageFees = totalDamageFees > 0;
 
-    // Validate payment method if there are damage fees
-    if (hasDamageFees && !damagePaymentMethod) {
-      toast({
-        title: "Chọn phương thức thanh toán",
-        description: "Vui lòng chọn phương thức thanh toán cho phí hư hỏng",
-        variant: "destructive",
-      });
-      return;
-    }
 
     try {
       // Step 1: Deduct late fee from customer wallet FIRST (before updating vehicle)
@@ -1657,37 +1700,58 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         }
       }
 
-      // Step 2: Handle damage fees based on payment method
+      // Step 2: Note damage fees (payment will be handled separately)
       if (hasDamageFees) {
-        if (damagePaymentMethod === "wallet") {
-          // Deduct damage fee and additional charges from wallet
-          try {
-            const damageReason = `Phí hư hỏng xe: ${returnInspectionData.damages.length > 0 ? `Các hư hỏng: ${returnInspectionData.damages.join(", ")}. ` : ""}${returnFeeCalculation.damageFee > 0 ? `Phí hư hỏng: ${returnFeeCalculation.damageFee.toLocaleString("vi-VN")} VND. ` : ""}${returnFeeCalculation.additionalCharges > 0 ? `Phụ phí: ${returnFeeCalculation.additionalCharges.toLocaleString("vi-VN")} VND. ` : ""}Tổng: ${totalDamageFees.toLocaleString("vi-VN")} VND`;
-            
-            damageWalletDeductResult = await staffApiService.deductFromCustomerWallet(
-              selectedReturnBooking.userId,
-              totalDamageFees,
-              damageReason,
-              selectedReturnBooking.reservationId
+        console.log(`Damage fees calculated: ${totalDamageFees.toLocaleString("vi-VN")} VND. Payment will be handled separately.`);
+      }
+
+      // Step 3: Upload damage images if any
+      const uploadedImageUrls: string[] = [];
+      if (returnInspectionData.damageImages.length > 0) {
+        try {
+          // Get user email - try to fetch from booking or use a placeholder
+          const userEmail = selectedReturnBooking.userEmail || selectedReturnBooking.email || `user_${selectedReturnBooking.userId}@temp.com`;
+          
+          for (const image of returnInspectionData.damageImages) {
+            const formData = new FormData();
+            formData.append("file", image.file);
+            formData.append("email", userEmail);
+            formData.append("documentType", `vehicle_return_damage_${selectedReturnBooking.reservationId}`);
+
+            const uploadResponse = await fetch(
+              "http://localhost:5000/api/documents/upload-document",
+              {
+                method: "POST",
+                body: formData,
+              }
             );
-            console.log("Damage fees deducted successfully from wallet:", damageWalletDeductResult);
-          } catch (walletError: any) {
-            console.error("Wallet deduction error for damages:", walletError);
-            allDeductionsSuccessful = false;
-            toast({
-              title: "⚠️ Warning",
-              description: `Không thể trừ phí hư hỏng từ ví: ${walletError.message || "Không đủ số dư hoặc lỗi hệ thống"}`,
-              variant: "destructive",
-              duration: 5000,
-            });
+
+            if (uploadResponse.ok) {
+              const result = await uploadResponse.json();
+              if (result.fileUrl) {
+                uploadedImageUrls.push(result.fileUrl);
+                console.log(`✅ Damage image uploaded: ${result.fileUrl}`);
+              }
+            } else {
+              console.warn(`⚠️ Failed to upload damage image: ${image.file.name}`);
+            }
           }
-        } else {
-          // Cash payment - no wallet deduction needed
-          console.log("Damage fees will be paid in cash");
+
+          if (uploadedImageUrls.length > 0) {
+            console.log(`✅ Uploaded ${uploadedImageUrls.length} damage image(s)`);
+          }
+        } catch (imageUploadError: any) {
+          console.error("Error uploading damage images:", imageUploadError);
+          toast({
+            title: "⚠️ Warning",
+            description: "Một số ảnh hư hỏng không thể tải lên, nhưng quá trình trả xe vẫn tiếp tục.",
+            variant: "destructive",
+            duration: 5000,
+          });
         }
       }
 
-      // Step 3: Determine vehicle status based on damages and return time
+      // Step 4: Determine vehicle status based on damages and return time
       // If no damages and on time/early: set to "available"
       // If there are damages: set to "awaiting_processing"
       let vehicleStatus = "available";
@@ -1695,7 +1759,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         vehicleStatus = "awaiting_processing";
       }
 
-      // Step 4: Update vehicle status and condition
+      // Step 5: Update vehicle status and condition
       try {
         await staffApiService.updateVehicle(selectedReturnBooking.vehicleId, {
           batteryLevel: returnInspectionData.batteryLevel,
@@ -1720,7 +1784,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         });
       }
 
-      // Step 5: Update reservation status to completed
+      // Step 6: Update reservation status to completed
       try {
         await staffApiService.completeReturn(selectedReturnBooking.reservationId);
         console.log(`✅ Reservation ${selectedReturnBooking.reservationId} status updated to 'completed'`);
@@ -1742,7 +1806,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         : "";
 
       const damageFeeMessage = hasDamageFees
-        ? ` Phí hư hỏng: ${totalDamageFees.toLocaleString("vi-VN")} VND - ${damagePaymentMethod === "wallet" ? `Đã trừ từ ví${damageWalletDeductResult ? `. Số dư còn lại: ${damageWalletDeductResult.newBalance?.toLocaleString("vi-VN") || "N/A"} VND` : ""}` : "Thanh toán bằng tiền mặt"}.`
+        ? ` Phí hư hỏng: ${totalDamageFees.toLocaleString("vi-VN")} VND.`
         : "";
 
       const statusMessage = hasDamages
@@ -1768,13 +1832,19 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         });
       }
 
+      // Clean up preview URLs
+      returnInspectionData.damageImages.forEach((image) => {
+        if (image.preview) {
+          URL.revokeObjectURL(image.preview);
+        }
+      });
+
       // Close dialog and reset state
       setIsReturnCheckoutOpen(false);
       setSelectedReturnBooking(null);
       setReturnSearchQuery("");
       setReturnTimeStatus("on_time");
       setLateHours(0);
-      setDamagePaymentMethod("cash");
       setReturnInspectionData({
         batteryLevel: 100,
         mileage: 0,
@@ -1783,6 +1853,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         tiresCondition: "good",
         damages: [],
         notes: "",
+        damageImages: [],
       });
     } catch (error) {
       console.error("Return checkout error:", error);
@@ -5630,6 +5701,101 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </div>
 
+                  {/* Damage Images Upload */}
+                  <div>
+                    <Label>Ảnh hư hỏng (nếu có)</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Tải ảnh để ghi nhận các hư hỏng như trầy xước, vết lõm, v.v.
+                    </p>
+                    
+                    {/* Upload Area */}
+                    <div
+                      className="border-2 border-dashed rounded-lg p-4 text-center transition-colors hover:border-primary/50 border-muted-foreground/25"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onDragEnter={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.add("border-primary", "bg-primary/5");
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.remove("border-primary", "bg-primary/5");
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.remove("border-primary", "bg-primary/5");
+                        const files = e.dataTransfer.files;
+                        if (files && files.length > 0) {
+                          const fakeEvent = {
+                            target: { files, value: "" },
+                          } as React.ChangeEvent<HTMLInputElement>;
+                          handleAddDamageImage(fakeEvent);
+                        }
+                      }}
+                    >
+                      <div className="space-y-2">
+                        <Camera className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <div>
+                          <Label htmlFor="damageImageUpload" className="cursor-pointer">
+                            <span className="text-sm font-medium text-primary hover:underline">
+                              Click để chọn ảnh hoặc kéo thả ảnh vào đây
+                            </span>
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Hỗ trợ: JPG, PNG (tối đa 5MB mỗi ảnh)
+                          </p>
+                        </div>
+                        <input
+                          id="damageImageUpload"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleAddDamageImage}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Uploaded Images Preview */}
+                    {returnInspectionData.damageImages.length > 0 && (
+                      <div className="mt-4">
+                        <Label className="text-sm font-medium mb-2 block">
+                          Ảnh đã tải ({returnInspectionData.damageImages.length})
+                        </Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {returnInspectionData.damageImages.map((image, index) => (
+                            <div
+                              key={index}
+                              className="relative group border rounded-lg overflow-hidden bg-muted"
+                            >
+                              <img
+                                src={image.preview}
+                                alt={`Damage ${index + 1}`}
+                                className="w-full h-32 object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDamageImage(index)}
+                                className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                                title="Xóa ảnh"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
+                                {image.file.name}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div>
                     <Label htmlFor="returnNotes">Inspection Notes</Label>
                     <Textarea
@@ -5694,65 +5860,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 </CardContent>
               </Card>
 
-              {/* Damage Payment Method Selection */}
-              {(returnFeeCalculation.damageFee > 0 || returnFeeCalculation.additionalCharges > 0) && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <CreditCard className="h-5 w-5" />
-                      Phương thức thanh toán phí hư hỏng
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <Label>Chọn phương thức thanh toán cho phí hư hỏng</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <button
-                          type="button"
-                          onClick={() => setDamagePaymentMethod("cash")}
-                          className={`p-4 border-2 rounded-lg transition-all ${
-                            damagePaymentMethod === "cash"
-                              ? "border-primary bg-primary/10"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-5 w-5" />
-                            <div className="text-left">
-                              <div className="font-semibold">Tiền mặt</div>
-                              <div className="text-xs text-muted-foreground">Khách hàng thanh toán trực tiếp</div>
-                            </div>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDamagePaymentMethod("wallet")}
-                          className={`p-4 border-2 rounded-lg transition-all ${
-                            damagePaymentMethod === "wallet"
-                              ? "border-primary bg-primary/10"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="h-5 w-5" />
-                            <div className="text-left">
-                              <div className="font-semibold">Trừ từ ví</div>
-                              <div className="text-xs text-muted-foreground">Tự động trừ từ ví khách hàng</div>
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                      {damagePaymentMethod === "wallet" && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
-                          <p className="text-sm text-blue-800 dark:text-blue-200">
-                            ⚠️ Số tiền sẽ được trừ tự động từ ví khách hàng và thông báo qua email.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           )}
 
@@ -5760,11 +5867,17 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             <Button
               variant="outline"
               onClick={() => {
+                // Clean up preview URLs
+                returnInspectionData.damageImages.forEach((image) => {
+                  if (image.preview) {
+                    URL.revokeObjectURL(image.preview);
+                  }
+                });
+                
                 setIsReturnCheckoutOpen(false);
                 setSelectedReturnBooking(null);
                 setReturnTimeStatus("on_time");
                 setLateHours(0);
-                setDamagePaymentMethod("cash");
                 setReturnInspectionData({
                   batteryLevel: 100,
                   mileage: 0,
@@ -5773,6 +5886,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   tiresCondition: "good",
                   damages: [],
                   notes: "",
+                  damageImages: [],
                 });
               }}
             >
