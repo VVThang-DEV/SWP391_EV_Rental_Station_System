@@ -6,10 +6,12 @@ namespace EVRentalApi.Application.Services;
 public class StaffService : IStaffService
 {
     private readonly IStaffRepository _staffRepository;
+    private readonly IHandoverService _handoverService;
 
-    public StaffService(IStaffRepository staffRepository)
+    public StaffService(IStaffRepository staffRepository, IHandoverService handoverService)
     {
         _staffRepository = staffRepository;
+        _handoverService = handoverService;
     }
 
     public async Task<StaffProfileDto?> GetStaffProfileAsync(int staffId)
@@ -271,21 +273,67 @@ public class StaffService : IStaffService
     {
         try
         {
-            var handover = await _staffRepository.RecordHandoverAsync(staffId, request);
-            if (handover == null)
+            // Convert HandoverRequest to CreateHandoverRequest
+            var createRequest = new CreateHandoverRequest
+            {
+                RentalId = request.RentalId,
+                ReservationId = request.ReservationId,
+                Type = request.Type,
+                ConditionNotes = request.ConditionNotes,
+                ImageUrlList = request.ImageUrlList,
+                ReturnTimeStatus = request.ReturnTimeStatus,
+                LateHours = request.LateHours,
+                BatteryLevel = request.BatteryLevel,
+                Mileage = request.Mileage,
+                ExteriorCondition = request.ExteriorCondition,
+                InteriorCondition = request.InteriorCondition,
+                TiresCondition = request.TiresCondition,
+                DamagesList = request.DamagesList,
+                LateFee = request.LateFee,
+                DamageFee = request.DamageFee,
+                TotalDue = request.TotalDue,
+                DepositRefund = request.DepositRefund
+            };
+
+            // Use HandoverService to create handover (this will save to database including images)
+            var (success, handoverId, message) = await _handoverService.CreateAsync(createRequest, staffId);
+            
+            if (!success)
             {
                 return new HandoverResponse
                 {
                     Success = false,
-                    Message = "Failed to record handover"
+                    Message = message
                 };
+            }
+
+            // Get the created handover details
+            HandoverDto? handoverDto = null;
+            if (request.ReservationId.HasValue)
+            {
+                var handover = await _handoverService.GetByReservationAsync(request.ReservationId.Value);
+                if (handover != null)
+                {
+                    handoverDto = new HandoverDto
+                    {
+                        HandoverId = handover.HandoverId,
+                        RentalId = handover.RentalId ?? 0,
+                        StaffId = handover.StaffId,
+                        Type = handover.Type,
+                        ConditionNotes = handover.ConditionNotes,
+                        ImageUrls = handover.ImageUrls != null 
+                            ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(handover.ImageUrls) 
+                            : null,
+                        CreatedAt = handover.CreatedAt
+                    };
+                }
             }
 
             return new HandoverResponse
             {
                 Success = true,
-                Message = "Handover recorded successfully",
-                Handover = handover
+                Message = message,
+                Handover = handoverDto
             };
         }
         catch (Exception ex)

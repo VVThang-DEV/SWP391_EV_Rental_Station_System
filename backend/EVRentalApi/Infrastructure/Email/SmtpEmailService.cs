@@ -15,6 +15,11 @@ public sealed class SmtpEmailService : IEmailService
 
     public async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken ct = default)
     {
+        await SendWithAttachmentsAsync(toEmail, subject, htmlBody, null, ct);
+    }
+
+    public async Task SendWithAttachmentsAsync(string toEmail, string subject, string htmlBody, List<EmailAttachment>? attachments = null, CancellationToken ct = default)
+    {
         var smtp = _config.GetSection("Smtp");
         var host = smtp["Host"]!;
         var port = int.Parse(smtp["Port"]!);
@@ -68,6 +73,23 @@ public sealed class SmtpEmailService : IEmailService
             IsBodyHtml = true
         };
         message.To.Add(new MailAddress(toEmail));
+
+        // Add attachments if provided
+        if (attachments != null && attachments.Count > 0)
+        {
+            foreach (var attachment in attachments)
+            {
+                if (File.Exists(attachment.FilePath))
+                {
+                    var mailAttachment = new Attachment(attachment.FilePath)
+                    {
+                        Name = attachment.FileName,
+                        ContentType = new System.Net.Mime.ContentType(attachment.ContentType)
+                    };
+                    message.Attachments.Add(mailAttachment);
+                }
+            }
+        }
 
         await client.SendMailAsync(message, ct);
     }

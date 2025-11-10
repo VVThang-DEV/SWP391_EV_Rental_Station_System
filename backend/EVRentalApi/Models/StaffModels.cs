@@ -125,10 +125,23 @@ public class CustomerVerificationRequest
 
 public class HandoverRequest
 {
-    public int RentalId { get; set; }
+    public int? RentalId { get; set; }
+    public int? ReservationId { get; set; }
     public string Type { get; set; } = string.Empty; // "pickup", "return"
     public string? ConditionNotes { get; set; }
-    public List<string>? ImageUrls { get; set; }
+    public List<string>? ImageUrlList { get; set; }
+    public string? ReturnTimeStatus { get; set; } // "on_time", "late", "early"
+    public int? LateHours { get; set; }
+    public int? BatteryLevel { get; set; }
+    public int? Mileage { get; set; }
+    public string? ExteriorCondition { get; set; }
+    public string? InteriorCondition { get; set; }
+    public string? TiresCondition { get; set; }
+    public List<string>? DamagesList { get; set; }
+    public decimal? LateFee { get; set; }
+    public decimal? DamageFee { get; set; }
+    public decimal? TotalDue { get; set; }
+    public decimal? DepositRefund { get; set; }
 }
 
 public class HandoverDto
