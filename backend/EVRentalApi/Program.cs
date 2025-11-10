@@ -1366,6 +1366,37 @@ app.MapPost("/api/staff/reservations/{reservationId}/complete-return", [Microsof
         if (success)
         {
             Console.WriteLine($"[Complete Return] ✅ Reservation {reservationId} status updated to 'completed'");
+
+            // Also reset vehicle status back to 'available'
+            try
+            {
+                // Get vehicle_id from reservation
+                var getVehicleCmd = new SqlCommand("SELECT vehicle_id FROM dbo.reservations WHERE reservation_id = @ReservationId", conn);
+                getVehicleCmd.Parameters.AddWithValue("@ReservationId", reservationId);
+                var vehicleIdObj = await getVehicleCmd.ExecuteScalarAsync();
+
+                if (vehicleIdObj != null && vehicleIdObj != DBNull.Value)
+                {
+                    var vehicleId = (int)vehicleIdObj;
+                    var updateVehicleCmd = new SqlCommand(@"
+                        UPDATE dbo.vehicles 
+                        SET status = 'available', updated_at = GETDATE()
+                        WHERE vehicle_id = @VehicleId", conn);
+                    updateVehicleCmd.Parameters.AddWithValue("@VehicleId", vehicleId);
+                    var rows = await updateVehicleCmd.ExecuteNonQueryAsync();
+                    Console.WriteLine($"[Complete Return] Vehicle {vehicleId} status reset to 'available' (rows={rows})");
+                }
+                else
+                {
+                    Console.WriteLine($"[Complete Return] ⚠️ Could not find vehicle for reservation {reservationId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Complete Return] ⚠️ Failed to reset vehicle status: {ex.Message}");
+                // Do not fail overall completion if vehicle status update fails
+            }
+
             return Results.Ok(new { success = true, message = "Reservation completed successfully" });
         }
         else

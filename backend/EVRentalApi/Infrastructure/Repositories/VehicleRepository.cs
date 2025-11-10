@@ -26,8 +26,9 @@ namespace EVRentalApi.Infrastructure.Repositories
                        v.max_range_km, v.status, v.price_per_hour, v.price_per_day, v.rating, 
                        v.review_count, v.trips, v.mileage, v.last_maintenance, v.inspection_date,  
                        v.insurance_expiry, v.condition, v.image, v.license_plate, v.fuel_efficiency, 
-                       v.location, v.created_at, v.updated_at
+                       COALESCE(s.name, v.location) AS location, v.created_at, v.updated_at
                 FROM vehicles v
+                LEFT JOIN stations s ON v.station_id = s.station_id
                 ORDER BY v.vehicle_id";
             
             using var command = new SqlCommand(query, connection);
@@ -51,8 +52,9 @@ namespace EVRentalApi.Infrastructure.Repositories
                        v.max_range_km, v.status, v.price_per_hour, v.price_per_day, v.rating, 
                        v.review_count, v.trips, v.mileage, v.last_maintenance, v.inspection_date,  
                        v.insurance_expiry, v.condition, v.image, v.license_plate, v.fuel_efficiency, 
-                       v.location, v.created_at, v.updated_at
+                       COALESCE(s.name, v.location) AS location, v.created_at, v.updated_at
                 FROM vehicles v
+                LEFT JOIN stations s ON v.station_id = s.station_id
                 WHERE v.vehicle_id = @VehicleId";
             
             using var command = new SqlCommand(query, connection);
@@ -80,8 +82,9 @@ namespace EVRentalApi.Infrastructure.Repositories
                        v.max_range_km, v.status, v.price_per_hour, v.price_per_day, v.rating, 
                        v.review_count, v.trips, v.mileage, v.last_maintenance, v.inspection_date,  
                        v.insurance_expiry, v.condition, v.image, v.license_plate, v.fuel_efficiency, 
-                       v.location, v.created_at, v.updated_at
+                       COALESCE(s.name, v.location) AS location, v.created_at, v.updated_at
                 FROM vehicles v
+                LEFT JOIN stations s ON v.station_id = s.station_id
                 WHERE v.status = 'available'
                 ORDER BY v.vehicle_id";
             
@@ -108,8 +111,9 @@ namespace EVRentalApi.Infrastructure.Repositories
                        v.max_range_km, v.status, v.price_per_hour, v.price_per_day, v.rating, 
                        v.review_count, v.trips, v.mileage, v.last_maintenance, v.inspection_date,  
                        v.insurance_expiry, v.condition, v.image, v.license_plate, v.fuel_efficiency, 
-                       v.location, v.created_at, v.updated_at
+                       COALESCE(s.name, v.location) AS location, v.created_at, v.updated_at
                 FROM vehicles v
+                LEFT JOIN stations s ON v.station_id = s.station_id
                 WHERE v.model_id = @ModelId
                 ORDER BY v.vehicle_id";
             
@@ -138,8 +142,9 @@ namespace EVRentalApi.Infrastructure.Repositories
                        v.max_range_km, v.status, v.price_per_hour, v.price_per_day, v.rating, 
                        v.review_count, v.trips, v.mileage, v.last_maintenance, v.inspection_date,  
                        v.insurance_expiry, v.condition, v.image, v.license_plate, v.fuel_efficiency, 
-                       v.location, v.created_at, v.updated_at
+                       COALESCE(s.name, v.location) AS location, v.created_at, v.updated_at
                 FROM vehicles v
+                LEFT JOIN stations s ON v.station_id = s.station_id
                 WHERE v.station_id = @StationId
                 ORDER BY v.vehicle_id";
             

@@ -82,11 +82,66 @@ public class ReservationRepository : IReservationRepository
 
             if (vehicleStatus != "available")
             {
-                return new ReservationResponse
+                // Self-heal: if vehicle shows non-available but has no active reservation, reset it to available
+                try
                 {
-                    Success = false,
-                    Message = $"Vehicle is not available for booking. Current status: {vehicleStatus}"
-                };
+                    var latestReservationSql = @"
+                        SELECT TOP 1 status, start_time, end_time
+                        FROM reservations
+                        WHERE vehicle_id = @VehicleId
+                        ORDER BY created_at DESC";
+                    
+                    using var latestCmd = new SqlCommand(latestReservationSql, connection);
+                    latestCmd.Parameters.AddWithValue("@VehicleId", request.VehicleId);
+                    using var lr = await latestCmd.ExecuteReaderAsync();
+                    bool canReset = false;
+                    if (await lr.ReadAsync())
+                    {
+                        var latestStatus = lr.GetString(0).ToLowerInvariant();
+                        var latestEnd = lr.GetDateTime(2);
+                        // Consider safe to reset if latest reservation is not active anymore
+                        if (latestStatus is "completed" or "cancelled" or "finished" || latestEnd < DateTime.UtcNow.AddMinutes(-1))
+                        {
+                            canReset = true;
+                        }
+                    }
+                    else
+                    {
+                        // No reservations found; safe to reset
+                        canReset = true;
+                    }
+                    await lr.CloseAsync();
+
+                    if (canReset)
+                    {
+                        var resetSql = @"
+                            UPDATE vehicles 
+                            SET status = 'available', updated_at = GETDATE()
+                            WHERE vehicle_id = @VehicleId";
+                        using var resetCmd = new SqlCommand(resetSql, connection);
+                        resetCmd.Parameters.AddWithValue("@VehicleId", request.VehicleId);
+                        var resetRows = await resetCmd.ExecuteNonQueryAsync();
+                        Console.WriteLine($"[Reservation] Self-healed vehicle {request.VehicleId} status -> 'available' (rows={resetRows})");
+
+                        // Recheck status
+                        using var recheckCmd = new SqlCommand(checkAvailabilitySql, connection);
+                        recheckCmd.Parameters.AddWithValue("@VehicleId", request.VehicleId);
+                        vehicleStatus = await recheckCmd.ExecuteScalarAsync() as string;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Reservation] Self-heal check failed: {ex.Message}");
+                }
+
+                if (vehicleStatus != "available")
+                {
+                    return new ReservationResponse
+                    {
+                        Success = false,
+                        Message = $"Vehicle is not available for booking. Current status: {vehicleStatus}"
+                    };
+                }
             }
 
             // Create reservation - SQL Server will auto-generate reservation_id with IDENTITY

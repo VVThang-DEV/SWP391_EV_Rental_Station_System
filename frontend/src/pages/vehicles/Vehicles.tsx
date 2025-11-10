@@ -159,8 +159,8 @@ const Vehicles = () => {
     const station = apiStations?.find(s => s.station_id === apiVehicle.stationId);
     
     return {
-      id: apiVehicle.uniqueVehicleId,
-      vehicleId: apiVehicle.vehicleId, // Add vehicleId for unique keys
+      id: apiVehicle.vehicleId?.toString(),
+      vehicleId: apiVehicle.vehicleId, // Numeric id retained separately
       modelId: apiVehicle.modelId,
       uniqueVehicleId: apiVehicle.uniqueVehicleId,
       licensePlate: apiVehicle.licensePlate || '',
@@ -182,7 +182,8 @@ const Vehicles = () => {
       condition: apiVehicle.condition as any,
       // Use model image if vehicle doesn't have specific image
       image: apiVehicle.image || (model ? model.image : ''),
-      location: apiVehicle.location || station?.city || 'Unknown Location',
+      // Always prefer station name to avoid stale free-text location from DB
+      location: (station ? station.name : undefined) || apiVehicle.location || station?.city || 'Unknown Location',
       stationId: apiVehicle.stationId?.toString() || '1',
       stationName: station ? station.name : 'Unknown Station',
       stationAddress: station ? station.address : '',
@@ -211,15 +212,30 @@ const Vehicles = () => {
   const staticVehicles = getVehicles(language);
   const vehicles = apiVehicles ? apiVehicles.map(mapApiToUI) : staticVehicles;
   
-  // Debug logging
+  // Debug logging - Enhanced to show actual vehicle data
   console.log('=== VEHICLES DEBUG ===');
   console.log('API Vehicles:', apiVehicles?.length);
+  console.log('Mapped Vehicles:', vehicles.length);
   console.log('Search Term:', searchTerm);
   console.log('Location Filter:', locationFilter);
   console.log('Price Range:', priceRange);
   
-  // Check for VF5 vehicles
-  const vf5Vehicles = vehicles.filter(v => v.modelId === 'VF5');
+  // Show all vehicles with their details
+  if (vehicles.length > 0) {
+    console.log('All Vehicles Details:', vehicles.map(v => ({
+      id: v.id,
+      modelId: v.modelId,
+      name: v.name,
+      location: v.location,
+      stationId: v.stationId,
+      stationName: v.stationName,
+      availability: v.availability,
+      pricePerHour: v.pricePerHour
+    })));
+  }
+  
+  // Check for VF5 vehicles (case-insensitive)
+  const vf5Vehicles = vehicles.filter(v => v.modelId && v.modelId.toUpperCase() === 'VF5');
   console.log('VF5 Vehicles found:', vf5Vehicles.length);
   if (vf5Vehicles.length > 0) {
     console.log('VF5 Vehicles details:', vf5Vehicles.map(v => ({
@@ -231,12 +247,25 @@ const Vehicles = () => {
     })));
   }
   
-  // Check District 1 vehicles
-  const district1Vehicles = vehicles.filter(v => v.location && v.location.includes('District 1'));
+  // Check District 1 vehicles (case-insensitive, partial match)
+  const district1Vehicles = vehicles.filter(v => 
+    v.location && (v.location.toLowerCase().includes('district 1') || v.location.toLowerCase().includes('district1'))
+  );
   console.log('District 1 Vehicles found:', district1Vehicles.length);
+  if (district1Vehicles.length > 0) {
+    console.log('District 1 Vehicles details:', district1Vehicles.map(v => ({
+      id: v.id,
+      modelId: v.modelId,
+      location: v.location,
+      stationName: v.stationName
+    })));
+  }
   
   // Check specific VF5 at District 1
-  const vf5District1 = vehicles.filter(v => v.modelId === 'VF5' && v.location && v.location.includes('District 1'));
+  const vf5District1 = vehicles.filter(v => 
+    v.modelId && v.modelId.toUpperCase() === 'VF5' && 
+    v.location && (v.location.toLowerCase().includes('district 1') || v.location.toLowerCase().includes('district1'))
+  );
   console.log('VF5 at District 1:', vf5District1.length);
   if (vf5District1.length > 0) {
     console.log('VF5 District 1 details:', vf5District1[0]);
