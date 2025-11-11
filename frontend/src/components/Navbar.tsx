@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
-import { Bell } from "lucide-react";
+import { Bell, AlertTriangle } from "lucide-react";
 import { incidentStorage } from "@/lib/incident-storage";
 import { staffApiService } from "@/services/api";
 import {
@@ -582,16 +582,33 @@ const CustomerNotificationsButton = () => {
         if (incidentRes.ok) {
           const data = await incidentRes.json();
           const list: any[] = data?.incidents || data?.data?.incidents || [];
-          const normalized: CustomerIncidentItem[] = list.map((i) => ({
-            incidentId: i.incidentId ?? i.id ?? 0,
-            type: i.type || "",
-            description: i.description || "",
-            status: i.status || "reported",
-            reportedAt: i.reportedAt ?? i.createdAt,
-          }));
+          
+          // Get list of read incidents from localStorage
+          let readIncidents: number[] = [];
+          try {
+            readIncidents = JSON.parse(localStorage.getItem('readIncidents') || '[]');
+          } catch {
+            readIncidents = [];
+          }
+          
+          const normalized: CustomerIncidentItem[] = list.map((i) => {
+            const incidentId = i.incidentId ?? i.id ?? 0;
+            return {
+              incidentId,
+              type: i.type || "",
+              description: i.description || "",
+              status: i.status || "reported",
+              reportedAt: i.reportedAt ?? i.createdAt,
+            };
+          });
           setIncidents(normalized);
+          // Only count incidents that are not resolved AND not read
           pendingIncidents = normalized.filter(
-            (i) => (i.status || "reported").toLowerCase() !== "resolved"
+            (i) => {
+              const isResolved = (i.status || "reported").toLowerCase() === "resolved";
+              const isRead = readIncidents.includes(i.incidentId);
+              return !isResolved && !isRead;
+            }
           ).length;
         } else {
           setIncidents([]);
@@ -680,15 +697,21 @@ const CustomerNotificationsButton = () => {
       // Refresh handovers list when a handover is marked as read
       if (isMounted) load();
     };
+    const onIncidentRead = () => {
+      // Refresh incidents list when an incident is marked as read
+      if (isMounted) load();
+    };
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('handoverPaymentSuccess', onPaymentSuccess);
     window.addEventListener('handoverRead', onHandoverRead);
+    window.addEventListener('incidentRead', onIncidentRead);
     return () => {
       isMounted = false;
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('handoverPaymentSuccess', onPaymentSuccess);
       window.removeEventListener('handoverRead', onHandoverRead);
+      window.removeEventListener('incidentRead', onIncidentRead);
     };
   }, []);
 
@@ -713,12 +736,43 @@ const CustomerNotificationsButton = () => {
     return `${Number(value).toLocaleString("vi-VN")} VND`;
   };
 
+  // Mark incidents as read when dropdown is opened
+  const markIncidentsAsRead = () => {
+    try {
+      const readIncidents: number[] = JSON.parse(localStorage.getItem('readIncidents') || '[]');
+      const unreadIncidentIds = incidents
+        .filter(i => {
+          const isResolved = (i.status || "reported").toLowerCase() === "resolved";
+          return !isResolved && !readIncidents.includes(i.incidentId);
+        })
+        .map(i => i.incidentId);
+      
+      if (unreadIncidentIds.length > 0) {
+        const updated = [...new Set([...readIncidents, ...unreadIncidentIds])];
+        localStorage.setItem('readIncidents', JSON.stringify(updated));
+        // Trigger refresh
+        window.dispatchEvent(new CustomEvent('incidentRead'));
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleToggleOpen = () => {
+    const newOpen = !isOpen;
+    setIsOpen(newOpen);
+    if (newOpen) {
+      // Mark all visible incidents as read when opening
+      markIncidentsAsRead();
+    }
+  };
+
   return (
     <div className="relative">
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={handleToggleOpen}
         aria-label={`Incident notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
       >
         <Bell className="h-5 w-5" />
@@ -811,10 +865,13 @@ const CustomerNotificationsButton = () => {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <div className={`text-sm truncate ${isUnread ? "font-bold" : "font-medium"}`}>
+                            <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? "font-bold" : "font-medium"}`}>
                               {it.vehicleLabel || `Return #${it.handoverId}`}
                               {isUnread && (
-                                <span className="ml-2 inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                                <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                              )}
+                              {remaining > 0 && (
+                                <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" title="Chưa thanh toán đầy đủ" />
                               )}
                             </div>
                             <div className="text-[11px] text-muted-foreground mb-1">
@@ -847,7 +904,12 @@ const CustomerNotificationsButton = () => {
                             </div>
                           </div>
                           <div className="text-right text-xs">
-                            <div className={isUnread ? "text-foreground font-medium" : "text-muted-foreground"}>Remaining</div>
+                            <div className={`flex items-center justify-end gap-1 ${isUnread ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                              Remaining
+                              {remaining > 0 && (
+                                <AlertTriangle className="h-3 w-3 text-amber-500" title="Chưa thanh toán đầy đủ" />
+                              )}
+                            </div>
                             <div className={`${isUnread ? "font-bold" : "font-semibold"} ${remaining > 0 ? "text-destructive" : "text-emerald-600"}`}>
                               {formatCurrency(remaining)}
                             </div>
