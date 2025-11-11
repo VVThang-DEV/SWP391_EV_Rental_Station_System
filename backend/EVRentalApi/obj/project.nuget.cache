@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "+MXqbCzWmQI=",
+  "dgSpecHash": "1qmHMxi0bC4=",
   "success": true,
-  "projectFilePath": "E:\\New folder (2)\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
+  "projectFilePath": "D:\\SWP391_25\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\songn\\.nuget\\packages\\azure.core\\1.25.0\\azure.core.1.25.0.nupkg.sha512",
     "C:\\Users\\songn\\.nuget\\packages\\azure.identity\\1.7.0\\azure.identity.1.7.0.nupkg.sha512",
@@ -47,9 +47,9 @@
       "code": "NU1903",
       "level": "Warning",
       "message": "Package 'Microsoft.Data.SqlClient' 5.1.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-98g6-xh36-x2p7",
-      "projectPath": "E:\\New folder (2)\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
+      "projectPath": "D:\\SWP391_25\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
       "warningLevel": 1,
-      "filePath": "E:\\New folder (2)\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
+      "filePath": "D:\\SWP391_25\\SWP391_EV_Rental_Station_System\\backend\\EVRentalApi\\EVRentalApi.csproj",
       "libraryId": "Microsoft.Data.SqlClient",
       "targetGraphs": [
         "net9.0"

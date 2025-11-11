@@ -466,6 +466,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     notes: "",
     damages: [] as string[],
   });
+  const [inspectionImages, setInspectionImages] = useState<File[]>([]);
+  const [inspectionImagePreviews, setInspectionImagePreviews] = useState<string[]>([]);
+  const [isSendingImages, setIsSendingImages] = useState(false);
 
   // Vehicle Return Checkout state
   const [isReturnCheckoutOpen, setIsReturnCheckoutOpen] = useState(false);
@@ -483,6 +486,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     damageImages: [] as { file: File; preview: string; url?: string }[],
     otherDamageAmount: 0, // Custom amount for "Other damages"
   });
+  const [returnInspectionImages, setReturnInspectionImages] = useState<File[]>([]);
+  const [returnInspectionImagePreviews, setReturnInspectionImagePreviews] = useState<string[]>([]);
   const [returnTimeStatus, setReturnTimeStatus] = useState<"early" | "on_time" | "late">("on_time");
   const [lateHours, setLateHours] = useState<number>(0);
   const [returnFeeCalculation, setReturnFeeCalculation] = useState({
@@ -1414,6 +1419,137 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }));
   };
 
+  // Image upload handlers for Post-Rental Inspection
+  const handleInspectionImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    setInspectionImages(prev => [...prev, ...imageFiles]);
+
+    // Create previews
+    imageFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setInspectionImagePreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveInspectionImage = (index: number) => {
+    setInspectionImages(prev => prev.filter((_, i) => i !== index));
+    setInspectionImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSendInspectionImagesToCustomer = async () => {
+    if (inspectionImages.length === 0) {
+      toast({
+        title: "No Images",
+        description: "Please upload at least one image to send",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Try to find customer email from reservations
+    let customerEmail = "";
+    let reservationId: string | null = null;
+
+    if (inspectingVehicleId) {
+      // Find reservation for this vehicle
+      const relatedReservation = reservations.find(
+        (r: any) => r.vehicleId?.toString() === inspectingVehicleId && 
+        (r.status === "active" || r.status === "completed" || r.status === "returned")
+      );
+      
+      if (relatedReservation?.customerEmail) {
+        customerEmail = relatedReservation.customerEmail;
+        reservationId = relatedReservation.reservationId?.toString() || null;
+      }
+    }
+
+    // If no email found, prompt user
+    if (!customerEmail) {
+      const emailInput = prompt("Please enter customer email:");
+      if (!emailInput) return;
+      customerEmail = emailInput;
+    }
+
+    setIsSendingImages(true);
+    try {
+      const formData = new FormData();
+      inspectionImages.forEach((file) => {
+        formData.append("files", file);
+      });
+      formData.append("customerEmail", customerEmail);
+      if (inspectingVehicleId) {
+        formData.append("vehicleId", inspectingVehicleId);
+      }
+      if (reservationId) {
+        formData.append("reservationId", reservationId);
+      }
+      if (inspectionData.notes) {
+        formData.append("inspectionNotes", inspectionData.notes);
+      }
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/documents/upload-inspection-images`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast({
+          title: "Images Sent Successfully",
+          description: `Inspection images have been sent to ${customerEmail}`,
+        });
+        // Clear images after sending
+        setInspectionImages([]);
+        setInspectionImagePreviews([]);
+      } else {
+        throw new Error(data.message || "Failed to send images");
+      }
+    } catch (error) {
+      console.error("Error sending images:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send images to customer",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingImages(false);
+    }
+  };
+
+  // Image upload handlers for Return Checkout Inspection
+  const handleReturnInspectionImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    setReturnInspectionImages(prev => [...prev, ...imageFiles]);
+
+    // Create previews
+    imageFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReturnInspectionImagePreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveReturnInspectionImage = (index: number) => {
+    setReturnInspectionImages(prev => prev.filter((_, i) => i !== index));
+    setReturnInspectionImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+
   // Vehicle Return Checkout Functions
   // Damage pricing table (VNĐ)
   const damagePricing: Record<string, number> = {
@@ -1710,9 +1846,40 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
 
     try {
+      // Step 0: Lưu biên bản handover (return) để ghi nhận tình trạng và phí
+      try {
+        await staffApiService.recordHandover({
+          reservationId: selectedReturnBooking.reservationId,
+          rentalId: (selectedReturnBooking as any).rentalId || undefined,
+          type: "return",
+          conditionNotes: returnInspectionData.notes || undefined,
+          imageUrlList: undefined, // TODO: nối với upload ảnh nếu có
+          returnTimeStatus: returnTimeStatus as any,
+          lateHours: returnTimeStatus === "late" ? lateHours : 0,
+          batteryLevel: returnInspectionData.batteryLevel,
+          mileage: returnInspectionData.mileage,
+          exteriorCondition: returnInspectionData.exteriorCondition,
+          interiorCondition: returnInspectionData.interiorCondition,
+          tiresCondition: returnInspectionData.tiresCondition,
+          damagesList: returnInspectionData.damages,
+          lateFee: returnFeeCalculation.lateFee,
+          damageFee: returnFeeCalculation.damageFee + returnFeeCalculation.additionalCharges,
+          totalDue: (returnFeeCalculation.lateFee || 0) + (returnFeeCalculation.damageFee || 0) + (returnFeeCalculation.additionalCharges || 0),
+          depositRefund: 0
+        });
+      } catch (handoverErr: any) {
+        console.error("Failed to save handover:", handoverErr);
+        // Không chặn quy trình trả xe, chỉ cảnh báo
+        toast({
+          title: "⚠️ Không lưu được biên bản",
+          description: handoverErr?.message || "Đã xảy ra lỗi khi lưu biên bản bàn giao",
+          variant: "destructive",
+          duration: 4000,
+        });
+      }
+
       // Step 1: Deduct late fee from customer wallet FIRST (before updating vehicle)
       let walletDeductResult = null;
-      let damageWalletDeductResult = null;
       let allDeductionsSuccessful = true;
       
       if (returnTimeStatus === "late" && returnFeeCalculation.lateFee > 0) {
@@ -1739,55 +1906,10 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         }
       }
 
-      // Step 2: Note damage fees (payment will be handled separately)
+      // Step 2: Handle damage fees (always cash payment)
       if (hasDamageFees) {
-        console.log(`Damage fees calculated: ${totalDamageFees.toLocaleString("vi-VN")} VND. Payment will be handled separately.`);
-      }
-
-      // Step 3: Upload damage images if any
-      const uploadedImageUrls: string[] = [];
-      if (returnInspectionData.damageImages.length > 0) {
-        try {
-          // Get user email - try to fetch from booking or use a placeholder
-          const userEmail = selectedReturnBooking.userEmail || selectedReturnBooking.email || `user_${selectedReturnBooking.userId}@temp.com`;
-          
-          for (const image of returnInspectionData.damageImages) {
-            const formData = new FormData();
-            formData.append("file", image.file);
-            formData.append("email", userEmail);
-            formData.append("documentType", `vehicle_return_damage_${selectedReturnBooking.reservationId}`);
-
-            const uploadResponse = await fetch(
-              "http://localhost:5000/api/documents/upload-document",
-              {
-                method: "POST",
-                body: formData,
-              }
-            );
-
-            if (uploadResponse.ok) {
-              const result = await uploadResponse.json();
-              if (result.fileUrl) {
-                uploadedImageUrls.push(result.fileUrl);
-                console.log(`✅ Damage image uploaded: ${result.fileUrl}`);
-              }
-            } else {
-              console.warn(`⚠️ Failed to upload damage image: ${image.file.name}`);
-            }
-          }
-
-          if (uploadedImageUrls.length > 0) {
-            console.log(`✅ Uploaded ${uploadedImageUrls.length} damage image(s)`);
-          }
-        } catch (imageUploadError: any) {
-          console.error("Error uploading damage images:", imageUploadError);
-          toast({
-            title: "⚠️ Warning",
-            description: "Một số ảnh hư hỏng không thể tải lên, nhưng quá trình trả xe vẫn tiếp tục.",
-            variant: "destructive",
-            duration: 5000,
-          });
-        }
+        // Damage fees will be paid in cash
+        console.log("Damage fees will be paid in cash");
       }
 
       // Step 4: Determine vehicle status based on damages and return time
@@ -1837,6 +1959,45 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         });
       }
 
+      // Step 6: Send inspection images to customer if any images were uploaded
+      if (returnInspectionImages.length > 0 && selectedReturnBooking.customerEmail) {
+        try {
+          const formData = new FormData();
+          returnInspectionImages.forEach((file) => {
+            formData.append("files", file);
+          });
+          formData.append("customerEmail", selectedReturnBooking.customerEmail);
+          if (selectedReturnBooking.reservationId) {
+            formData.append("reservationId", selectedReturnBooking.reservationId.toString());
+          }
+          if (selectedReturnBooking.vehicleId) {
+            formData.append("vehicleId", selectedReturnBooking.vehicleId.toString());
+          }
+          if (returnInspectionData.notes) {
+            formData.append("inspectionNotes", returnInspectionData.notes);
+          }
+
+          const token = localStorage.getItem("token");
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/documents/upload-inspection-images`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            console.log(`✅ Inspection images sent to ${selectedReturnBooking.customerEmail}`);
+          } else {
+            console.error("Failed to send inspection images:", data.message);
+          }
+        } catch (imageError) {
+          console.error("Error sending inspection images:", imageError);
+          // Don't fail the return process if image sending fails
+        }
+      }
+
       const lateFeeMessage = returnTimeStatus === "late" && returnFeeCalculation.lateFee > 0
         ? ` Phí trễ giờ: ${returnFeeCalculation.lateFee.toLocaleString("vi-VN")} VND (${lateHours} giờ × ${(() => {
             const vehicle = apiVehicles?.find((v) => v.vehicleId === selectedReturnBooking.vehicleId);
@@ -1845,7 +2006,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         : "";
 
       const damageFeeMessage = hasDamageFees
-        ? ` Phí hư hỏng: ${totalDamageFees.toLocaleString("vi-VN")} VND.`
+        ? ` Phí hư hỏng: ${totalDamageFees.toLocaleString("vi-VN")} VND - Thanh toán bằng tiền mặt.`
         : "";
 
       const statusMessage = hasDamages
@@ -1895,6 +2056,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         damageImages: [],
         otherDamageAmount: 0,
       });
+      setReturnInspectionImages([]);
+      setReturnInspectionImagePreviews([]);
     } catch (error) {
       console.error("Return checkout error:", error);
       toast({
@@ -3189,6 +3352,63 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
               />
             </div>
 
+            {/* Image Upload Section */}
+            <div className="space-y-3">
+              <Label>Inspection Images (Optional)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleInspectionImageChange}
+                  className="flex-1"
+                />
+                {inspectionImages.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendInspectionImagesToCustomer}
+                    disabled={isSendingImages}
+                  >
+                    {isSendingImages ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Send to Customer
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+              
+              {/* Image Previews */}
+              {inspectionImagePreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {inspectionImagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`Inspection ${index + 1}`}
+                        className="w-full h-24 object-cover rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveInspectionImage(index)}
+                        className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Actions */}
             <div className="flex justify-end space-x-2 pt-4 border-t">
               <Button
@@ -3196,6 +3416,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                 onClick={() => {
                   setIsPostRentalInspectionOpen(false);
                   setInspectingVehicleId(null);
+                  setInspectionImages([]);
+                  setInspectionImagePreviews([]);
                 }}
               >
                 Cancel
@@ -5756,98 +5978,42 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                     </div>
                   </div>
 
-                  {/* Damage Images Upload */}
-                  <div>
-                    <Label>Ảnh hư hỏng (nếu có)</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Tải ảnh để ghi nhận các hư hỏng như trầy xước, vết lõm, v.v.
-                    </p>
+                  {/* Image Upload Section */}
+                  <div className="space-y-3">
+                    <Label>Inspection Images (Optional)</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReturnInspectionImageChange}
+                      className="w-full"
+                    />
                     
-                    {/* Upload Area */}
-                    <div
-                      className="border-2 border-dashed rounded-lg p-4 text-center transition-colors hover:border-primary/50 border-muted-foreground/25"
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onDragEnter={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.currentTarget.classList.add("border-primary", "bg-primary/5");
-                      }}
-                      onDragLeave={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.currentTarget.classList.remove("border-primary", "bg-primary/5");
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.currentTarget.classList.remove("border-primary", "bg-primary/5");
-                        const files = e.dataTransfer.files;
-                        if (files && files.length > 0) {
-                          const fakeEvent = {
-                            target: { files, value: "" },
-                          } as React.ChangeEvent<HTMLInputElement>;
-                          handleAddDamageImage(fakeEvent);
-                        }
-                      }}
-                    >
-                      <div className="space-y-2">
-                        <Camera className="h-8 w-8 mx-auto text-muted-foreground" />
-                        <div>
-                          <Label htmlFor="damageImageUpload" className="cursor-pointer">
-                            <span className="text-sm font-medium text-primary hover:underline">
-                              Click để chọn ảnh hoặc kéo thả ảnh vào đây
-                            </span>
-                          </Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Hỗ trợ: JPG, PNG (tối đa 5MB mỗi ảnh)
-                          </p>
-                        </div>
-                        <input
-                          id="damageImageUpload"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleAddDamageImage}
-                          className="hidden"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Uploaded Images Preview */}
-                    {returnInspectionData.damageImages.length > 0 && (
-                      <div className="mt-4">
-                        <Label className="text-sm font-medium mb-2 block">
-                          Ảnh đã tải ({returnInspectionData.damageImages.length})
-                        </Label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          {returnInspectionData.damageImages.map((image, index) => (
-                            <div
-                              key={index}
-                              className="relative group border rounded-lg overflow-hidden bg-muted"
+                    {/* Image Previews */}
+                    {returnInspectionImagePreviews.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        {returnInspectionImagePreviews.map((preview, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={preview}
+                              alt={`Inspection ${index + 1}`}
+                              className="w-full h-24 object-cover rounded border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveReturnInspectionImage(index)}
+                              className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
-                              <img
-                                src={image.preview}
-                                alt={`Damage ${index + 1}`}
-                                className="w-full h-32 object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveDamageImage(index)}
-                                className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
-                                title="Xóa ảnh"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
-                                {image.file.name}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
+                    )}
+                    {returnInspectionImages.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Hình ảnh sẽ được gửi tự động cho khách hàng khi hoàn tất trả xe
+                      </p>
                     )}
                   </div>
 
@@ -5944,6 +6110,8 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   damageImages: [],
                   otherDamageAmount: 0,
                 });
+                setReturnInspectionImages([]);
+                setReturnInspectionImagePreviews([]);
               }}
             >
               Cancel

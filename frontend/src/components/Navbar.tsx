@@ -19,9 +19,15 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/contexts/TranslationContext";
-import { Bell } from "lucide-react";
+import { Bell, AlertTriangle } from "lucide-react";
 import { incidentStorage } from "@/lib/incident-storage";
 import { staffApiService } from "@/services/api";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 interface NavbarProps {
   user?: {
@@ -510,10 +516,36 @@ interface CustomerIncidentItem {
   reportedAt?: string;
 }
 
+interface CustomerHandoverItem {
+  handoverId: number;
+  reservationId?: number | null;
+  rentalId?: number | null;
+  type: string;
+  createdAt?: string;
+  returnTimeStatus?: string | null;
+  lateHours?: number | null;
+  batteryLevel?: number | null;
+  mileage?: number | null;
+  lateFee?: number | null;
+  damageFee?: number | null;
+  totalDue?: number | null;
+  damages?: string[] | null;
+  vehicleLabel?: string;
+  remainingDue?: number | null;
+  isRead?: boolean; // Track if customer has viewed this handover
+}
+
 const CustomerNotificationsButton = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [incidents, setIncidents] = useState<CustomerIncidentItem[]>([]);
+  const [handovers, setHandovers] = useState<CustomerHandoverItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [incidentPendingCount, setIncidentPendingCount] = useState(0);
+  const [handoverAttentionCount, setHandoverAttentionCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<"incidents" | "handovers">(
+    "incidents"
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -524,38 +556,131 @@ const CustomerNotificationsButton = () => {
         if (!token) {
           if (isMounted) {
             setIncidents([]);
+            setHandovers([]);
+            setIncidentPendingCount(0);
+            setHandoverAttentionCount(0);
             setUnreadCount(0);
           }
           return;
         }
-        const res = await fetch('http://localhost:5000/api/incidents/user', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        };
+
+        const [incidentRes, handoverRes] = await Promise.all([
+          fetch("http://localhost:5000/api/incidents/user", { headers }),
+          fetch("http://localhost:5000/api/handovers/my", { headers }),
+        ]);
+
         if (!isMounted) return;
-        if (res.ok) {
-          const data = await res.json();
+
+        let pendingIncidents = 0;
+        let attentionHandovers = 0;
+
+        if (incidentRes.ok) {
+          const data = await incidentRes.json();
           const list: any[] = data?.incidents || data?.data?.incidents || [];
-          const normalized: CustomerIncidentItem[] = list.map((i) => ({
-            incidentId: i.incidentId ?? i.id ?? 0,
-            type: i.type || '',
-            description: i.description || '',
-            status: (i.status || 'reported'),
-            reportedAt: i.reportedAt,
-          }));
+          
+          // Get list of read incidents from localStorage
+          let readIncidents: number[] = [];
+          try {
+            readIncidents = JSON.parse(localStorage.getItem('readIncidents') || '[]');
+          } catch {
+            readIncidents = [];
+          }
+          
+          const normalized: CustomerIncidentItem[] = list.map((i) => {
+            const incidentId = i.incidentId ?? i.id ?? 0;
+            return {
+              incidentId,
+              type: i.type || "",
+              description: i.description || "",
+              status: i.status || "reported",
+              reportedAt: i.reportedAt ?? i.createdAt,
+            };
+          });
           setIncidents(normalized);
-          const pending = normalized.filter((i) => (i.status || 'reported') !== 'resolved').length;
-          setUnreadCount(pending);
-          return;
+          // Only count incidents that are not resolved AND not read
+          pendingIncidents = normalized.filter(
+            (i) => {
+              const isResolved = (i.status || "reported").toLowerCase() === "resolved";
+              const isRead = readIncidents.includes(i.incidentId);
+              return !isResolved && !isRead;
+            }
+          ).length;
+        } else {
+          setIncidents([]);
         }
+
+        if (handoverRes.ok) {
+          const data = await handoverRes.json();
+          const list: any[] = data?.handovers || data?.data?.handovers || [];
+          
+          // Get list of read handovers from localStorage
+          let readHandovers: number[] = [];
+          try {
+            readHandovers = JSON.parse(localStorage.getItem('readHandovers') || '[]');
+          } catch {
+            readHandovers = [];
+          }
+          
+          const normalized: CustomerHandoverItem[] = list.map((h) => {
+            let damages: string[] | null = null;
+            if (Array.isArray(h.damages)) {
+              damages = h.damages.filter((d: any) => typeof d === "string");
+            } else if (typeof h.damages === "string" && h.damages.trim().length > 0) {
+              damages = [h.damages];
+            }
+            const handoverId = h.handoverId ?? h.handoverID ?? h.id ?? 0;
+            const remaining = toNumberOrNull(h.remainingDue) ?? toNumberOrNull(h.totalDue) ?? 0;
+            const isRead = readHandovers.includes(handoverId);
+            
+            return {
+              handoverId,
+              reservationId: h.reservationId ?? h.reservationID ?? null,
+              rentalId: h.rentalId ?? h.rentalID ?? null,
+              type: h.type || "return",
+              createdAt: h.createdAt,
+              returnTimeStatus: h.returnTimeStatus,
+              lateHours: h.lateHours,
+              batteryLevel: h.batteryLevel,
+              mileage: h.mileage,
+              lateFee: toNumberOrNull(h.lateFee),
+              damageFee: toNumberOrNull(h.damageFee),
+              totalDue: toNumberOrNull(h.totalDue),
+              damages,
+              vehicleLabel:
+                h.vehicleLabel ||
+                (h.reservationId ? `Reservation #${h.reservationId}` : undefined),
+              remainingDue: remaining,
+              isRead,
+            };
+          });
+          setHandovers(normalized);
+          // Count handovers that are unread (not viewed by customer)
+          // Hiển thị badge cho tất cả handover chưa đọc, không chỉ những cái có phí
+          attentionHandovers = normalized.filter((h) => {
+            return !h.isRead; // Unread = chưa được customer xem
+          }).length;
+        } else {
+          setHandovers([]);
+        }
+
+        setIncidentPendingCount(pendingIncidents);
+        setHandoverAttentionCount(attentionHandovers);
+        setUnreadCount(pendingIncidents + attentionHandovers);
       } catch {
         // ignore
-      }
-      if (isMounted) {
-        setIncidents([]);
-        setUnreadCount(0);
+        if (isMounted) {
+          setIncidents([]);
+          setHandovers([]);
+          setIncidentPendingCount(0);
+          setHandoverAttentionCount(0);
+          setUnreadCount(0);
+        }
+        return;
       }
     };
 
@@ -564,11 +689,29 @@ const CustomerNotificationsButton = () => {
     const onVis = () => {
       if (document.visibilityState === 'visible') load();
     };
+    const onPaymentSuccess = () => {
+      // Refresh handovers list when payment is successful
+      if (isMounted) load();
+    };
+    const onHandoverRead = () => {
+      // Refresh handovers list when a handover is marked as read
+      if (isMounted) load();
+    };
+    const onIncidentRead = () => {
+      // Refresh incidents list when an incident is marked as read
+      if (isMounted) load();
+    };
     document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('handoverPaymentSuccess', onPaymentSuccess);
+    window.addEventListener('handoverRead', onHandoverRead);
+    window.addEventListener('incidentRead', onIncidentRead);
     return () => {
       isMounted = false;
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('handoverPaymentSuccess', onPaymentSuccess);
+      window.removeEventListener('handoverRead', onHandoverRead);
+      window.removeEventListener('incidentRead', onIncidentRead);
     };
   }, []);
 
@@ -588,12 +731,48 @@ const CustomerNotificationsButton = () => {
     return 'text-muted-foreground bg-secondary';
   };
 
+  const formatCurrency = (value?: number | null) => {
+    if (value == null || Number.isNaN(value)) return "0 VND";
+    return `${Number(value).toLocaleString("vi-VN")} VND`;
+  };
+
+  // Mark incidents as read when dropdown is opened
+  const markIncidentsAsRead = () => {
+    try {
+      const readIncidents: number[] = JSON.parse(localStorage.getItem('readIncidents') || '[]');
+      const unreadIncidentIds = incidents
+        .filter(i => {
+          const isResolved = (i.status || "reported").toLowerCase() === "resolved";
+          return !isResolved && !readIncidents.includes(i.incidentId);
+        })
+        .map(i => i.incidentId);
+      
+      if (unreadIncidentIds.length > 0) {
+        const updated = [...new Set([...readIncidents, ...unreadIncidentIds])];
+        localStorage.setItem('readIncidents', JSON.stringify(updated));
+        // Trigger refresh
+        window.dispatchEvent(new CustomEvent('incidentRead'));
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleToggleOpen = () => {
+    const newOpen = !isOpen;
+    setIsOpen(newOpen);
+    if (newOpen) {
+      // Mark all visible incidents as read when opening
+      markIncidentsAsRead();
+    }
+  };
+
   return (
     <div className="relative">
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={handleToggleOpen}
         aria-label={`Incident notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
       >
         <Bell className="h-5 w-5" />
@@ -605,35 +784,158 @@ const CustomerNotificationsButton = () => {
       )}
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-md shadow-lg z-50">
-          <div className="p-3 border-b border-border">
-            <div className="text-sm font-medium">Incident Updates</div>
-            <div className="text-xs text-muted-foreground">Status from staff about your reports</div>
-          </div>
-          <div className="max-h-80 overflow-auto">
-            {incidents.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground">No incidents yet</div>
-            ) : (
-              incidents.slice(0, 10).map((it) => (
-                <div key={it.incidentId} className="p-3 border-b border-border last:border-b-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium truncate">{it.type || 'Incident'}</div>
-                      <div className="text-xs text-muted-foreground line-clamp-2">{it.description}</div>
+        <div className="absolute right-0 mt-2 w-96 bg-popover border border-border rounded-md shadow-lg z-50">
+          <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "incidents" | "handovers")}>
+            <div className="p-3 border-b border-border">
+              <div className="text-sm font-medium">Notifications</div>
+              <div className="text-xs text-muted-foreground">
+                Updates about incidents and vehicle inspections
+              </div>
+            </div>
+            <TabsList className="grid w-full grid-cols-2 px-3 pt-3 gap-2">
+              <TabsTrigger value="incidents">
+                Incidents
+                {incidentPendingCount > 0 && (
+                  <span className="ml-2 rounded-full bg-yellow-100 text-yellow-700 text-[11px] px-2 py-0.5">
+                    {incidentPendingCount}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="handovers">
+                Returns
+                {handoverAttentionCount > 0 && (
+                  <span className="ml-2 rounded-full bg-red-500 text-white text-[11px] px-2 py-0.5 font-semibold">
+                    {handoverAttentionCount}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="incidents">
+              <div className="max-h-80 overflow-auto">
+                {incidents.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">No incident updates yet</div>
+                ) : (
+                  incidents.slice(0, 10).map((it) => (
+                    <div key={it.incidentId} className="p-3 border-b border-border last:border-b-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium truncate">{it.type || 'Incident'}</div>
+                          <div className="text-xs text-muted-foreground line-clamp-2">
+                            {it.description || 'No description'}
+                          </div>
+                          {it.reportedAt && (
+                            <div className="text-[11px] text-muted-foreground mt-1">
+                              Reported at {new Date(it.reportedAt).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${statusClass(it.status)}`}>
+                          {statusLabel(it.status)}
+                        </span>
+                      </div>
                     </div>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${statusClass(it.status)}`}>
-                      {statusLabel(it.status)}
-                    </span>
+                  ))
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="handovers">
+              <div className="max-h-80 overflow-auto">
+                {handovers.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">
+                    No return inspections recorded yet
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="p-2 flex justify-end">
-            <Button size="sm" variant="outline" onClick={() => setIsOpen(false)}>Close</Button>
+                ) : (
+                  handovers.slice(0, 10).map((it) => {
+                    const totalDue =
+                      it.totalDue ?? (it.damageFee ?? 0) + (it.lateFee ?? 0);
+                    const remaining = it.remainingDue ?? totalDue;
+                    // Unread = chưa được customer xem (bất kể có phí hay không)
+                    const isUnread = !it.isRead;
+                    const returnStatus = (it.returnTimeStatus || "").replace("_", " ");
+                    return (
+                      <button
+                        key={it.handoverId}
+                        className={`w-full text-left p-3 border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors ${
+                          isUnread ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
+                        }`}
+                        onClick={() => {
+                          setIsOpen(false);
+                          navigate(`/returns/${it.handoverId}`);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className={`text-sm truncate flex items-center gap-1 ${isUnread ? "font-bold" : "font-medium"}`}>
+                              {it.vehicleLabel || `Return #${it.handoverId}`}
+                              {isUnread && (
+                                <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                              )}
+                              {remaining > 0 && (
+                                <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" title="Chưa thanh toán đầy đủ" />
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mb-1">
+                              {it.createdAt
+                                ? new Date(it.createdAt).toLocaleString()
+                                : ""}
+                              {returnStatus ? ` • ${returnStatus}` : ""}
+                            </div>
+                            <div className={`text-xs space-y-1 ${isUnread ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                              <div>
+                                Battery: {it.batteryLevel ?? "--"}% • Mileage:{" "}
+                                {it.mileage?.toLocaleString("vi-VN") ?? "--"} km
+                              </div>
+                              <div>
+                                Late fee: {formatCurrency(it.lateFee)} • Damage fee:{" "}
+                                {formatCurrency(it.damageFee)}
+                              </div>
+                              {it.damages && it.damages.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {it.damages.map((dmg, idx) => (
+                                    <span
+                                      key={`${it.handoverId}-dmg-${idx}`}
+                                      className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700"
+                                    >
+                                      {dmg}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right text-xs">
+                            <div className={`flex items-center justify-end gap-1 ${isUnread ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                              Remaining
+                              {remaining > 0 && (
+                                <AlertTriangle className="h-3 w-3 text-amber-500" title="Chưa thanh toán đầy đủ" />
+                              )}
+                            </div>
+                            <div className={`${isUnread ? "font-bold" : "font-semibold"} ${remaining > 0 ? "text-destructive" : "text-emerald-600"}`}>
+                              {formatCurrency(remaining)}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+          <div className="p-2 flex justify-end border-t border-border">
+            <Button size="sm" variant="outline" onClick={() => setIsOpen(false)}>
+              Close
+            </Button>
           </div>
         </div>
       )}
     </div>
   );
 };
+
+function toNumberOrNull(input: any): number | null {
+  if (input == null) return null;
+  const num = typeof input === "number" ? input : Number(input);
+  if (Number.isNaN(num)) return null;
+  return num;
+}

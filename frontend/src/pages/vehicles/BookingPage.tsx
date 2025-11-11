@@ -26,7 +26,7 @@ import { useTranslation } from "@/contexts/TranslationContext";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 import { getVehicleById } from "@/data/vehicles";
 import PaymentSystem from "@/components/PaymentSystem";
-import { useVehicles } from "@/hooks/useApi";
+import { useVehicles, useStations } from "@/hooks/useApi";
 import {
   PageTransition,
   FadeIn,
@@ -69,6 +69,7 @@ const BookingPage = () => {
 
   // Use API data with fallback to static data
   const { data: apiVehicles, loading: vehiclesLoading } = useVehicles();
+  const { data: apiStations } = useStations();
   const staticVehicle = id ? getVehicleById(id) : null;
 
   // ⚠️ VALIDATION: Check if user has active booking before allowing new booking
@@ -119,62 +120,107 @@ const BookingPage = () => {
     apiVehicles?.map((v) => ({
       vehicleId: v.vehicleId,
       uniqueVehicleId: v.uniqueVehicleId,
+      modelId: v.modelId,
     }))
   );
 
-  // First try to find by uniqueVehicleId matching the id
+  // ✅ FIX: First try to find by uniqueVehicleId matching the id (primary method)
   let apiVehicle = apiVehicles?.find((v) => v.uniqueVehicleId === id);
+  
+  console.log("[BookingPage] First search result (by uniqueVehicleId):", apiVehicle ? {
+    vehicleId: apiVehicle.vehicleId,
+    uniqueVehicleId: apiVehicle.uniqueVehicleId,
+    modelId: apiVehicle.modelId
+  } : "NOT FOUND");
 
-  // If not found, try to find by matching with static data
-  if (!apiVehicle && staticVehicle) {
-    console.log(
-      "[BookingPage] Not found by uniqueVehicleId, trying to match with static data"
-    );
-    console.log(
-      "[BookingPage] Static vehicle uniqueVehicleId:",
-      staticVehicle.uniqueVehicleId
-    );
-    apiVehicle = apiVehicles?.find(
-      (v) => v.uniqueVehicleId === staticVehicle.uniqueVehicleId
-    );
+  // ✅ FIX: If not found, try to find by vehicleId (fallback)
+  if (!apiVehicle && id) {
+    const vehicleIdNum = parseInt(id, 10);
+    if (!isNaN(vehicleIdNum)) {
+      apiVehicle = apiVehicles?.find((v) => v.vehicleId === vehicleIdNum);
+      console.log("[BookingPage] Second search result (by vehicleId):", apiVehicle ? {
+        vehicleId: apiVehicle.vehicleId,
+        uniqueVehicleId: apiVehicle.uniqueVehicleId,
+        modelId: apiVehicle.modelId
+      } : "NOT FOUND");
+    }
   }
 
-  console.log("[BookingPage] Found apiVehicle:", apiVehicle);
-  const vehicle = apiVehicle
+  // ✅ FIX: Only use staticVehicle as last resort, and validate it matches the ID
+  let finalVehicle = null;
+  if (apiVehicle) {
+    // Use API vehicle - this is the correct source
+    finalVehicle = apiVehicle;
+    console.log("[BookingPage] ✅ Using API vehicle:", {
+      vehicleId: apiVehicle.vehicleId,
+      uniqueVehicleId: apiVehicle.uniqueVehicleId,
+      modelId: apiVehicle.modelId
+    });
+  } else if (staticVehicle && (staticVehicle.id === id || staticVehicle.uniqueVehicleId === id)) {
+    // Only use staticVehicle if it matches the ID from URL
+    finalVehicle = staticVehicle;
+    console.log("[BookingPage] ⚠️ Using static vehicle (no API match, but ID matches):", {
+      id: staticVehicle.id,
+      uniqueVehicleId: staticVehicle.uniqueVehicleId,
+      modelId: staticVehicle.modelId
+    });
+  } else {
+    console.error("[BookingPage] ❌ Vehicle not found for id:", id);
+    console.error("[BookingPage] Available IDs in API:", apiVehicles?.map(v => ({
+      uniqueVehicleId: v.uniqueVehicleId,
+      vehicleId: v.vehicleId,
+      modelId: v.modelId
+    })));
+    if (staticVehicle) {
+      console.error("[BookingPage] Static vehicle found but ID mismatch:", {
+        staticId: staticVehicle.id,
+        staticUniqueId: staticVehicle.uniqueVehicleId,
+        urlId: id
+      });
+    }
+  }
+
+  const stationNameFromApi = finalVehicle && 'stationId' in finalVehicle
+    ? (apiStations?.find((s: any) => (s.stationId ?? s.station_id) === (finalVehicle as any).stationId)?.name ||
+       (finalVehicle as any).location ||
+       "Unknown Station")
+    : undefined;
+    
+  const vehicle = finalVehicle && 'uniqueVehicleId' in finalVehicle && finalVehicle.uniqueVehicleId
     ? {
       // Map API data to expected format
-      id: apiVehicle.uniqueVehicleId,
-      name: `${apiVehicle.modelId} Vehicle`,
+      id: (finalVehicle as any).uniqueVehicleId,
+      name: `${(finalVehicle as any).modelId} Vehicle`,
       brand: "VinFast",
-      model: apiVehicle.modelId,
+      model: (finalVehicle as any).modelId,
       type: "Scooter",
       year: 2024,
       seats: 2,
-      range: apiVehicle.maxRangeKm,
-      batteryLevel: apiVehicle.batteryLevel,
-      pricePerHour: apiVehicle.pricePerHour,
-      pricePerDay: apiVehicle.pricePerDay,
-      rating: apiVehicle.rating,
-      reviewCount: apiVehicle.reviewCount,
-      trips: apiVehicle.trips,
-      mileage: apiVehicle.mileage,
-      availability: apiVehicle.status,
-      condition: apiVehicle.condition,
-      image: apiVehicle.image || "",
-      location: apiVehicle.location,
-      stationId: apiVehicle.stationId.toString(),
-      stationName: "Unknown Station",
+      range: (finalVehicle as any).maxRangeKm,
+      batteryLevel: (finalVehicle as any).batteryLevel,
+      pricePerHour: (finalVehicle as any).pricePerHour,
+      pricePerDay: (finalVehicle as any).pricePerDay,
+      rating: (finalVehicle as any).rating,
+      reviewCount: (finalVehicle as any).reviewCount,
+      trips: (finalVehicle as any).trips,
+      mileage: (finalVehicle as any).mileage,
+      availability: (finalVehicle as any).status,
+      condition: (finalVehicle as any).condition,
+      image: (finalVehicle as any).image || "",
+      location: stationNameFromApi || (finalVehicle as any).location,
+      stationId: (finalVehicle as any).stationId?.toString() || "1",
+      stationName: stationNameFromApi || "Unknown Station",
       stationAddress: "",
       features: [],
       description: "",
-      fuelEfficiency: apiVehicle.fuelEfficiency,
-      lastMaintenance: apiVehicle.lastMaintenance,
-      inspectionDate: apiVehicle.inspectionDate,
-      insuranceExpiry: apiVehicle.insuranceExpiry,
-      createdAt: apiVehicle.createdAt,
-      updatedAt: apiVehicle.updatedAt,
+      fuelEfficiency: (finalVehicle as any).fuelEfficiency,
+      lastMaintenance: (finalVehicle as any).lastMaintenance,
+      inspectionDate: (finalVehicle as any).inspectionDate,
+      insuranceExpiry: (finalVehicle as any).insuranceExpiry,
+      createdAt: (finalVehicle as any).createdAt,
+      updatedAt: (finalVehicle as any).updatedAt,
     }
-    : staticVehicle;
+    : finalVehicle;
 
   // Check if vehicle is currently charging
   const isCharging =

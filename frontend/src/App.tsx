@@ -36,6 +36,7 @@ import {
   StaffDashboard,
   AdminDashboard,
   ApiTest,
+  HandoverDetail,
 } from "./pages/pages";
 import MoMoPaymentPage from "./pages/payment/MoMoPaymentPage";
 import MoMoSandboxPage from "./pages/payment/MoMoSandboxPage";
@@ -181,6 +182,7 @@ const App = () => {
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/wallet" element={<Wallet user={user} />} />
+                <Route path="/returns/:handoverId" element={<HandoverDetail />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/set-password" element={<SetPassword />} />
                 <Route path="/terms" element={<Terms />} />

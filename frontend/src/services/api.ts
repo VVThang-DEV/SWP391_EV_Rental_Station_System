@@ -466,6 +466,36 @@ class ApiService {
       method: "GET",
     });
   }
+
+  async getHandoverDetail(handoverId: number) {
+    return this.request<{
+      success: boolean;
+      handover: HandoverDetail;
+    }>(`/api/handovers/${handoverId}`, {
+      method: "GET",
+    });
+  }
+
+  async withdrawFromWallet(data: {
+    amount: number;
+    reservationId?: number;
+    reason?: string;
+    transactionId?: string;
+  }) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      paymentId?: number;
+    }>("/api/wallet/withdraw", {
+      method: "POST",
+      body: JSON.stringify({
+        amount: data.amount,
+        reservationId: data.reservationId,
+        reason: data.reason,
+        transactionId: data.transactionId,
+      }),
+    });
+  }
 }
 
 // Staff API interfaces
@@ -604,10 +634,23 @@ export interface CustomerVerificationRequest {
 }
 
 export interface HandoverRequest {
-  rentalId: number;
+  rentalId?: number;
+  reservationId?: number;
   type: string; // "pickup", "return"
   conditionNotes?: string;
-  imageUrls?: string[];
+  imageUrlList?: string[];
+  returnTimeStatus?: "on_time" | "late" | "early";
+  lateHours?: number;
+  batteryLevel?: number;
+  mileage?: number;
+  exteriorCondition?: string;
+  interiorCondition?: string;
+  tiresCondition?: string;
+  damagesList?: string[];
+  lateFee?: number;
+  damageFee?: number;
+  totalDue?: number;
+  depositRefund?: number;
 }
 
 export interface Handover {
@@ -626,9 +669,44 @@ export interface Handover {
   createdAt: string;
 }
 
+export interface HandoverPaymentRecord {
+  paymentId: number;
+  methodType: string;
+  amount: number;
+  status: string;
+  transactionType: string;
+  createdAt: string;
+}
+
+export interface HandoverSummaryResponse {
+  handoverId: number;
+  reservationId?: number | null;
+  rentalId?: number | null;
+  type: string;
+  createdAt?: string;
+  returnTimeStatus?: string | null;
+  lateHours?: number | null;
+  batteryLevel?: number | null;
+  mileage?: number | null;
+  lateFee?: number | null;
+  damageFee?: number | null;
+  totalDue?: number | null;
+  damages?: string[] | null;
+  vehicleLabel?: string;
+  walletPaidAmount?: number | null;
+  remainingDue?: number | null;
+}
+
+export interface HandoverDetail extends HandoverSummaryResponse {
+  conditionNotes?: string | null;
+  imageUrls?: string[] | null;
+  payments: HandoverPaymentRecord[];
+}
+
 // Staff API Service
 class StaffApiService {
   private baseUrl = "http://localhost:5000/api/staff";
+  private appBaseUrl = API_BASE_URL;
 
   // Staff Profile
   async getStaffProfile(): Promise<StaffProfile> {
@@ -807,10 +885,13 @@ class StaffApiService {
   }
 
   async recordHandover(data: HandoverRequest): Promise<Handover> {
-    const response = await fetch(`${this.baseUrl}/handovers`, {
+    // Use app base (non-staff prefix) to hit backend handover endpoint
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.appBaseUrl}/api/handovers`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: JSON.stringify(data),
     });
@@ -818,7 +899,22 @@ class StaffApiService {
       throw new Error("Failed to record handover");
     }
     const result = await response.json();
-    return result.handover;
+    // backend returns { success, message, handoverId }
+    return {
+      handoverId: result.handoverId,
+      rentalId: data.rentalId || 0,
+      customerId: null,
+      customerName: null,
+      vehicleId: null,
+      vehicleModel: null,
+      vehicleUniqueId: null,
+      staffId: 0,
+      staffName: null,
+      type: data.type,
+      conditionNotes: data.conditionNotes || null,
+      imageUrls: data.imageUrls || null,
+      createdAt: new Date().toISOString()
+    };
   }
 
   // Reservation Management
