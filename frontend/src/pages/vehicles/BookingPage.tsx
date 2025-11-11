@@ -1359,72 +1359,68 @@ const BookingPage = () => {
           </div>
         </CardContent>
       </Card>
-      {/* Layout ngang: Terms bên trái, Vehicle Summary bên phải */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        {/* Terms & Conditions ở bên trái (đã có sẵn ở trên) */}
 
-        {/* Vehicle Summary Card - Di chuyển từ sidebar */}
-        <Card className="border-2 border-primary/20 shadow-lg">
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <img
-                  src={vehicle.image || "/placeholder-vehicle.jpg"}
-                  className="w-16 h-16 object-cover rounded-lg"
-                  alt={vehicle.name}
-                />
-                <div>
-                  {vehicle.name}
-                  <p className="text-sm text-muted-foreground">
-                    {vehicle.location}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Car rental price:</span>
-                  <span className="font-medium text-right">
-                    {rentalDetails.displayText} = ${baseCost.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t pt-2 font-semibold text-blue-600">
-                  <span>Total:</span>
-                  <span>${baseCost.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between text-gray-600">
-                  <span className="text-sm">VND:</span>
-                  <span className="text-sm">{convertToVND(baseCost).toLocaleString()} ₫</span>
-                </div>
-              </div>
-
-              <Button
-                className="w-full"
-                onClick={() => {
-                  if (!termsAccepted) {
-                    toast({
-                      title: "Terms Required",
-                      description: "Please read and accept the rental agreement terms and conditions to proceed.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setStep(2);
-                }}
-                disabled={!termsAccepted}
-              >
-                {termsAccepted ? "Continue to Payment" : "Accept Terms First"}
-              </Button>
-
-              {step === 1 && !termsAccepted && (
-                <p className="text-sm text-amber-600 text-center">
-                  Please read and accept the rental agreement terms and conditions to proceed.
+      {/* Vehicle Summary Card - Cùng chiều ngang với Terms */}
+      <Card className="border-2 border-primary/20 shadow-lg w-full">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4">
+              <img
+                src={vehicle.image || "/placeholder-vehicle.jpg"}
+                className="w-16 h-16 object-cover rounded-lg"
+                alt={vehicle.name}
+              />
+              <div>
+                {vehicle.name}
+                <p className="text-sm text-muted-foreground">
+                  {vehicle.location}
                 </p>
-              )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Car rental price:</span>
+                <span className="font-medium text-right">
+                  {rentalDetails.displayText} = ${baseCost.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-2 font-semibold text-blue-600">
+                <span>Total:</span>
+                <span>${baseCost.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between text-gray-600">
+                <span className="text-sm">VND:</span>
+                <span className="text-sm">{convertToVND(baseCost).toLocaleString()} ₫</span>
+              </div>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (!termsAccepted) {
+                  toast({
+                    title: "Terms Required",
+                    description: "Please read and accept the rental agreement terms and conditions to proceed.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setStep(2);
+              }}
+              disabled={!termsAccepted}
+            >
+              {termsAccepted ? "Continue to Payment" : "Accept Terms First"}
+            </Button>
+
+            {step === 1 && !termsAccepted && (
+              <p className="text-sm text-amber-600 text-center">
+                Please read and accept the rental agreement terms and conditions to proceed.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 
