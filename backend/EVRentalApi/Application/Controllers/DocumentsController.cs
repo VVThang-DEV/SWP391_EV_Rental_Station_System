@@ -4,6 +4,7 @@ using EVRentalApi.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using EVRentalApi.Application.Services;
 
 namespace EVRentalApi.Controllers
 {
@@ -16,19 +17,22 @@ namespace EVRentalApi.Controllers
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
         private readonly Func<SqlConnection> _getConnection;
+        private readonly IHandoverService _handoverService;
 
         public DocumentsController(
             PersonalInfoService personalInfoService, 
             ILogger<DocumentsController> logger,
             IEmailService emailService,
             IConfiguration configuration,
-            Func<SqlConnection> getConnection)
+            Func<SqlConnection> getConnection,
+            IHandoverService handoverService)
         {
             _personalInfoService = personalInfoService;
             _logger = logger;
             _emailService = emailService;
             _configuration = configuration;
             _getConnection = getConnection;
+            _handoverService = handoverService;
         }
 
         [HttpPost("upload-avatar")]
@@ -243,6 +247,7 @@ namespace EVRentalApi.Controllers
 
                 // Save all files
                 var savedFiles = new List<(string FilePath, string FileName, string ContentType)>();
+                var savedFileUrls = new List<string>();
                 foreach (var file in files)
                 {
                     if (file.Length == 0) continue;
@@ -259,6 +264,40 @@ namespace EVRentalApi.Controllers
                     var contentType = fileExtension == ".png" ? "image/png" : "image/jpeg";
                     savedFiles.Add((filePath, file.FileName, contentType));
                     uploadedFiles.Add(fileName);
+                    savedFileUrls.Add($"/uploads/inspections/{fileName}");
+                }
+
+                // Persist images to handover record if reservationId is provided
+                int? parsedReservationId = null;
+                if (!string.IsNullOrWhiteSpace(reservationId) && int.TryParse(reservationId, out var resId))
+                {
+                    parsedReservationId = resId;
+                }
+
+                var staffId = GetUserIdFromToken();
+                if (parsedReservationId.HasValue && staffId.HasValue)
+                {
+                    var createReq = new CreateHandoverRequest
+                    {
+                        ReservationId = parsedReservationId.Value,
+                        Type = "return",
+                        ConditionNotes = string.IsNullOrWhiteSpace(inspectionNotes) ? null : inspectionNotes,
+                        ImageUrlList = savedFileUrls
+                    };
+
+                    var createResult = await _handoverService.CreateAsync(createReq, staffId.Value);
+                    if (!createResult.Success)
+                    {
+                        _logger.LogWarning("Failed to create handover while uploading inspection images. ReservationId={ReservationId}. Reason={Reason}", parsedReservationId.Value, createResult.Message);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Handover created successfully from inspection images. HandoverId={HandoverId}", createResult.HandoverId);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Skip saving to handover (reservationId or staffId missing). ReservationId={ReservationId}, StaffId={StaffId}", reservationId, staffId);
                 }
 
                 // Get customer information
@@ -343,6 +382,13 @@ namespace EVRentalApi.Controllers
                 _logger.LogError(ex, "Error uploading and sending inspection images to {Email}", customerEmail);
                 return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
             }
+        }
+
+        private int? GetUserIdFromToken()
+        {
+            var userIdClaim = HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return null;
+            return int.TryParse(userIdClaim.Value, out var id) ? id : null;
         }
 
     }

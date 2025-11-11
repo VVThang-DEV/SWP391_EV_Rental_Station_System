@@ -1846,27 +1846,48 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
 
     try {
-      // Step 0: Lưu biên bản handover (return) để ghi nhận tình trạng và phí
+      // Step 0: Lưu biên bản handover (return) kèm ảnh kiểm tra (multipart)
       try {
-        await staffApiService.recordHandover({
-          reservationId: selectedReturnBooking.reservationId,
-          rentalId: (selectedReturnBooking as any).rentalId || undefined,
-          type: "return",
-          conditionNotes: returnInspectionData.notes || undefined,
-          imageUrlList: undefined, // TODO: nối với upload ảnh nếu có
-          returnTimeStatus: returnTimeStatus as any,
-          lateHours: returnTimeStatus === "late" ? lateHours : 0,
-          batteryLevel: returnInspectionData.batteryLevel,
-          mileage: returnInspectionData.mileage,
-          exteriorCondition: returnInspectionData.exteriorCondition,
-          interiorCondition: returnInspectionData.interiorCondition,
-          tiresCondition: returnInspectionData.tiresCondition,
-          damagesList: returnInspectionData.damages,
-          lateFee: returnFeeCalculation.lateFee,
-          damageFee: returnFeeCalculation.damageFee + returnFeeCalculation.additionalCharges,
-          totalDue: (returnFeeCalculation.lateFee || 0) + (returnFeeCalculation.damageFee || 0) + (returnFeeCalculation.additionalCharges || 0),
-          depositRefund: 0
-        });
+        const form = new FormData();
+        // Files
+        if (returnInspectionImages && returnInspectionImages.length > 0) {
+          returnInspectionImages.forEach((file) => {
+            form.append("inspectionImages", file);
+          });
+        }
+        // Fields
+        if ((selectedReturnBooking as any).rentalId) {
+          form.append("rentalId", String((selectedReturnBooking as any).rentalId));
+        }
+        form.append("reservationId", String(selectedReturnBooking.reservationId));
+        form.append("type", "return");
+        if (returnInspectionData.notes) {
+          form.append("conditionNotes", returnInspectionData.notes);
+        }
+        if (returnTimeStatus) {
+          form.append("returnTimeStatus", returnTimeStatus);
+        }
+        form.append("lateHours", String(returnTimeStatus === "late" ? lateHours : 0));
+        form.append("batteryLevel", String(returnInspectionData.batteryLevel));
+        form.append("mileage", String(returnInspectionData.mileage));
+        if (returnInspectionData.exteriorCondition) {
+          form.append("exteriorCondition", returnInspectionData.exteriorCondition);
+        }
+        if (returnInspectionData.interiorCondition) {
+          form.append("interiorCondition", returnInspectionData.interiorCondition);
+        }
+        if (returnInspectionData.tiresCondition) {
+          form.append("tiresCondition", returnInspectionData.tiresCondition);
+        }
+        if (returnInspectionData.damages && returnInspectionData.damages.length > 0) {
+          form.append("damagesCsv", returnInspectionData.damages.join(","));
+        }
+        form.append("lateFee", String(returnFeeCalculation.lateFee || 0));
+        form.append("damageFee", String((returnFeeCalculation.damageFee || 0) + (returnFeeCalculation.additionalCharges || 0)));
+        form.append("totalDue", String((returnFeeCalculation.lateFee || 0) + (returnFeeCalculation.damageFee || 0) + (returnFeeCalculation.additionalCharges || 0)));
+        form.append("depositRefund", "0");
+
+        await staffApiService.recordHandoverWithImages(form);
       } catch (handoverErr: any) {
         console.error("Failed to save handover:", handoverErr);
         // Không chặn quy trình trả xe, chỉ cảnh báo

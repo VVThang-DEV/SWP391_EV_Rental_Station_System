@@ -413,6 +413,111 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
+    /// Record vehicle handover with inspection images (multipart)
+    /// </summary>
+    [HttpPost("handovers-with-images")]
+    [RequestSizeLimit(20_000_000)] // 20MB total
+    public async Task<IActionResult> RecordHandoverWithImages(
+        List<IFormFile> inspectionImages,
+        [FromForm] int? rentalId,
+        [FromForm] int? reservationId,
+        [FromForm] string type,
+        [FromForm] string? conditionNotes,
+        [FromForm] string? returnTimeStatus,
+        [FromForm] int? lateHours,
+        [FromForm] int? batteryLevel,
+        [FromForm] int? mileage,
+        [FromForm] string? exteriorCondition,
+        [FromForm] string? interiorCondition,
+        [FromForm] string? tiresCondition,
+        [FromForm] string? damagesCsv,
+        [FromForm] decimal? lateFee,
+        [FromForm] decimal? damageFee,
+        [FromForm] decimal? totalDue,
+        [FromForm] decimal? depositRefund
+    )
+    {
+        try
+        {
+            var staffId = GetStaffIdFromToken();
+            if (staffId == null)
+            {
+                return Unauthorized("Invalid staff token");
+            }
+
+            // Validate and save images if any
+            var imageUrlList = new List<string>();
+            if (inspectionImages != null && inspectionImages.Count > 0)
+            {
+                var allowed = new[] { ".jpg", ".jpeg", ".png" };
+                var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "inspections");
+                if (!Directory.Exists(uploadsPath))
+                {
+                    Directory.CreateDirectory(uploadsPath);
+                }
+
+                foreach (var file in inspectionImages)
+                {
+                    if (file == null || file.Length == 0) continue;
+                    if (file.Length > 5 * 1024 * 1024) return BadRequest(new { message = $"File {file.FileName} exceeds 5MB." });
+                    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    if (!allowed.Contains(ext)) return BadRequest(new { message = $"Invalid file type for {file.FileName}. Only JPG/PNG allowed." });
+
+                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                    var filePath = Path.Combine(uploadsPath, fileName);
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+                    imageUrlList.Add($"/uploads/inspections/{fileName}");
+                }
+            }
+
+            // Parse damages if provided as CSV from form
+            List<string>? damagesList = null;
+            if (!string.IsNullOrWhiteSpace(damagesCsv))
+            {
+                damagesList = damagesCsv
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
+            }
+
+            var request = new HandoverRequest
+            {
+                RentalId = rentalId,
+                ReservationId = reservationId,
+                Type = string.IsNullOrWhiteSpace(type) ? "return" : type,
+                ConditionNotes = conditionNotes,
+                ImageUrlList = imageUrlList.Count > 0 ? imageUrlList : null,
+                ReturnTimeStatus = returnTimeStatus,
+                LateHours = lateHours,
+                BatteryLevel = batteryLevel,
+                Mileage = mileage,
+                ExteriorCondition = exteriorCondition,
+                InteriorCondition = interiorCondition,
+                TiresCondition = tiresCondition,
+                DamagesList = damagesList,
+                LateFee = lateFee,
+                DamageFee = damageFee,
+                TotalDue = totalDue,
+                DepositRefund = depositRefund
+            };
+
+            var result = await _staffService.RecordHandoverAsync(staffId.Value, request);
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+
+            return Ok(new { message = "Handover recorded successfully", handover = result.Handover });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get today's activity logs
     /// </summary>
     [HttpGet("activities/today")]

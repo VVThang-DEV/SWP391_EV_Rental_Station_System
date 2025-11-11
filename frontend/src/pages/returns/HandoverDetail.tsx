@@ -333,19 +333,29 @@ const HandoverDetailPage = () => {
             <div className="text-sm">
               <div className="text-muted-foreground mb-2">Ảnh sự cố xe</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {handover.imageUrls.map((imageUrl, idx) => (
+                {handover.imageUrls.map((imageUrl, idx) => {
+                  const API_BASE =
+                    (import.meta as any).env?.VITE_API_URL ||
+                    (import.meta as any).env?.VITE_API_BASE_URL ||
+                    "http://localhost:5000";
+                  const fullUrl =
+                    imageUrl?.startsWith("http")
+                      ? imageUrl
+                      : `${API_BASE}${imageUrl}`;
+                  return (
                   <div key={idx} className="relative group">
                     <img
-                      src={imageUrl}
+                      src={fullUrl}
                       alt={`Ảnh sự cố ${idx + 1}`}
                       className="w-full h-32 object-cover rounded-md border border-border cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => {
                         // Open image in new tab for full view
-                        window.open(imageUrl, "_blank");
+                        window.open(fullUrl, "_blank");
                       }}
                     />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

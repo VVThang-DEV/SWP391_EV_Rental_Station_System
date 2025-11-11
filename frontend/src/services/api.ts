@@ -884,6 +884,22 @@ class StaffApiService {
     return response.json();
   }
 
+  async recordHandoverWithImages(form: FormData): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/handovers-with-images`, {
+      method: "POST",
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: form,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || "Failed to record handover with images");
+    }
+    return response.json();
+  }
+
   async recordHandover(data: HandoverRequest): Promise<Handover> {
     // Use app base (non-staff prefix) to hit backend handover endpoint
     const token = localStorage.getItem("token");
