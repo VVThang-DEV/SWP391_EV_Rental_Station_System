@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using EVRentalApi.Application.Services;
 using EVRentalApi.Models;
+using Microsoft.Data.SqlClient;
 
 namespace EVRentalApi.Application.Controllers;
 
@@ -11,10 +12,12 @@ namespace EVRentalApi.Application.Controllers;
 public class StaffController : ControllerBase
 {
     private readonly IStaffService _staffService;
+    private readonly Func<SqlConnection> _getConnection;
 
-    public StaffController(IStaffService staffService)
+    public StaffController(IStaffService staffService, Func<SqlConnection> getConnection)
     {
         _staffService = staffService;
+        _getConnection = getConnection;
     }
 
     /// <summary>
@@ -39,6 +42,126 @@ public class StaffController : ControllerBase
             }
 
             return Ok(staff);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Submit post-return check (QC) for a vehicle, optionally set back to available
+    /// </summary>
+    [HttpPost("vehicles/{vehicleId}/post-return-check")]
+    [RequestSizeLimit(20_000_000)]
+    public async Task<IActionResult> SubmitPostReturnCheck(
+        int vehicleId,
+        List<IFormFile>? images,
+        [FromForm] int? reservationId,
+        [FromForm] string? notes,
+        [FromForm] bool clearDamages = false
+    )
+    {
+        try
+        {
+            var staffId = GetStaffIdFromToken();
+            if (staffId == null)
+            {
+                return Unauthorized("Invalid staff token");
+            }
+
+            // Resolve reservationId by vehicle if missing (pick the most recent reservation)
+            int? resolvedReservationId = reservationId;
+            if (!resolvedReservationId.HasValue)
+            {
+                try
+                {
+                    await using var conn = _getConnection();
+                    await conn.OpenAsync();
+                    const string findResSql = @"
+SELECT TOP 1 reservation_id
+FROM dbo.reservations
+WHERE vehicle_id = @VehicleId
+ORDER BY ISNULL(end_time, created_at) DESC, created_at DESC";
+                    await using var cmd = new SqlCommand(findResSql, conn);
+                    cmd.Parameters.AddWithValue("@VehicleId", vehicleId);
+                    var obj = await cmd.ExecuteScalarAsync();
+                    if (obj != null && obj != DBNull.Value)
+                    {
+                        resolvedReservationId = (int)obj;
+                    }
+                }
+                catch { /* best-effort */ }
+            }
+
+            // Save images (optional)
+            var imageUrls = new List<string>();
+            if (images != null && images.Count > 0)
+            {
+                var allowed = new[] { ".jpg", ".jpeg", ".png" };
+                var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "inspections");
+                if (!Directory.Exists(uploadsPath))
+                {
+                    Directory.CreateDirectory(uploadsPath);
+                }
+                foreach (var file in images)
+                {
+                    if (file == null || file.Length == 0) continue;
+                    if (file.Length > 5 * 1024 * 1024) return BadRequest(new { message = $"File {file.FileName} exceeds 5MB." });
+                    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    if (!allowed.Contains(ext)) return BadRequest(new { message = $"Invalid file type for {file.FileName}. Only JPG/PNG allowed." });
+
+                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                    var filePath = Path.Combine(uploadsPath, fileName);
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+                    imageUrls.Add($"/uploads/inspections/{fileName}");
+                }
+            }
+
+            // Create a 'qc' handover record to log post-return check
+            var qcRequest = new CreateHandoverRequest
+            {
+                ReservationId = resolvedReservationId,
+                Type = "qc",
+                ConditionNotes = string.IsNullOrWhiteSpace(notes) ? null : notes,
+                ImageUrlList = imageUrls.Count > 0 ? imageUrls : null
+            };
+
+            // Reuse handover service via staff service wrapper call
+            // We don't have direct access here; route through RecordHandoverAsync-like flow if needed
+            // Simplest: call _staffService.RecordHandoverAsync with mapped request
+            var mapped = new HandoverRequest
+            {
+                ReservationId = resolvedReservationId,
+                Type = "qc",
+                ConditionNotes = qcRequest.ConditionNotes,
+                ImageUrlList = qcRequest.ImageUrlList
+            };
+
+            var createResult = await _staffService.RecordHandoverAsync(staffId.Value, mapped);
+            if (!createResult.Success)
+            {
+                return BadRequest(new { message = $"Failed to save QC handover: {createResult.Message}" });
+            }
+
+            // Optionally set vehicle to available
+            if (clearDamages)
+                {
+                    var update = await _staffService.UpdateVehicleByStaffAsync(staffId.Value, vehicleId, new UpdateVehicleRequest
+                    {
+                        Status = "available"
+                    });
+                if (!update.Success)
+                {
+                    // Not fatal to QC, but report back
+                    return Ok(new { success = true, message = "QC saved. Failed to set vehicle available.", handover = createResult.Handover });
+                }
+            }
+
+            return Ok(new { success = true, message = "Post-return check saved successfully.", handover = createResult.Handover });
         }
         catch (Exception ex)
         {

@@ -229,7 +229,14 @@ class ApiService {
 
   // Vehicles
   async getVehicles(): Promise<Vehicle[]> {
-    return this.request<Vehicle[]>("/api/vehicles");
+    return this.request<Vehicle[]>(`/api/vehicles?ts=${Date.now()}`, {
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+      cache: "no-store",
+    } as RequestInit);
   }
 
   async getVehicleById(id: number): Promise<Vehicle> {
@@ -237,7 +244,14 @@ class ApiService {
   }
 
   async getAvailableVehicles(): Promise<Vehicle[]> {
-    return this.request<Vehicle[]>("/api/vehicles/available");
+    return this.request<Vehicle[]>(`/api/vehicles/available?ts=${Date.now()}`, {
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+      cache: "no-store",
+    } as RequestInit);
   }
 
   async getVehiclesByStation(stationId: number): Promise<Vehicle[]> {
@@ -928,7 +942,7 @@ class StaffApiService {
       staffName: null,
       type: data.type,
       conditionNotes: data.conditionNotes || null,
-      imageUrls: data.imageUrls || null,
+      imageUrls: (data as any).imageUrlList || null,
       createdAt: new Date().toISOString()
     };
   }

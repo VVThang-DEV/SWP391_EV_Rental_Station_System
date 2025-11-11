@@ -154,8 +154,26 @@ SELECT CAST(SCOPE_IDENTITY() as int);";
 				cmd.Parameters.AddWithValue("@total_due", (object?)h.TotalDue ?? DBNull.Value);
 				cmd.Parameters.AddWithValue("@deposit_refund", (object?)h.DepositRefund ?? DBNull.Value);
 
-				var idObj = await cmd.ExecuteScalarAsync();
-				return (int)(idObj ?? 0);
+                var idObj = await cmd.ExecuteScalarAsync();
+                var newHandoverId = (int)(idObj ?? 0);
+
+                // If this handover indicates damages, proactively set vehicle to awaiting_processing
+                // based on reservation -> vehicle mapping. This is a safety net in case FE misses the update call.
+                if (newHandoverId > 0 && !string.IsNullOrWhiteSpace(h.Damages) && h.ReservationId.HasValue)
+                {
+                    const string updateVehicleSql = @"
+UPDATE v
+SET v.status = 'awaiting_processing', v.updated_at = GETDATE()
+FROM dbo.vehicles v
+INNER JOIN dbo.reservations r ON r.vehicle_id = v.vehicle_id
+WHERE r.reservation_id = @reservation_id;
+";
+                    using var upCmd = new SqlCommand(updateVehicleSql, conn, externalTransaction);
+                    upCmd.Parameters.AddWithValue("@reservation_id", h.ReservationId.Value);
+                    try { await upCmd.ExecuteNonQueryAsync(); } catch { /* best-effort */ }
+                }
+
+                return newHandoverId;
 			}
 			finally
 			{

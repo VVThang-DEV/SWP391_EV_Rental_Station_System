@@ -754,6 +754,37 @@ public class StaffRepository : IStaffRepository
         return rowsAffected > 0;
     }
 
+    public async Task<bool> HasPendingDamageAsync(int vehicleId)
+    {
+        const string sql = @"
+WITH last_return AS (
+    SELECT TOP 1 h.handover_id, h.created_at
+    FROM dbo.handovers h
+    INNER JOIN dbo.reservations r ON r.reservation_id = h.reservation_id
+    WHERE r.vehicle_id = @VehicleId
+      AND h.[type] = 'return'
+      AND h.damages IS NOT NULL
+    ORDER BY h.created_at DESC
+)
+SELECT CASE 
+    WHEN EXISTS (
+        SELECT 1 FROM last_return lr
+        WHERE NOT EXISTS (
+            SELECT 1 
+            FROM dbo.handovers q
+            WHERE q.[type] = 'qc'
+              AND q.created_at > lr.created_at
+        )
+    ) THEN 1 ELSE 0 END;";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@VehicleId", vehicleId);
+        var obj = await cmd.ExecuteScalarAsync();
+        return (obj is int i) && i == 1;
+    }
+
     public async Task<UserDto?> GetStaffUserByIdAsync(int userId)
     {
         const string sql = @"

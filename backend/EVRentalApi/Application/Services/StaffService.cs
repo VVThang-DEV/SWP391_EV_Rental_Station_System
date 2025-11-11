@@ -375,14 +375,29 @@ public class StaffService : IStaffService
                 };
             }
             
-            // Allow update if vehicle is rented but we're changing status to available (return process)
-            if (vehicle.Status?.ToLower() == "rented" && request.Status?.ToLower() != "available")
+            // Allow update if vehicle is rented but we're changing status to available or awaiting_processing (return process)
+            if (vehicle.Status?.ToLower() == "rented")
             {
-                return new VehicleUpdateResponse 
-                { 
-                    Success = false, 
-                    Message = "Cannot edit vehicle that is currently rented. Please complete the return process first."
-                };
+                var requested = request.Status?.ToLower();
+                var allowedDuringReturn = requested == "available" || requested == "awaiting_processing";
+                if (!allowedDuringReturn)
+                {
+                    return new VehicleUpdateResponse 
+                    { 
+                        Success = false, 
+                        Message = "Cannot edit vehicle that is currently rented. Please complete the return process first."
+                    };
+                }
+            }
+
+            // Guard: if FE requests 'available' but xe có biên bản trả có damages và chưa QC, buộc chuyển 'awaiting_processing'
+            if ((request.Status?.ToLower() ?? "") == "available")
+            {
+                var hasPendingDamage = await _staffRepository.HasPendingDamageAsync(vehicleId);
+                if (hasPendingDamage)
+                {
+                    request.Status = "awaiting_processing";
+                }
             }
 
             // Update vehicle properties

@@ -521,23 +521,23 @@ E:\New folder\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9
 E:\New folder\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.pdb
 E:\New folder\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\EVRentalApi.genruntimeconfig.cache
 E:\New folder\SWP391_EV_Rental_Station_System\backend\EVRentalApi\obj\Debug\net9.0\ref\EVRentalApi.dll
+C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.exe
+C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.dll
+C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.Identity.Client.dll
+C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.IdentityModel.Abstractions.dll
+C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.IdentityModel.JsonWebTokens.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\appsettings.json
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.staticwebassets.endpoints.json
-C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.exe
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.deps.json
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.runtimeconfig.json
-C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\EVRentalApi.pdb
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Azure.Core.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Azure.Identity.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Dapper.dll
-C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.Bcl.AsyncInterfaces.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.Data.SqlClient.dll
-C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.Identity.Client.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.Identity.Client.Extensions.Msal.dll
-C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.IdentityModel.Abstractions.dll
-C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.IdentityModel.JsonWebTokens.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.IdentityModel.Logging.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.IdentityModel.Protocols.dll
 C:\Users\songn\OneDrive\Desktop\song\SWP391_EV_Rental_Station_System\backend\EVRentalApi\bin\Debug\net9.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll

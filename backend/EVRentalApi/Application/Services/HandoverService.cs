@@ -22,7 +22,10 @@ namespace EVRentalApi.Application.Services
 
 		public async Task<(bool Success, int HandoverId, string Message)> CreateAsync(CreateHandoverRequest request, int staffId)
 		{
-			if (request.ReservationId is null && request.RentalId is null)
+			// Allow QC handovers without reservation/rental linkage (used for post-return checks)
+			var isQc = string.Equals(request.Type, "qc", StringComparison.OrdinalIgnoreCase);
+
+			if (!isQc && request.ReservationId is null && request.RentalId is null)
 			{
 				return (false, 0, "ReservationId hoặc RentalId là bắt buộc");
 			}

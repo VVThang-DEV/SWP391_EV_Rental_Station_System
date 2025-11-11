@@ -34,6 +34,9 @@ public interface IStaffRepository
     // Handover Management
     Task<List<HandoverDto>> GetHandoversAsync(int staffId);
     Task<HandoverDto?> RecordHandoverAsync(int staffId, HandoverRequest request);
+
+    // Damage/Issues checks
+    Task<bool> HasPendingDamageAsync(int vehicleId);
     
     // Activity Logs
     Task<List<StaffActivityLogDto>> GetTodayActivityLogsAsync(int staffId);

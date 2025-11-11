@@ -125,6 +125,55 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     error: vehiclesError,
     refetch: refetchVehicles,
   } = useStationVehicles();
+  // Optimistic status overrides to avoid any brief stale states after return
+  const [optimisticVehicleStatus, setOptimisticVehicleStatus] = useState<Record<number, string>>({});
+  // Rehydrate optimistic statuses from storage on mount
+  useEffect(() => {
+    try {
+      const readFromStorage = (storage: Storage) => {
+        const raw = storage.getItem("pendingIssueVehicles");
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as Record<string, string>;
+        const map: Record<number, string> = {};
+        Object.entries(parsed).forEach(([k, v]) => {
+          const id = Number(k);
+          if (!Number.isNaN(id) && v) {
+            map[id] = v;
+          }
+        });
+        return map;
+      };
+
+      const sessionMap = readFromStorage(sessionStorage);
+      const localMap = readFromStorage(localStorage);
+      const merged = { ...(sessionMap || {}), ...(localMap || {}) };
+
+      if (Object.keys(merged).length > 0) {
+        setOptimisticVehicleStatus((prev) => ({ ...prev, ...merged }));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+  // Helper to persist optimistic map to sessionStorage
+  const persistOptimisticStatus = (updater: (prev: Record<number, string>) => Record<number, string>) => {
+    setOptimisticVehicleStatus((prev) => {
+      const next = updater(prev);
+      try {
+        sessionStorage.setItem("pendingIssueVehicles", JSON.stringify(next));
+        localStorage.setItem("pendingIssueVehicles", JSON.stringify(next));
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: "pendingIssueVehicles",
+            newValue: JSON.stringify(next),
+          })
+        );
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
   const {
     data: pendingVehicles,
     loading: pendingVehiclesLoading,
@@ -166,6 +215,94 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
+
+  // Post-Return Check (QC) dialog state
+  const [isPostReturnDialogOpen, setIsPostReturnDialogOpen] = useState(false);
+  const [postReturnVehicleId, setPostReturnVehicleId] = useState<number | null>(null);
+  const [postReturnReservationId, setPostReturnReservationId] = useState<number | null>(null);
+  const [postReturnImages, setPostReturnImages] = useState<File[]>([]);
+  const [postReturnNotes, setPostReturnNotes] = useState<string>("");
+  const [postReturnClearDamages, setPostReturnClearDamages] = useState<boolean>(true);
+
+  const openPostReturnDialog = (vehicleId: number) => {
+    setPostReturnVehicleId(vehicleId);
+    try {
+      // Pick the most recent reservation of this vehicle (by endTime or createdAt)
+      const latest = [...reservations]
+        .filter((r: any) => r.vehicleId === vehicleId)
+        .sort((a: any, b: any) => {
+          const ta = new Date(a.endTime || a.createdAt || 0).getTime();
+          const tb = new Date(b.endTime || b.createdAt || 0).getTime();
+          return tb - ta;
+        })[0];
+      setPostReturnReservationId(latest?.reservationId ?? null);
+    } catch {
+      setPostReturnReservationId(null);
+    }
+    setPostReturnImages([]);
+    setPostReturnNotes("");
+    setPostReturnClearDamages(true);
+    setIsPostReturnDialogOpen(true);
+  };
+
+  const submitPostReturnCheck = async () => {
+    if (!postReturnVehicleId) return;
+    try {
+      const form = new FormData();
+      postReturnImages.forEach((f) => form.append("images", f));
+      if (postReturnNotes) form.append("notes", postReturnNotes);
+      if (postReturnReservationId) form.append("reservationId", String(postReturnReservationId));
+      form.append("clearDamages", String(postReturnClearDamages));
+      // Call backend directly to avoid runtime method mismatch
+      try {
+        const token = localStorage.getItem("token");
+        const resp = await fetch(`http://localhost:5000/api/staff/vehicles/${postReturnVehicleId}/post-return-check`, {
+          method: "POST",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: form,
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.message || "Failed to submit post-return check");
+        }
+        await resp.json().catch(() => ({}));
+      } catch (e) {
+        throw e instanceof Error ? e : new Error("Failed to submit post-return check");
+      }
+      setIsPostReturnDialogOpen(false);
+      // Clear optimistic pending flag if damages were cleared
+      if (postReturnClearDamages) {
+        persistOptimisticStatus((prev) => {
+          const next = { ...prev };
+          delete next[postReturnVehicleId];
+          return next;
+        });
+      }
+      await refetchVehicles();
+      toast({
+        title: "QC Saved",
+        description: postReturnClearDamages
+          ? "Xe đã được kiểm tra và mở lại cho thuê."
+          : "Đã lưu kiểm tra sau trả. Xe vẫn ở trạng thái chờ xử lý.",
+      });
+      try {
+        localStorage.setItem("vehiclesUpdated", "true");
+        window.dispatchEvent(
+          new StorageEvent("storage", { key: "vehiclesUpdated", newValue: "true" })
+        );
+      } catch {
+        // ignore
+      }
+    } catch (err: any) {
+      toast({
+        title: "QC Failed",
+        description: err?.message || "Không thể lưu kiểm tra sau trả.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Debug API data
   console.log("Staff Profile:", staffProfile);
@@ -666,7 +803,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         name: `${vehicle.modelId} - ${
           vehicle.uniqueVehicleId || vehicle.vehicleId
         }`,
-        status: vehicle.status,
+        status: optimisticVehicleStatus[vehicle.vehicleId] ?? vehicle.status,
         battery: vehicle.batteryLevel,
         location: vehicle.location || "Unknown",
         lastMaintenance: vehicle.lastMaintenance || "N/A",
@@ -1835,11 +1972,13 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     }
 
     // Check if there are damages/issues
+    // Note: include calculated damageFee to avoid race condition where checkbox state hasn't flushed yet
     const hasDamages = 
       returnInspectionData.damages.length > 0 ||
       returnInspectionData.exteriorCondition === "poor" ||
       returnInspectionData.interiorCondition === "poor" ||
-      returnInspectionData.tiresCondition === "poor";
+      returnInspectionData.tiresCondition === "poor" ||
+      (returnFeeCalculation.damageFee > 0);
     
     const totalDamageFees = returnFeeCalculation.damageFee + returnFeeCalculation.additionalCharges;
     const hasDamageFees = totalDamageFees > 0;
@@ -1943,7 +2082,15 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
       // Step 5: Update vehicle status and condition
       try {
-        await staffApiService.updateVehicle(selectedReturnBooking.vehicleId, {
+        console.log("[Return] will update vehicle", {
+          vehicleId: selectedReturnBooking.vehicleId,
+          hasDamages,
+          vehicleStatus,
+          feeSnapshot: returnFeeCalculation,
+          damages: returnInspectionData.damages,
+        });
+        // Use hook updater to also patch local state immediately
+        await updateVehicle(selectedReturnBooking.vehicleId, {
           batteryLevel: returnInspectionData.batteryLevel,
           mileage: returnInspectionData.mileage,
           condition:
@@ -1956,6 +2103,20 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           notes: returnInspectionData.notes || undefined,
         });
         console.log(`✅ Vehicle status updated to '${vehicleStatus}' successfully`);
+        if (hasDamages && vehicleStatus === "awaiting_processing") {
+          // Optimistic: immediately switch filter so the user sees the updated item
+          setFilterStatus("awaiting_processing");
+          persistOptimisticStatus((prev) => ({
+            ...prev,
+            [selectedReturnBooking.vehicleId]: "awaiting_processing",
+          }));
+        } else if (!hasDamages && vehicleStatus === "available") {
+          persistOptimisticStatus((prev) => {
+            const next = { ...prev };
+            delete next[selectedReturnBooking.vehicleId];
+            return next;
+          });
+        }
       } catch (vehicleUpdateError: any) {
         console.error("Failed to update vehicle status:", vehicleUpdateError);
         toast({
@@ -2039,9 +2200,38 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         description: `Vehicle ${selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId} has been returned successfully.${lateFeeMessage}${damageFeeMessage}${statusMessage}`,
         duration: 5000,
       });
+      // Notify other tabs/pages to refresh vehicle list
+      try {
+        localStorage.setItem("vehiclesUpdated", "true");
+        window.dispatchEvent(
+          new StorageEvent("storage", { key: "vehiclesUpdated", newValue: "true" })
+        );
+      } catch {
+        // ignore
+      }
 
-      // Refresh data and ensure filter shows available vehicles
+      // Refresh data and ensure latest state (double-refetch to avoid any stale caches)
       await Promise.all([refetchVehicles(), fetchReservations()]);
+      // Follow-up fetch of the single vehicle to verify server state and nudge UI if needed
+      try {
+        const v = await staffApiService.getVehicle(selectedReturnBooking.vehicleId);
+        console.log("[Return] server vehicle status after completion:", v?.status, v);
+        if (v?.status) {
+          // If server says awaiting_processing but list looks stale, refetch once more
+          if (v.status === "awaiting_processing") {
+            await refetchVehicles();
+            setFilterStatus("awaiting_processing");
+            persistOptimisticStatus((prev) => ({
+              ...prev,
+              [selectedReturnBooking.vehicleId]: "awaiting_processing",
+            }));
+          } else if (hasDamages && v.status !== "awaiting_processing") {
+            console.warn("[Return] Server did not persist awaiting_processing despite damages.");
+          }
+        }
+      } catch (_e) {
+        // ignore
+      }
       
       // If vehicle is now available (no damages), set filter to show available vehicles
       if (!hasDamages && vehicleStatus === "available") {
@@ -2051,6 +2241,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           description: `Xe ${selectedReturnBooking.vehicleUniqueId || selectedReturnBooking.vehicleId} đã được cập nhật và hiển thị trong danh sách xe cho thuê.`,
           duration: 3000,
         });
+      } else if (hasDamages && vehicleStatus === "awaiting_processing") {
+        // If there are damages, switch filter to Issues to show the updated item immediately
+        setFilterStatus("awaiting_processing");
       }
 
       // Clean up preview URLs
@@ -2151,9 +2344,9 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         setIncidents((prev) => {
           const updated = prev.map((i) =>
             i.id === incidentId
-              ? { ...i, status: action === "accept" ? "in_progress" : "resolved" }
+              ? ({ ...i, status: action === "accept" ? "in_progress" : "resolved" } as IncidentData)
               : i
-          );
+          ) as IncidentData[];
           if (action === "resolve") {
             const unread = updated.filter((i) => i.status === "reported").length;
             setUnreadIncidents(unread);
@@ -2459,6 +2652,69 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </CardContent>
       </Card>
 
+      {/* Post-Return Check Dialog */}
+      <Dialog
+        open={isPostReturnDialogOpen}
+        onOpenChange={setIsPostReturnDialogOpen}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Post-Return Check</DialogTitle>
+            <DialogDescription>
+              Tải ảnh sau sửa (nếu có), thêm ghi chú và xác nhận mở lại cho thuê.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Ảnh sau sửa (tùy chọn)</Label>
+              <Input
+                type="file"
+                multiple
+                accept=".jpg,.jpeg,.png"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setPostReturnImages(files as File[]);
+                }}
+              />
+              <div className="text-xs text-muted-foreground">
+                JPG/PNG, tối đa ~5MB mỗi ảnh
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Ghi chú</Label>
+              <Textarea
+                placeholder="Ghi chú kiểm tra sau trả..."
+                value={postReturnNotes}
+                onChange={(e) => setPostReturnNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                id="clearDamages"
+                type="checkbox"
+                checked={postReturnClearDamages}
+                onChange={(e) => setPostReturnClearDamages(e.target.checked)}
+              />
+              <Label htmlFor="clearDamages">
+                Đã xử lý xong sự cố và mở lại cho thuê (set available)
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setIsPostReturnDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button className="bg-primary" onClick={submitPostReturnCheck}>
+              Complete Check
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Vehicle List */}
       <Card>
         <CardHeader>
@@ -2503,6 +2759,14 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   onClick={() => handleFilterChange("maintenance")}
                 >
                   Maintenance
+                </Button>
+                <Button
+                  variant={filterStatus === "awaiting_processing" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange("awaiting_processing")}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Issues
                 </Button>
               </div>
               <Button
@@ -2554,13 +2818,21 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                   }
                   return true;
                 })
-                .map((vehicle) => {
+                .map((vehicle, index) => {
                   const isAwaitingProcessing = vehicle.status === "awaiting_processing";
                   return (
                   <div
-                    key={vehicle.id}
+                    key={
+                      // Prefer stable numeric key to avoid React not re-rendering with same string ids
+                      // @ts-ignore tolerate differing shapes from API
+                      (vehicle as any).vehicleId ??
+                      // fallback
+                      // @ts-ignore
+                      (vehicle as any).id ??
+                      index
+                    }
                     className={`flex items-center justify-between p-4 border rounded-lg ${
-                      isAwaitingProcessing ? "opacity-50 grayscale pointer-events-none" : ""
+                      isAwaitingProcessing ? "opacity-80 bg-red-50" : ""
                     }`}
                   >
                     <div className="flex items-center space-x-4">
@@ -2696,6 +2968,42 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
                           >
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Mark Available
+                          </Button>
+                        )}
+
+                        {vehicle.status === "awaiting_processing" && (
+                          <Button
+                            size="sm"
+                            className="bg-primary"
+                            onClick={() => {
+                              // Prefer numeric vehicleId if present; fallback to parse id string
+                              let vid: number | null =
+                                // @ts-ignore tolerate differing shapes from API
+                                (vehicle as any).vehicleId ??
+                                // alternate casing from backend DTOs
+                                (vehicle as any).vehicle_id ??
+                                null;
+
+                              if (vid == null) {
+                                // Try to resolve by matching unique id or license plate against canonical apiVehicles list
+                                try {
+                                  const uid = (vehicle as any).uniqueVehicleId ?? (vehicle as any).id ?? null;
+                                  const plate = (vehicle as any).licensePlate ?? null;
+                                  const m = (apiVehicles || []).find((v: any) =>
+                                    (uid && (v.uniqueVehicleId === uid)) ||
+                                    (plate && (v.licensePlate === plate))
+                                  );
+                                  if (m?.vehicleId) {
+                                    vid = Number(m.vehicleId);
+                                  }
+                                } catch {}
+                              }
+
+                              openPostReturnDialog(Number(vid));
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Post-Return Check
                           </Button>
                         )}
                       </div>

@@ -59,12 +59,15 @@ const Vehicles = () => {
   const [stationFilter, setStationFilter] = useState(
     searchParams.get("station") || "all"
   );
-  const [availabilityFilter, setAvailabilityFilter] = useState("all");
+  const [availabilityFilter, setAvailabilityFilter] = useState(
+    searchParams.get("availability") || "all"
+  );
   const [priceRange, setPriceRange] = useState([0, 200]);
   const [sortBy, setSortBy] = useState("name");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all");
+  const [pendingIssueVehicles, setPendingIssueVehicles] = useState<Record<number, string>>({});
 
   // Refresh vehicles when component mounts or URL changes
   useEffect(() => {
@@ -73,23 +76,49 @@ const Vehicles = () => {
 
   // Listen for vehicle updates from staff dashboard
   useEffect(() => {
-    const handleStorageChange = () => {
-      // Check if there's a flag indicating vehicles were updated
-      const vehiclesUpdated = localStorage.getItem('vehiclesUpdated');
-      if (vehiclesUpdated === 'true') {
-        refetchVehicles();
-        localStorage.removeItem('vehiclesUpdated');
+    const loadPendingIssues = () => {
+      try {
+        const raw = localStorage.getItem("pendingIssueVehicles");
+        if (raw) {
+          const parsed = JSON.parse(raw) as Record<string, string>;
+          const map: Record<number, string> = {};
+          Object.entries(parsed).forEach(([key, value]) => {
+            const id = Number(key);
+            if (!Number.isNaN(id) && value) {
+              map[id] = value;
+            }
+          });
+          setPendingIssueVehicles(map);
+        } else {
+          setPendingIssueVehicles({});
+        }
+      } catch {
+        setPendingIssueVehicles({});
       }
     };
 
-    // Listen for storage events (when staff assigns vehicles)
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also check on mount
+    const handleStorageChange = (event?: StorageEvent) => {
+      if (!event || event.key === "pendingIssueVehicles") {
+        loadPendingIssues();
+      }
+      if (!event || event.key === "vehiclesUpdated") {
+        const vehiclesUpdated = localStorage.getItem("vehiclesUpdated");
+        if (vehiclesUpdated === "true") {
+          refetchVehicles();
+          loadPendingIssues();
+          localStorage.setItem("vehiclesUpdated", "false");
+        }
+      }
+    };
+
+    // Initial load
     handleStorageChange();
 
+    // Listen for storage events (when staff assigns vehicles)
+    window.addEventListener("storage", handleStorageChange);
+
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, [refetchVehicles]);
 
@@ -122,6 +151,8 @@ const Vehicles = () => {
 
     if (availability && availability.trim() !== "") {
       setAvailabilityFilter(availability.trim());
+    } else {
+      setAvailabilityFilter("all");
     }
 
     const sortByParam = searchParams.get("sortBy");
@@ -156,8 +187,14 @@ const Vehicles = () => {
   // Data Mapper: Convert API data to UI format
   const mapApiToUI = (apiVehicle: any) => {
     const model = apiVehicleModels?.find(m => m.modelId === apiVehicle.modelId);
-    const station = apiStations?.find(s => s.station_id === apiVehicle.stationId);
+    const station = apiStations?.find(
+      (s) => s.stationId === apiVehicle.stationId
+    );
     
+    const rawStatus = String(apiVehicle.status || '').toLowerCase();
+    // Treat awaiting_processing as maintenance for customer-facing view
+    const normalizedAvailability = rawStatus === 'awaiting_processing' ? 'maintenance' : rawStatus;
+
     return {
       id: apiVehicle.vehicleId?.toString(),
       vehicleId: apiVehicle.vehicleId, // Numeric id retained separately
@@ -178,7 +215,7 @@ const Vehicles = () => {
       reviewCount: apiVehicle.reviewCount,
       trips: apiVehicle.trips,
       mileage: apiVehicle.mileage,
-      availability: apiVehicle.status as any,
+      availability: normalizedAvailability as any,
       condition: apiVehicle.condition as any,
       // Use model image if vehicle doesn't have specific image
       image: apiVehicle.image || (model ? model.image : ''),
@@ -210,7 +247,23 @@ const Vehicles = () => {
 
   // Use API data with fallback to static data
   const staticVehicles = getVehicles(language);
-  const vehicles = apiVehicles ? apiVehicles.map(mapApiToUI) : staticVehicles;
+  const vehicles = (apiVehicles ? apiVehicles.map(mapApiToUI) : staticVehicles).map(
+    (vehicle: any, index: number) => {
+      const numericId =
+        typeof vehicle.vehicleId === "number"
+          ? vehicle.vehicleId
+          : Number(vehicle.vehicleId || vehicle.id || index);
+      return {
+        ...vehicle,
+        vehicleId: Number.isNaN(numericId) ? index : numericId,
+        stationName:
+          vehicle.stationName ||
+          vehicle.station ||
+          vehicle.location ||
+          "",
+      };
+    }
+  );
   
   // Debug logging - Enhanced to show actual vehicle data
   console.log('=== VEHICLES DEBUG ===');
@@ -336,8 +389,20 @@ const Vehicles = () => {
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
     const filtered = vehicles.filter((vehicle) => {
-      // ✅ Filter out pending vehicles
-      if (vehicle.availability?.toLowerCase() === 'pending') {
+      const vehicleIdNumber =
+        typeof vehicle.vehicleId === "number"
+          ? vehicle.vehicleId
+          : Number(vehicle.vehicleId);
+      if (
+        !Number.isNaN(vehicleIdNumber) &&
+        pendingIssueVehicles[vehicleIdNumber]
+      ) {
+        return false;
+      }
+
+      // ✅ Filter out vehicles that should never be shown to customers
+      const avail = String(vehicle.availability || '').toLowerCase();
+      if (avail === 'pending' || avail === 'awaiting_processing') {
         return false;
       }
 
@@ -431,6 +496,7 @@ const Vehicles = () => {
     sortBy,
     vehicleTypeFilter,
     vehicles,
+    pendingIssueVehicles,
     language,
   ]);
 
