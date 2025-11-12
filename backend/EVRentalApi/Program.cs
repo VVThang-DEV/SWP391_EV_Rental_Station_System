@@ -1944,7 +1944,6 @@ app.MapPost("/api/wallet/confirm-payment", [Microsoft.AspNetCore.Authorization.A
     }
 });
 
-app.Run("http://0.0.0.0:5000");
 // Incident endpoints
 // Create incident (customer reports)
 app.MapPost("/api/incidents", [Authorize] async (CreateIncidentRequest req, IIncidentService incidentService, HttpContext context) =>
@@ -2072,6 +2071,351 @@ app.MapGet("/api/incidents/recent", [Authorize] async (HttpContext context, IInc
     var lim = limit.GetValueOrDefault(20);
     var incidents = await incidentService.GetRecentIncidentsAsync(stationId, status, lim);
     return Results.Ok(new { success = true, incidents });
+});
+
+// ============================================
+// Analytics endpoints (Admin only)
+// ============================================
+
+// Overall analytics - all stations
+app.MapGet("/api/analytics/overall", [Authorize] async (HttpContext context, Func<SqlConnection> getConnection, string? period, int? year, int? month, int? quarter) =>
+{
+    try
+    {
+        var roleClaim = context.User.FindFirst(ClaimTypes.Role);
+        if (roleClaim == null || roleClaim.Value != "admin")
+        {
+            Console.WriteLine("[Analytics] Unauthorized: Role claim is null or not admin");
+            return Results.Unauthorized();
+        }
+
+        Console.WriteLine($"[Analytics] Loading overall analytics - Period: {period}, Year: {year}, Month: {month}, Quarter: {quarter}");
+
+        using var conn = getConnection();
+        await conn.OpenAsync();
+        // Determine date range based on period
+        DateTime startDate, endDate;
+        if (period == "quarter" && quarter.HasValue && year.HasValue)
+        {
+            int startMonth = (quarter.Value - 1) * 3 + 1;
+            startDate = new DateTime(year.Value, startMonth, 1);
+            endDate = startDate.AddMonths(3).AddDays(-1);
+        }
+        else if (period == "month" && month.HasValue && year.HasValue)
+        {
+            startDate = new DateTime(year.Value, month.Value, 1);
+            endDate = startDate.AddMonths(1).AddDays(-1);
+        }
+        else
+        {
+            // Default to current month
+            var now = DateTime.Now;
+            startDate = new DateTime(now.Year, now.Month, 1);
+            endDate = startDate.AddMonths(1).AddDays(-1);
+        }
+
+        // Get number of unique renters
+        var rentersCmd = new SqlCommand(@"
+            SELECT COUNT(DISTINCT r.user_id) as UniqueRenters
+            FROM dbo.reservations r
+            WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')", conn);
+        rentersCmd.Parameters.AddWithValue("@StartDate", startDate);
+        rentersCmd.Parameters.AddWithValue("@EndDate", endDate);
+        var uniqueRenters = (int)(await rentersCmd.ExecuteScalarAsync() ?? 0);
+
+        // Get revenue (from successful payments)
+        var revenueCmd = new SqlCommand(@"
+            SELECT ISNULL(SUM(p.amount), 0) as TotalRevenue
+            FROM dbo.payments p
+            INNER JOIN dbo.reservations r ON p.reservation_id = r.reservation_id
+            WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND p.status = 'success' AND p.transaction_type = 'payment'", conn);
+        revenueCmd.Parameters.AddWithValue("@StartDate", startDate);
+        revenueCmd.Parameters.AddWithValue("@EndDate", endDate);
+        var revenue = (decimal)(await revenueCmd.ExecuteScalarAsync() ?? 0m);
+
+        // Get rental hours
+        var hoursCmd = new SqlCommand(@"
+            SELECT ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
+            FROM dbo.reservations r
+            WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')
+            AND r.end_time IS NOT NULL", conn);
+        hoursCmd.Parameters.AddWithValue("@StartDate", startDate);
+        hoursCmd.Parameters.AddWithValue("@EndDate", endDate);
+        var totalHours = (int)(await hoursCmd.ExecuteScalarAsync() ?? 0);
+
+        // Get monthly/quarterly breakdown
+        // If period is "month", show daily breakdown. If "quarter", show monthly breakdown
+        var breakdownCmd = new SqlCommand(@"
+            SELECT 
+                CASE 
+                    WHEN @Period = 'month' THEN FORMAT(r.start_time, 'yyyy-MM-dd')
+                    WHEN @Period = 'quarter' THEN FORMAT(r.start_time, 'yyyy-MM')
+                END as PeriodLabel,
+                COUNT(DISTINCT r.user_id) as Renters,
+                ISNULL(SUM(p.amount), 0) as Revenue,
+                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as Hours
+            FROM dbo.reservations r
+            LEFT JOIN dbo.payments p ON r.reservation_id = p.reservation_id AND p.status = 'success' AND p.transaction_type = 'payment'
+            WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')
+            GROUP BY 
+                CASE 
+                    WHEN @Period = 'month' THEN FORMAT(r.start_time, 'yyyy-MM-dd')
+                    WHEN @Period = 'quarter' THEN FORMAT(r.start_time, 'yyyy-MM')
+                END
+            ORDER BY PeriodLabel", conn);
+        breakdownCmd.Parameters.AddWithValue("@StartDate", startDate);
+        breakdownCmd.Parameters.AddWithValue("@EndDate", endDate);
+        breakdownCmd.Parameters.AddWithValue("@Period", period ?? "month");
+
+        var breakdown = new List<object>();
+        using (var reader = await breakdownCmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                breakdown.Add(new
+                {
+                    period = reader.GetString(0),
+                    renters = reader.GetInt32(1),
+                    revenue = reader.GetDecimal(2),
+                    hours = reader.GetInt32(3)
+                });
+            }
+        }
+
+        // Get hourly statistics (rental hours by hour of day)
+        var hourlyCmd = new SqlCommand(@"
+            SELECT 
+                DATEPART(HOUR, r.start_time) as HourOfDay,
+                COUNT(*) as RentalCount,
+                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
+            FROM dbo.reservations r
+            WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')
+            AND r.end_time IS NOT NULL
+            GROUP BY DATEPART(HOUR, r.start_time)
+            ORDER BY HourOfDay", conn);
+        hourlyCmd.Parameters.AddWithValue("@StartDate", startDate);
+        hourlyCmd.Parameters.AddWithValue("@EndDate", endDate);
+
+        var hourlyStats = new List<object>();
+        using (var hourlyReader = await hourlyCmd.ExecuteReaderAsync())
+        {
+            while (await hourlyReader.ReadAsync())
+            {
+                hourlyStats.Add(new
+                {
+                    hour = hourlyReader.GetInt32(0),
+                    rentalCount = hourlyReader.GetInt32(1),
+                    totalHours = hourlyReader.GetInt32(2)
+                });
+            }
+        }
+
+        Console.WriteLine($"[Analytics] Overall analytics loaded successfully - Renters: {uniqueRenters}, Revenue: {revenue}, Hours: {totalHours}");
+
+        return Results.Ok(new
+        {
+            success = true,
+            summary = new
+            {
+                uniqueRenters = uniqueRenters,
+                revenue = revenue,
+                totalHours = totalHours,
+                period = period ?? "month",
+                year = year ?? DateTime.Now.Year,
+                month = month,
+                quarter = quarter
+            },
+            breakdown = breakdown ?? new List<object>(),
+            hourlyStats = hourlyStats ?? new List<object>()
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Analytics] Error loading overall analytics: {ex.Message}");
+        Console.WriteLine($"[Analytics] Stack trace: {ex.StackTrace}");
+        return Results.BadRequest(new { success = false, message = ex.Message });
+    }
+});
+
+// Per-station analytics
+app.MapGet("/api/analytics/station/{stationId}", [Authorize] async (int stationId, HttpContext context, Func<SqlConnection> getConnection, string? period, int? year, int? month, int? quarter) =>
+{
+    try
+    {
+        var roleClaim = context.User.FindFirst(ClaimTypes.Role);
+        if (roleClaim == null || roleClaim.Value != "admin")
+        {
+            Console.WriteLine("[Analytics] Unauthorized: Role claim is null or not admin");
+            return Results.Unauthorized();
+        }
+
+        Console.WriteLine($"[Analytics] Loading station analytics - StationId: {stationId}, Period: {period}, Year: {year}, Month: {month}, Quarter: {quarter}");
+
+        using var conn = getConnection();
+        await conn.OpenAsync();
+        // Determine date range based on period
+        DateTime startDate, endDate;
+        if (period == "quarter" && quarter.HasValue && year.HasValue)
+        {
+            int startMonth = (quarter.Value - 1) * 3 + 1;
+            startDate = new DateTime(year.Value, startMonth, 1);
+            endDate = startDate.AddMonths(3).AddDays(-1);
+        }
+        else if (period == "month" && month.HasValue && year.HasValue)
+        {
+            startDate = new DateTime(year.Value, month.Value, 1);
+            endDate = startDate.AddMonths(1).AddDays(-1);
+        }
+        else
+        {
+            // Default to current month
+            var now = DateTime.Now;
+            startDate = new DateTime(now.Year, now.Month, 1);
+            endDate = startDate.AddMonths(1).AddDays(-1);
+        }
+
+        // Get number of unique renters for this station
+        var rentersCmd = new SqlCommand(@"
+            SELECT COUNT(DISTINCT r.user_id) as UniqueRenters
+            FROM dbo.reservations r
+            WHERE r.station_id = @StationId
+            AND r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')", conn);
+        rentersCmd.Parameters.AddWithValue("@StationId", stationId);
+        rentersCmd.Parameters.AddWithValue("@StartDate", startDate);
+        rentersCmd.Parameters.AddWithValue("@EndDate", endDate);
+        var uniqueRenters = (int)(await rentersCmd.ExecuteScalarAsync() ?? 0);
+
+        // Get revenue for this station
+        var revenueCmd = new SqlCommand(@"
+            SELECT ISNULL(SUM(p.amount), 0) as TotalRevenue
+            FROM dbo.payments p
+            INNER JOIN dbo.reservations r ON p.reservation_id = r.reservation_id
+            WHERE r.station_id = @StationId
+            AND r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND p.status = 'success' AND p.transaction_type = 'payment'", conn);
+        revenueCmd.Parameters.AddWithValue("@StationId", stationId);
+        revenueCmd.Parameters.AddWithValue("@StartDate", startDate);
+        revenueCmd.Parameters.AddWithValue("@EndDate", endDate);
+        var revenue = (decimal)(await revenueCmd.ExecuteScalarAsync() ?? 0m);
+
+        // Get rental hours for this station
+        var hoursCmd = new SqlCommand(@"
+            SELECT ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
+            FROM dbo.reservations r
+            WHERE r.station_id = @StationId
+            AND r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')
+            AND r.end_time IS NOT NULL", conn);
+        hoursCmd.Parameters.AddWithValue("@StationId", stationId);
+        hoursCmd.Parameters.AddWithValue("@StartDate", startDate);
+        hoursCmd.Parameters.AddWithValue("@EndDate", endDate);
+        var totalHours = (int)(await hoursCmd.ExecuteScalarAsync() ?? 0);
+
+        // Get monthly/quarterly breakdown
+        // If period is "month", show daily breakdown. If "quarter", show monthly breakdown
+        var breakdownCmd = new SqlCommand(@"
+            SELECT 
+                CASE 
+                    WHEN @Period = 'month' THEN FORMAT(r.start_time, 'yyyy-MM-dd')
+                    WHEN @Period = 'quarter' THEN FORMAT(r.start_time, 'yyyy-MM')
+                END as PeriodLabel,
+                COUNT(DISTINCT r.user_id) as Renters,
+                ISNULL(SUM(p.amount), 0) as Revenue,
+                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as Hours
+            FROM dbo.reservations r
+            LEFT JOIN dbo.payments p ON r.reservation_id = p.reservation_id AND p.status = 'success' AND p.transaction_type = 'payment'
+            WHERE r.station_id = @StationId
+            AND r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')
+            GROUP BY 
+                CASE 
+                    WHEN @Period = 'month' THEN FORMAT(r.start_time, 'yyyy-MM-dd')
+                    WHEN @Period = 'quarter' THEN FORMAT(r.start_time, 'yyyy-MM')
+                END
+            ORDER BY PeriodLabel", conn);
+        breakdownCmd.Parameters.AddWithValue("@StationId", stationId);
+        breakdownCmd.Parameters.AddWithValue("@StartDate", startDate);
+        breakdownCmd.Parameters.AddWithValue("@EndDate", endDate);
+        breakdownCmd.Parameters.AddWithValue("@Period", period ?? "month");
+
+        var breakdown = new List<object>();
+        using (var reader = await breakdownCmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                breakdown.Add(new
+                {
+                    period = reader.GetString(0),
+                    renters = reader.GetInt32(1),
+                    revenue = reader.GetDecimal(2),
+                    hours = reader.GetInt32(3)
+                });
+            }
+        }
+
+        // Get hourly statistics for this station
+        var hourlyCmd = new SqlCommand(@"
+            SELECT 
+                DATEPART(HOUR, r.start_time) as HourOfDay,
+                COUNT(*) as RentalCount,
+                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
+            FROM dbo.reservations r
+            WHERE r.station_id = @StationId
+            AND r.start_time >= @StartDate AND r.start_time <= @EndDate
+            AND r.status IN ('confirmed', 'completed', 'active')
+            AND r.end_time IS NOT NULL
+            GROUP BY DATEPART(HOUR, r.start_time)
+            ORDER BY HourOfDay", conn);
+        hourlyCmd.Parameters.AddWithValue("@StationId", stationId);
+        hourlyCmd.Parameters.AddWithValue("@StartDate", startDate);
+        hourlyCmd.Parameters.AddWithValue("@EndDate", endDate);
+
+        var hourlyStats = new List<object>();
+        using (var hourlyReader = await hourlyCmd.ExecuteReaderAsync())
+        {
+            while (await hourlyReader.ReadAsync())
+            {
+                hourlyStats.Add(new
+                {
+                    hour = hourlyReader.GetInt32(0),
+                    rentalCount = hourlyReader.GetInt32(1),
+                    totalHours = hourlyReader.GetInt32(2)
+                });
+            }
+        }
+
+        Console.WriteLine($"[Analytics] Station analytics loaded successfully - StationId: {stationId}, Renters: {uniqueRenters}, Revenue: {revenue}, Hours: {totalHours}");
+
+        return Results.Ok(new
+        {
+            success = true,
+            stationId = stationId,
+            summary = new
+            {
+                uniqueRenters = uniqueRenters,
+                revenue = revenue,
+                totalHours = totalHours,
+                period = period ?? "month",
+                year = year ?? DateTime.Now.Year,
+                month = month,
+                quarter = quarter
+            },
+            breakdown = breakdown ?? new List<object>(),
+            hourlyStats = hourlyStats ?? new List<object>()
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Analytics] Error loading station analytics: {ex.Message}");
+        Console.WriteLine($"[Analytics] Stack trace: {ex.StackTrace}");
+        return Results.BadRequest(new { success = false, message = ex.Message });
+    }
 });
 
 app.Run("http://localhost:5000");
