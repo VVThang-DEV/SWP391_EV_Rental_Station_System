@@ -496,6 +496,85 @@ class ApiService {
       }),
     });
   }
+
+  // Analytics
+  async getOverallAnalytics(params?: {
+    period?: "month" | "quarter";
+    year?: number;
+    month?: number;
+    quarter?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.period) queryParams.append("period", params.period);
+    if (params?.year) queryParams.append("year", params.year.toString());
+    if (params?.month) queryParams.append("month", params.month.toString());
+    if (params?.quarter) queryParams.append("quarter", params.quarter.toString());
+
+    return this.request<{
+      success: boolean;
+      summary: {
+        uniqueRenters: number;
+        revenue: number;
+        totalHours: number;
+        period: string;
+        year: number;
+        month?: number;
+        quarter?: number;
+      };
+      breakdown: Array<{
+        period: string;
+        renters: number;
+        revenue: number;
+        hours: number;
+      }>;
+      hourlyStats: Array<{
+        hour: number;
+        rentalCount: number;
+        totalHours: number;
+      }>;
+    }>(`/api/analytics/overall?${queryParams.toString()}`);
+  }
+
+  async getStationAnalytics(
+    stationId: number,
+    params?: {
+      period?: "month" | "quarter";
+      year?: number;
+      month?: number;
+      quarter?: number;
+    }
+  ) {
+    const queryParams = new URLSearchParams();
+    if (params?.period) queryParams.append("period", params.period);
+    if (params?.year) queryParams.append("year", params.year.toString());
+    if (params?.month) queryParams.append("month", params.month.toString());
+    if (params?.quarter) queryParams.append("quarter", params.quarter.toString());
+
+    return this.request<{
+      success: boolean;
+      stationId: number;
+      summary: {
+        uniqueRenters: number;
+        revenue: number;
+        totalHours: number;
+        period: string;
+        year: number;
+        month?: number;
+        quarter?: number;
+      };
+      breakdown: Array<{
+        period: string;
+        renters: number;
+        revenue: number;
+        hours: number;
+      }>;
+      hourlyStats: Array<{
+        hour: number;
+        rentalCount: number;
+        totalHours: number;
+      }>;
+    }>(`/api/analytics/station/${stationId}?${queryParams.toString()}`);
+  }
 }
 
 // Staff API interfaces
