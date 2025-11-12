@@ -91,6 +91,18 @@ import { apiService, Station } from "@/services/api";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { adminApiService, AdminCreateVehicleRequest } from "../../services/api";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface AdminDashboardProps {
   user: {
@@ -145,6 +157,22 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   const [stationsLoading, setStationsLoading] = useState(false);
   const [stationsError, setStationsError] = useState<string | null>(null);
 
+  // Analytics States
+  const [overallAnalytics, setOverallAnalytics] = useState<any>(null);
+  const [overallLoading, setOverallLoading] = useState(false);
+  const [overallPeriod, setOverallPeriod] = useState<"month" | "quarter">("month");
+  const [overallYear, setOverallYear] = useState(new Date().getFullYear());
+  const [overallMonth, setOverallMonth] = useState(new Date().getMonth() + 1);
+  const [overallQuarter, setOverallQuarter] = useState(Math.floor((new Date().getMonth() + 3) / 3));
+
+  const [selectedStationForAnalytics, setSelectedStationForAnalytics] = useState<number | null>(null);
+  const [stationAnalytics, setStationAnalytics] = useState<any>(null);
+  const [stationLoading, setStationLoading] = useState(false);
+  const [stationPeriod, setStationPeriod] = useState<"month" | "quarter">("month");
+  const [stationYear, setStationYear] = useState(new Date().getFullYear());
+  const [stationMonth, setStationMonth] = useState(new Date().getMonth() + 1);
+  const [stationQuarter, setStationQuarter] = useState(Math.floor((new Date().getMonth() + 3) / 3));
+
   // Edit Station Dialog States
   const [isEditStationDialogOpen, setIsEditStationDialogOpen] = useState(false);
   const [editingStation, setEditingStation] = useState<Station | null>(null);
@@ -183,6 +211,216 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
     loadStations();
   }, []);
+
+  // Helper function to format revenue in millions
+  const formatRevenueInMillions = (value: number): string => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)} triệu`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)} nghìn`;
+    }
+    return value.toLocaleString();
+  };
+
+  // Helper function for YAxis tick formatter
+  const formatYAxisRevenue = (value: number): string => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(0)}K`;
+    }
+    return value.toString();
+  };
+
+  // Mock data generator for testing
+  const generateMockOverallAnalytics = () => {
+    const breakdown: any[] = [];
+    const hourlyStats: any[] = [];
+    
+    if (overallPeriod === "month") {
+      // Generate daily data for the month
+      const daysInMonth = new Date(overallYear, overallMonth, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        breakdown.push({
+          period: `${overallYear}-${String(overallMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+          renters: Math.floor(Math.random() * 50) + 10,
+          revenue: Math.floor(Math.random() * 5000000) + 1000000,
+          hours: Math.floor(Math.random() * 200) + 50,
+        });
+      }
+    } else {
+      // Generate monthly data for the quarter
+      const startMonth = (overallQuarter - 1) * 3 + 1;
+      for (let month = startMonth; month < startMonth + 3; month++) {
+        breakdown.push({
+          period: `${overallYear}-${String(month).padStart(2, '0')}`,
+          renters: Math.floor(Math.random() * 200) + 50,
+          revenue: Math.floor(Math.random() * 20000000) + 5000000,
+          hours: Math.floor(Math.random() * 1000) + 300,
+        });
+      }
+    }
+
+    // Generate hourly stats (0-23 hours)
+    for (let hour = 0; hour < 24; hour++) {
+      hourlyStats.push({
+        hour: hour,
+        rentalCount: Math.floor(Math.random() * 30) + (hour >= 8 && hour <= 18 ? 20 : 5),
+        totalHours: Math.floor(Math.random() * 100) + (hour >= 8 && hour <= 18 ? 50 : 10),
+      });
+    }
+
+    const totalRenters = breakdown.reduce((sum, item) => sum + item.renters, 0);
+    const totalRevenue = breakdown.reduce((sum, item) => sum + item.revenue, 0);
+    const totalHours = breakdown.reduce((sum, item) => sum + item.hours, 0);
+
+    return {
+      success: true,
+      summary: {
+        uniqueRenters: Math.floor(totalRenters * 0.6), // Unique users (60% of total)
+        revenue: totalRevenue,
+        totalHours: totalHours,
+        period: overallPeriod,
+        year: overallYear,
+        month: overallPeriod === "month" ? overallMonth : undefined,
+        quarter: overallPeriod === "quarter" ? overallQuarter : undefined,
+      },
+      breakdown: breakdown,
+      hourlyStats: hourlyStats,
+    };
+  };
+
+  const generateMockStationAnalytics = (stationId: number) => {
+    const breakdown: any[] = [];
+    const hourlyStats: any[] = [];
+    
+    if (stationPeriod === "month") {
+      // Generate daily data for the month
+      const daysInMonth = new Date(stationYear, stationMonth, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        breakdown.push({
+          period: `${stationYear}-${String(stationMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+          renters: Math.floor(Math.random() * 20) + 3,
+          revenue: Math.floor(Math.random() * 2000000) + 300000,
+          hours: Math.floor(Math.random() * 80) + 15,
+        });
+      }
+    } else {
+      // Generate monthly data for the quarter
+      const startMonth = (stationQuarter - 1) * 3 + 1;
+      for (let month = startMonth; month < startMonth + 3; month++) {
+        breakdown.push({
+          period: `${stationYear}-${String(month).padStart(2, '0')}`,
+          renters: Math.floor(Math.random() * 80) + 15,
+          revenue: Math.floor(Math.random() * 8000000) + 1500000,
+          hours: Math.floor(Math.random() * 400) + 100,
+        });
+      }
+    }
+
+    // Generate hourly stats (0-23 hours)
+    for (let hour = 0; hour < 24; hour++) {
+      hourlyStats.push({
+        hour: hour,
+        rentalCount: Math.floor(Math.random() * 15) + (hour >= 8 && hour <= 18 ? 8 : 2),
+        totalHours: Math.floor(Math.random() * 50) + (hour >= 8 && hour <= 18 ? 25 : 5),
+      });
+    }
+
+    const totalRenters = breakdown.reduce((sum, item) => sum + item.renters, 0);
+    const totalRevenue = breakdown.reduce((sum, item) => sum + item.revenue, 0);
+    const totalHours = breakdown.reduce((sum, item) => sum + item.hours, 0);
+
+    return {
+      success: true,
+      stationId: stationId,
+      summary: {
+        uniqueRenters: Math.floor(totalRenters * 0.6),
+        revenue: totalRevenue,
+        totalHours: totalHours,
+        period: stationPeriod,
+        year: stationYear,
+        month: stationPeriod === "month" ? stationMonth : undefined,
+        quarter: stationPeriod === "quarter" ? stationQuarter : undefined,
+      },
+      breakdown: breakdown,
+      hourlyStats: hourlyStats,
+    };
+  };
+
+  // Load overall analytics
+  useEffect(() => {
+    const loadOverallAnalytics = async () => {
+      setOverallLoading(true);
+      try {
+        const params: any = {
+          period: overallPeriod,
+          year: overallYear,
+        };
+        if (overallPeriod === "month") {
+          params.month = overallMonth;
+        } else {
+          params.quarter = overallQuarter;
+        }
+        console.log("Loading overall analytics with params:", params);
+        const data = await apiService.getOverallAnalytics(params);
+        console.log("Analytics data received:", data);
+        setOverallAnalytics(data);
+      } catch (error: any) {
+        console.error("Failed to load overall analytics:", error);
+        const errorMessage = error?.message || error?.data?.message || "Failed to load analytics data";
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } finally {
+        setOverallLoading(false);
+      }
+    };
+
+    if (selectedTab === "analytics") {
+      loadOverallAnalytics();
+    }
+  }, [overallPeriod, overallYear, overallMonth, overallQuarter, selectedTab, toast]);
+
+  // Load station analytics
+  useEffect(() => {
+    const loadStationAnalytics = async () => {
+      if (!selectedStationForAnalytics) return;
+
+      setStationLoading(true);
+      try {
+        const params: any = {
+          period: stationPeriod,
+          year: stationYear,
+        };
+        if (stationPeriod === "month") {
+          params.month = stationMonth;
+        } else {
+          params.quarter = stationQuarter;
+        }
+        console.log("Loading station analytics with params:", { stationId: selectedStationForAnalytics, ...params });
+        const data = await apiService.getStationAnalytics(selectedStationForAnalytics, params);
+        console.log("Station analytics data received:", data);
+        setStationAnalytics(data);
+      } catch (error: any) {
+        console.error("Failed to load station analytics:", error);
+        const errorMessage = error?.message || error?.data?.message || "Failed to load station analytics data";
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } finally {
+        setStationLoading(false);
+      }
+    };
+
+    if (selectedTab === "analytics" && selectedStationForAnalytics) {
+      loadStationAnalytics();
+    }
+  }, [selectedStationForAnalytics, stationPeriod, stationYear, stationMonth, stationQuarter, selectedTab, toast]);
 
   const handleViewStation = (station: Station) => {
     setSelectedStation(station);
@@ -1037,115 +1275,436 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   );
 
   const renderReportsAnalytics = () => (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">
           {t("common.reportsAndAnalytics")}
         </h2>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline">
-            <Calendar className="h-4 w-4 mr-2" />
-            Date Range
-          </Button>
-          <Button>
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
-        </div>
+        <Button>
+          <Download className="h-4 w-4 mr-2" />
+          Export Report
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Overall Analytics Section */}
+      <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Peak Hours Analysis</CardTitle>
-            <CardDescription>
-              Rental patterns throughout the day
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span>8:00 - 10:00 AM</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-32 bg-muted rounded-full h-3">
-                    <div
-                      className="bg-primary h-3 rounded-full"
-                      style={{ width: "85%" }}
-                    ></div>
-                  </div>
-                  <span className="text-sm">85%</span>
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Tổng Dữ Liệu Các Trạm</CardTitle>
+                <CardDescription>
+                  Thống kê tổng hợp từ tất cả các trạm
+                </CardDescription>
               </div>
-              <div className="flex items-center justify-between">
-                <span>6:00 - 8:00 PM</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-32 bg-muted rounded-full h-3">
-                    <div
-                      className="bg-primary h-3 rounded-full"
-                      style={{ width: "78%" }}
-                    ></div>
-                  </div>
-                  <span className="text-sm">78%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>12:00 - 2:00 PM</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-32 bg-muted rounded-full h-3">
-                    <div
-                      className="bg-primary h-3 rounded-full"
-                      style={{ width: "65%" }}
-                    ></div>
-                  </div>
-                  <span className="text-sm">65%</span>
-                </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={overallPeriod}
+                  onValueChange={(value: "month" | "quarter") => setOverallPeriod(value)}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Tháng</SelectItem>
+                    <SelectItem value="quarter">Quý</SelectItem>
+                  </SelectContent>
+                </Select>
+                {overallPeriod === "month" ? (
+                  <>
+                    <Input
+                      type="number"
+                      value={overallYear}
+                      onChange={(e) => setOverallYear(parseInt(e.target.value))}
+                      className="w-24"
+                      placeholder="Năm"
+                    />
+                    <Select
+                      value={overallMonth.toString()}
+                      onValueChange={(value) => setOverallMonth(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                          <SelectItem key={m} value={m.toString()}>
+                            Tháng {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      type="number"
+                      value={overallYear}
+                      onChange={(e) => setOverallYear(parseInt(e.target.value))}
+                      className="w-24"
+                      placeholder="Năm"
+                    />
+                    <Select
+                      value={overallQuarter.toString()}
+                      onValueChange={(value) => setOverallQuarter(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4].map((q) => (
+                          <SelectItem key={q} value={q.toString()}>
+                            Quý {q}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
               </div>
             </div>
+          </CardHeader>
+          <CardContent>
+            {overallLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : overallAnalytics ? (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Lượng Người Thuê</p>
+                          <p className="text-2xl font-bold">{overallAnalytics.summary.uniqueRenters}</p>
+                        </div>
+                        <Users className="h-8 w-8 text-primary" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Doanh Thu</p>
+                          <p className="text-2xl font-bold">
+                            ₫{formatRevenueInMillions(overallAnalytics.summary.revenue)}
+                          </p>
+                        </div>
+                        <DollarSign className="h-8 w-8 text-green-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Tổng Giờ Thuê</p>
+                          <p className="text-2xl font-bold">{overallAnalytics.summary.totalHours}h</p>
+                        </div>
+                        <Clock className="h-8 w-8 text-blue-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Renters Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Biểu Đồ Lượng Người Thuê</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={overallAnalytics.breakdown}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="period" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="renters" fill="#3b82f6" name="Người thuê" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Revenue Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Biểu Đồ Doanh Thu</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={overallAnalytics.breakdown}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="period" />
+                          <YAxis tickFormatter={formatYAxisRevenue} />
+                          <Tooltip formatter={(value: number) => `₫${formatRevenueInMillions(value)}`} />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="#10b981"
+                            strokeWidth={2}
+                            name="Doanh thu"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Rental Hours Statistics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Thống Kê Giờ Thuê Theo Giờ Trong Ngày</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={overallAnalytics.hourlyStats}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="hour" label={{ value: "Giờ", position: "insideBottom" }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="rentalCount" fill="#8b5cf6" name="Số lượt thuê" />
+                        <Bar dataKey="totalHours" fill="#f59e0b" name="Tổng giờ" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                Không có dữ liệu
+              </div>
+            )}
           </CardContent>
         </Card>
+      </div>
 
+      {/* Per Station Analytics Section */}
+      <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>AI Demand Forecast</CardTitle>
-            <CardDescription>Predicted demand for next month</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 bg-primary-light rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  <span className="font-semibold">
-                    {t("common.highDemandExpected")}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  +22% increase expected in District 1 and Thu Duc stations
-                  during weekends
-                </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Thống Kê Từng Trạm</CardTitle>
+                <CardDescription>
+                  Xem thống kê chi tiết cho từng trạm
+                </CardDescription>
               </div>
-              <div className="p-4 bg-warning-light rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <TrendingUp className="h-5 w-5 text-warning" />
-                  <span className="font-semibold">
-                    Fleet Expansion Recommended
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Consider adding 5-7 more vehicles to meet projected demand
-                </p>
-              </div>
-              <div className="p-4 bg-info-light rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Clock className="h-5 w-5 text-info" />
-                  <span className="font-semibold">
-                    {t("common.optimalOperatingHours")}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  7:00 AM - 10:00 PM provides 94% demand coverage
-                </p>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={selectedStationForAnalytics?.toString() || ""}
+                  onValueChange={(value) => setSelectedStationForAnalytics(parseInt(value))}
+                >
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Chọn trạm" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {apiStations.map((station) => (
+                      <SelectItem key={station.stationId} value={station.stationId.toString()}>
+                        {station.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedStationForAnalytics && (
+                  <>
+                    <Select
+                      value={stationPeriod}
+                      onValueChange={(value: "month" | "quarter") => setStationPeriod(value)}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="month">Tháng</SelectItem>
+                        <SelectItem value="quarter">Quý</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {stationPeriod === "month" ? (
+                      <>
+                        <Input
+                          type="number"
+                          value={stationYear}
+                          onChange={(e) => setStationYear(parseInt(e.target.value))}
+                          className="w-24"
+                          placeholder="Năm"
+                        />
+                        <Select
+                          value={stationMonth.toString()}
+                          onValueChange={(value) => setStationMonth(parseInt(value))}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                              <SelectItem key={m} value={m.toString()}>
+                                Tháng {m}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </>
+                    ) : (
+                      <>
+                        <Input
+                          type="number"
+                          value={stationYear}
+                          onChange={(e) => setStationYear(parseInt(e.target.value))}
+                          className="w-24"
+                          placeholder="Năm"
+                        />
+                        <Select
+                          value={stationQuarter.toString()}
+                          onValueChange={(value) => setStationQuarter(parseInt(value))}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 4].map((q) => (
+                              <SelectItem key={q} value={q.toString()}>
+                                Quý {q}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             </div>
+          </CardHeader>
+          <CardContent>
+            {!selectedStationForAnalytics ? (
+              <div className="text-center py-12 text-muted-foreground">
+                Vui lòng chọn một trạm để xem thống kê
+              </div>
+            ) : stationLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : stationAnalytics ? (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Lượng Người Thuê</p>
+                          <p className="text-2xl font-bold">{stationAnalytics.summary.uniqueRenters}</p>
+                        </div>
+                        <Users className="h-8 w-8 text-primary" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Doanh Thu</p>
+                          <p className="text-2xl font-bold">
+                            ₫{formatRevenueInMillions(stationAnalytics.summary.revenue)}
+                          </p>
+                        </div>
+                        <DollarSign className="h-8 w-8 text-green-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Tổng Giờ Thuê</p>
+                          <p className="text-2xl font-bold">{stationAnalytics.summary.totalHours}h</p>
+                        </div>
+                        <Clock className="h-8 w-8 text-blue-600" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Renters Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Biểu Đồ Lượng Người Thuê</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={stationAnalytics.breakdown}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="period" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="renters" fill="#3b82f6" name="Người thuê" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Revenue Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Biểu Đồ Doanh Thu</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={stationAnalytics.breakdown}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="period" />
+                          <YAxis tickFormatter={formatYAxisRevenue} />
+                          <Tooltip formatter={(value: number) => `₫${formatRevenueInMillions(value)}`} />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="#10b981"
+                            strokeWidth={2}
+                            name="Doanh thu"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Rental Hours Statistics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Thống Kê Giờ Thuê Theo Giờ Trong Ngày</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={stationAnalytics.hourlyStats}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="hour" label={{ value: "Giờ", position: "insideBottom" }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="rentalCount" fill="#8b5cf6" name="Số lượt thuê" />
+                        <Bar dataKey="totalHours" fill="#f59e0b" name="Tổng giờ" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                Không có dữ liệu
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
