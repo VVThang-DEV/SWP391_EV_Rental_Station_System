@@ -1120,6 +1120,101 @@ app.MapPost("/api/wallet/withdraw", [Microsoft.AspNetCore.Authorization.Authoriz
     }
 });
 
+// Customer pay pending payment (damage_fee/late_fee) from wallet
+app.MapPost("/api/wallet/pay-pending", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection, PayPendingPaymentRequest req) =>
+{
+    Console.WriteLine($"[Pay Pending Payment] ReservationId={req.ReservationId}, TransactionType={req.TransactionType}");
+    
+    var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+    {
+        Console.WriteLine("[Pay Pending Payment] Unauthorized: No valid user ID");
+        return Results.Unauthorized();
+    }
+
+    using var conn = getConnection();
+    await conn.OpenAsync();
+    
+    var trans = conn.BeginTransaction();
+    try
+    {
+        // Find pending payment
+        var findPaymentCmd = new SqlCommand(@"
+            SELECT payment_id, amount, transaction_type
+            FROM dbo.payments
+            WHERE reservation_id = @ReservationId
+            AND user_id = @UserId
+            AND transaction_type = @TransactionType
+            AND status = 'pending'
+            ORDER BY created_at DESC", conn, trans);
+        findPaymentCmd.Parameters.AddWithValue("@ReservationId", req.ReservationId);
+        findPaymentCmd.Parameters.AddWithValue("@UserId", userId);
+        findPaymentCmd.Parameters.AddWithValue("@TransactionType", req.TransactionType);
+        
+        using var paymentReader = await findPaymentCmd.ExecuteReaderAsync();
+        if (!await paymentReader.ReadAsync())
+        {
+            await paymentReader.CloseAsync();
+            await trans.RollbackAsync();
+            await conn.CloseAsync();
+            return Results.BadRequest(new { success = false, message = "Không tìm thấy khoản thanh toán đang chờ xử lý" });
+        }
+        
+        var paymentId = paymentReader.GetInt32(0);
+        var amount = paymentReader.GetDecimal(1);
+        var transactionType = paymentReader.GetString(2);
+        await paymentReader.CloseAsync();
+
+        // Check customer balance
+        var checkBalanceCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+        checkBalanceCmd.Parameters.AddWithValue("@userId", userId);
+        var currentBalanceResult = await checkBalanceCmd.ExecuteScalarAsync();
+        var currentBalance = currentBalanceResult == DBNull.Value ? 0m : (decimal)currentBalanceResult;
+        
+        Console.WriteLine($"[Pay Pending Payment] Current balance: {currentBalance}, Required: {amount}");
+        
+        if (currentBalance < amount)
+        {
+            await trans.RollbackAsync();
+            await conn.CloseAsync();
+            return Results.BadRequest(new { success = false, message = "Không đủ số dư trong ví", currentBalance, required = amount });
+        }
+
+        // Update payment status to success
+        var updatePaymentCmd = new SqlCommand(@"
+            UPDATE dbo.payments
+            SET status = 'success', updated_at = GETDATE()
+            WHERE payment_id = @PaymentId", conn, trans);
+        updatePaymentCmd.Parameters.AddWithValue("@PaymentId", paymentId);
+        await updatePaymentCmd.ExecuteNonQueryAsync();
+
+        // Update wallet balance (subtract)
+        var updateBalanceCmd = new SqlCommand("UPDATE dbo.users SET wallet_balance = ISNULL(wallet_balance, 0) - @amount WHERE user_id = @userId", conn, trans);
+        updateBalanceCmd.Parameters.AddWithValue("@userId", userId);
+        updateBalanceCmd.Parameters.AddWithValue("@amount", amount);
+        await updateBalanceCmd.ExecuteNonQueryAsync();
+
+        // Get new balance
+        var getBalanceCmd = new SqlCommand("SELECT wallet_balance FROM dbo.users WHERE user_id = @userId", conn, trans);
+        getBalanceCmd.Parameters.AddWithValue("@userId", userId);
+        var balanceResult = await getBalanceCmd.ExecuteScalarAsync();
+        var newBalance = balanceResult == DBNull.Value ? 0m : (decimal)balanceResult;
+
+        trans.Commit();
+        await conn.CloseAsync();
+        
+        Console.WriteLine($"[Pay Pending Payment] Success: paymentId={paymentId}, newBalance={newBalance}");
+        return Results.Ok(new { success = true, message = "Thanh toán thành công", paymentId, newBalance, amount });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Pay Pending Payment] Error: {ex.Message}");
+        await trans.RollbackAsync();
+        await conn.CloseAsync();
+        return Results.BadRequest(new { success = false, message = $"Lỗi khi thanh toán: {ex.Message}" });
+    }
+});
+
 // Staff deduct from customer wallet (for late fees, damages, etc.)
 app.MapPost("/api/staff/wallet/deduct", [Microsoft.AspNetCore.Authorization.Authorize] async (HttpContext context, Func<SqlConnection> getConnection, IEmailService emailService, StaffDeductWalletRequest req) =>
 {
@@ -2424,6 +2519,7 @@ record LoginRequest(string Email, string Password);
 record DepositRequest(decimal Amount, string MethodType, string? TransactionId);
 record WithdrawRequest(decimal Amount, string? Reason, string? TransactionId, int? ReservationId);
 record UpdatePaymentRequest(int ReservationId, decimal Amount);
+record PayPendingPaymentRequest(int ReservationId, string TransactionType); // TransactionType: 'damage_fee' or 'late_fee'
 record StaffDeductWalletRequest(int CustomerId, decimal Amount, string? Reason, int? ReservationId);
 record MoMoWebhookRequest(string IntentId, string Status, decimal Amount, string? TransactionId);
 record MoMoConfirmRequest(string IntentId, decimal Amount, string Method);
