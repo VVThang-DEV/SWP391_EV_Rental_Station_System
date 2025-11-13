@@ -15,18 +15,11 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS (dev)
+// CORS (dev) - Allow mobile app and web clients
 builder.Services.AddCors(p => p.AddDefaultPolicy(b => b
-    .WithOrigins(
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "http://localhost:8081",
-        "http://localhost:8082",
-        "http://localhost:8083"
-    )
-    .AllowAnyHeader()
-    .AllowAnyMethod()));
+    .AllowAnyOrigin() // Allow mobile app to connect from any origin (including LAN IPs)
+    .AllowAnyMethod()
+    .AllowAnyHeader()));
 
 // DI: SqlConnection factory
 builder.Services.AddScoped<Func<SqlConnection>>(_ =>
@@ -817,31 +810,115 @@ app.MapPost("/api/qr/save", [Microsoft.AspNetCore.Authorization.Authorize] async
 });
 
 // Verify QR code (used by mobile app for staff to scan customer QR codes)
-app.MapPost("/api/qr/verify", async (VerifyQRCodeRequest req, IQRCodeService qrCodeService) =>
+app.MapPost("/api/qr/verify", async (HttpRequest request, IQRCodeService qrCodeService) =>
 {
-    Console.WriteLine($"[QR] Verifying QR code...");
-    
-    var result = await qrCodeService.VerifyQRCodeAsync(req.QrCodeData);
-    
-    if (result.Success)
+    try
     {
-        Console.WriteLine($"[QR] ✅ QR code verified successfully");
-        return Results.Ok(new 
+        // Read request body
+        request.EnableBuffering();
+        using var reader = new StreamReader(request.Body, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+        request.Body.Position = 0;
+        
+        Console.WriteLine($"[QR] Received request body length: {body?.Length ?? 0}");
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            Console.WriteLine($"[QR] Body preview: {body.Substring(0, Math.Min(body.Length, 500))}");
+        }
+        
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return Results.Ok(new { success = true, message = "Endpoint is reachable", ping = true });
+        }
+
+        // Parse JSON
+        using var jsonDoc = System.Text.Json.JsonDocument.Parse(body);
+        var root = jsonDoc.RootElement;
+        
+        // Check for ping request
+        if (root.TryGetProperty("ping", out var pingElement) && pingElement.GetBoolean())
+        {
+            Console.WriteLine($"[QR] Ping request received");
+            return Results.Ok(new { success = true, message = "Endpoint is reachable", ping = true });
+        }
+
+        // Extract qrCodeData - handle both string and object formats
+        string? qrCodeData = null;
+        
+        if (root.TryGetProperty("qrCodeData", out var qrCodeElement))
+        {
+            if (qrCodeElement.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                qrCodeData = qrCodeElement.GetString();
+            }
+            else if (qrCodeElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                // If qrCodeData is an object, serialize it back to string
+                qrCodeData = qrCodeElement.GetRawText();
+            }
+        }
+        else
+        {
+            // If no qrCodeData property, maybe the whole body is the QR code data
+            if (root.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                qrCodeData = root.GetString();
+            }
+            else
+            {
+                // Try to use the whole body as QR code data
+                qrCodeData = body;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(qrCodeData))
+        {
+            Console.WriteLine($"[QR] ❌ Missing qrCodeData in request. Full body: {body}");
+            return Results.BadRequest(new { success = false, message = "Invalid request: qrCodeData is required" });
+        }
+
+        Console.WriteLine($"[QR] Verifying QR code (length: {qrCodeData.Length})...");
+        if (qrCodeData.Length > 100)
+        {
+            Console.WriteLine($"[QR] QR code preview: {qrCodeData.Substring(0, 100)}...");
+        }
+        else
+        {
+            Console.WriteLine($"[QR] QR code: {qrCodeData}");
+        }
+        
+        var result = await qrCodeService.VerifyQRCodeAsync(qrCodeData);
+        
+        if (result.Success)
+        {
+            Console.WriteLine($"[QR] ✅ QR code verified successfully");
+            return Results.Ok(new 
+            { 
+                success = true, 
+                message = result.Message,
+                reservation = result.Reservation,
+                vehicleName = result.VehicleName,
+                userName = result.UserName
+            });
+        }
+        
+        Console.WriteLine($"[QR] ❌ QR code verification failed: {result.Message}");
+        return Results.BadRequest(new 
         { 
-            success = true, 
-            message = result.Message,
-            reservation = result.Reservation,
-            vehicleName = result.VehicleName,
-            userName = result.UserName
+            success = false, 
+            message = result.Message 
         });
     }
-    
-    Console.WriteLine($"[QR] ❌ QR code verification failed: {result.Message}");
-    return Results.BadRequest(new 
-    { 
-        success = false, 
-        message = result.Message 
-    });
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[QR] ❌ Error processing request: {ex.Message}");
+        Console.WriteLine($"[QR] Stack trace: {ex.StackTrace}");
+        return Results.BadRequest(new 
+        { 
+            success = false, 
+            message = $"Error processing request: {ex.Message}" 
+        });
+    }
 });
 
 // Get QR code for a reservation (optional - for frontend to retrieve if needed)
@@ -2198,22 +2275,22 @@ app.MapGet("/api/analytics/overall", [Authorize] async (HttpContext context, Fun
         {
             int startMonth = (quarter.Value - 1) * 3 + 1;
             startDate = new DateTime(year.Value, startMonth, 1);
-            endDate = startDate.AddMonths(3).AddDays(-1);
+            endDate = startDate.AddMonths(3).AddDays(-1).Date.AddDays(1).AddSeconds(-1); // End of last day
         }
         else if (period == "month" && month.HasValue && year.HasValue)
         {
             startDate = new DateTime(year.Value, month.Value, 1);
-            endDate = startDate.AddMonths(1).AddDays(-1);
+            endDate = startDate.AddMonths(1).AddDays(-1).Date.AddDays(1).AddSeconds(-1); // End of last day
         }
         else
         {
             // Default to current month
             var now = DateTime.Now;
             startDate = new DateTime(now.Year, now.Month, 1);
-            endDate = startDate.AddMonths(1).AddDays(-1);
+            endDate = startDate.AddMonths(1).AddDays(-1).Date.AddDays(1).AddSeconds(-1); // End of last day
         }
 
-        // Get number of unique renters
+        // Get number of unique renters (reservations that started in the period)
         var rentersCmd = new SqlCommand(@"
             SELECT COUNT(DISTINCT r.user_id) as UniqueRenters
             FROM dbo.reservations r
@@ -2223,23 +2300,24 @@ app.MapGet("/api/analytics/overall", [Authorize] async (HttpContext context, Fun
         rentersCmd.Parameters.AddWithValue("@EndDate", endDate);
         var uniqueRenters = (int)(await rentersCmd.ExecuteScalarAsync() ?? 0);
 
-        // Get revenue (from successful payments)
+        // Get revenue (from successful payments for reservations that started in the period)
         var revenueCmd = new SqlCommand(@"
             SELECT ISNULL(SUM(p.amount), 0) as TotalRevenue
             FROM dbo.payments p
             INNER JOIN dbo.reservations r ON p.reservation_id = r.reservation_id
             WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
-            AND p.status = 'success' AND p.transaction_type = 'payment'", conn);
+            AND p.status = 'success' 
+            AND (p.transaction_type = 'payment' OR (p.transaction_type IS NULL AND p.reservation_id IS NOT NULL))", conn);
         revenueCmd.Parameters.AddWithValue("@StartDate", startDate);
         revenueCmd.Parameters.AddWithValue("@EndDate", endDate);
         var revenue = (decimal)(await revenueCmd.ExecuteScalarAsync() ?? 0m);
 
-        // Get rental hours
-        var hoursCmd = new SqlCommand(@"
+        // Get rental hours (only for completed reservations)
+        var hoursCmd = new SqlCommand(@" 
             SELECT ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
             FROM dbo.reservations r
             WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
-            AND r.status IN ('confirmed', 'completed', 'active')
+            AND r.status IN ('completed')
             AND r.end_time IS NOT NULL", conn);
         hoursCmd.Parameters.AddWithValue("@StartDate", startDate);
         hoursCmd.Parameters.AddWithValue("@EndDate", endDate);
@@ -2253,11 +2331,13 @@ app.MapGet("/api/analytics/overall", [Authorize] async (HttpContext context, Fun
                     WHEN @Period = 'month' THEN FORMAT(r.start_time, 'yyyy-MM-dd')
                     WHEN @Period = 'quarter' THEN FORMAT(r.start_time, 'yyyy-MM')
                 END as PeriodLabel,
-                COUNT(DISTINCT r.user_id) as Renters,
+                COUNT(*) as Renters,
                 ISNULL(SUM(p.amount), 0) as Revenue,
-                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as Hours
+                ISNULL(SUM(CASE WHEN r.status = 'completed' AND r.end_time IS NOT NULL THEN DATEDIFF(HOUR, r.start_time, r.end_time) ELSE 0 END), 0) as Hours
             FROM dbo.reservations r
-            LEFT JOIN dbo.payments p ON r.reservation_id = p.reservation_id AND p.status = 'success' AND p.transaction_type = 'payment'
+            LEFT JOIN dbo.payments p ON r.reservation_id = p.reservation_id 
+                AND p.status = 'success' 
+                AND (p.transaction_type = 'payment' OR (p.transaction_type IS NULL AND p.reservation_id IS NOT NULL))
             WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
             AND r.status IN ('confirmed', 'completed', 'active')
             GROUP BY 
@@ -2290,11 +2370,10 @@ app.MapGet("/api/analytics/overall", [Authorize] async (HttpContext context, Fun
             SELECT 
                 DATEPART(HOUR, r.start_time) as HourOfDay,
                 COUNT(*) as RentalCount,
-                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
+                ISNULL(SUM(CASE WHEN r.status = 'completed' AND r.end_time IS NOT NULL THEN DATEDIFF(HOUR, r.start_time, r.end_time) ELSE 0 END), 0) as TotalHours
             FROM dbo.reservations r
             WHERE r.start_time >= @StartDate AND r.start_time <= @EndDate
             AND r.status IN ('confirmed', 'completed', 'active')
-            AND r.end_time IS NOT NULL
             GROUP BY DATEPART(HOUR, r.start_time)
             ORDER BY HourOfDay", conn);
         hourlyCmd.Parameters.AddWithValue("@StartDate", startDate);
@@ -2363,19 +2442,19 @@ app.MapGet("/api/analytics/station/{stationId}", [Authorize] async (int stationI
         {
             int startMonth = (quarter.Value - 1) * 3 + 1;
             startDate = new DateTime(year.Value, startMonth, 1);
-            endDate = startDate.AddMonths(3).AddDays(-1);
+            endDate = startDate.AddMonths(3).AddDays(-1).Date.AddDays(1).AddSeconds(-1); // End of last day
         }
         else if (period == "month" && month.HasValue && year.HasValue)
         {
             startDate = new DateTime(year.Value, month.Value, 1);
-            endDate = startDate.AddMonths(1).AddDays(-1);
+            endDate = startDate.AddMonths(1).AddDays(-1).Date.AddDays(1).AddSeconds(-1); // End of last day
         }
         else
         {
             // Default to current month
             var now = DateTime.Now;
             startDate = new DateTime(now.Year, now.Month, 1);
-            endDate = startDate.AddMonths(1).AddDays(-1);
+            endDate = startDate.AddMonths(1).AddDays(-1).Date.AddDays(1).AddSeconds(-1); // End of last day
         }
 
         // Get number of unique renters for this station
@@ -2397,19 +2476,20 @@ app.MapGet("/api/analytics/station/{stationId}", [Authorize] async (int stationI
             INNER JOIN dbo.reservations r ON p.reservation_id = r.reservation_id
             WHERE r.station_id = @StationId
             AND r.start_time >= @StartDate AND r.start_time <= @EndDate
-            AND p.status = 'success' AND p.transaction_type = 'payment'", conn);
+            AND p.status = 'success' 
+            AND (p.transaction_type = 'payment' OR (p.transaction_type IS NULL AND p.reservation_id IS NOT NULL))", conn);
         revenueCmd.Parameters.AddWithValue("@StationId", stationId);
         revenueCmd.Parameters.AddWithValue("@StartDate", startDate);
         revenueCmd.Parameters.AddWithValue("@EndDate", endDate);
         var revenue = (decimal)(await revenueCmd.ExecuteScalarAsync() ?? 0m);
 
-        // Get rental hours for this station
-        var hoursCmd = new SqlCommand(@"
+        // Get rental hours for this station (only for completed reservations)
+        var hoursCmd = new SqlCommand(@" 
             SELECT ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
             FROM dbo.reservations r
             WHERE r.station_id = @StationId
             AND r.start_time >= @StartDate AND r.start_time <= @EndDate
-            AND r.status IN ('confirmed', 'completed', 'active')
+            AND r.status IN ('completed')
             AND r.end_time IS NOT NULL", conn);
         hoursCmd.Parameters.AddWithValue("@StationId", stationId);
         hoursCmd.Parameters.AddWithValue("@StartDate", startDate);
@@ -2424,11 +2504,13 @@ app.MapGet("/api/analytics/station/{stationId}", [Authorize] async (int stationI
                     WHEN @Period = 'month' THEN FORMAT(r.start_time, 'yyyy-MM-dd')
                     WHEN @Period = 'quarter' THEN FORMAT(r.start_time, 'yyyy-MM')
                 END as PeriodLabel,
-                COUNT(DISTINCT r.user_id) as Renters,
+                COUNT(*) as Renters,
                 ISNULL(SUM(p.amount), 0) as Revenue,
-                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as Hours
+                ISNULL(SUM(CASE WHEN r.status = 'completed' AND r.end_time IS NOT NULL THEN DATEDIFF(HOUR, r.start_time, r.end_time) ELSE 0 END), 0) as Hours
             FROM dbo.reservations r
-            LEFT JOIN dbo.payments p ON r.reservation_id = p.reservation_id AND p.status = 'success' AND p.transaction_type = 'payment'
+            LEFT JOIN dbo.payments p ON r.reservation_id = p.reservation_id 
+                AND p.status = 'success' 
+                AND (p.transaction_type = 'payment' OR (p.transaction_type IS NULL AND p.reservation_id IS NOT NULL))
             WHERE r.station_id = @StationId
             AND r.start_time >= @StartDate AND r.start_time <= @EndDate
             AND r.status IN ('confirmed', 'completed', 'active')
@@ -2463,12 +2545,11 @@ app.MapGet("/api/analytics/station/{stationId}", [Authorize] async (int stationI
             SELECT 
                 DATEPART(HOUR, r.start_time) as HourOfDay,
                 COUNT(*) as RentalCount,
-                ISNULL(SUM(DATEDIFF(HOUR, r.start_time, r.end_time)), 0) as TotalHours
+                ISNULL(SUM(CASE WHEN r.status = 'completed' AND r.end_time IS NOT NULL THEN DATEDIFF(HOUR, r.start_time, r.end_time) ELSE 0 END), 0) as TotalHours
             FROM dbo.reservations r
             WHERE r.station_id = @StationId
             AND r.start_time >= @StartDate AND r.start_time <= @EndDate
             AND r.status IN ('confirmed', 'completed', 'active')
-            AND r.end_time IS NOT NULL
             GROUP BY DATEPART(HOUR, r.start_time)
             ORDER BY HourOfDay", conn);
         hourlyCmd.Parameters.AddWithValue("@StationId", stationId);
@@ -2517,7 +2598,8 @@ app.MapGet("/api/analytics/station/{stationId}", [Authorize] async (int stationI
     }
 });
 
-app.Run("http://localhost:5000");
+// Listen on all interfaces (0.0.0.0) to allow mobile app connections from LAN
+app.Run("http://0.0.0.0:5000");
 
 record LoginRequest(string Email, string Password);
 record DepositRequest(decimal Amount, string MethodType, string? TransactionId);

@@ -140,11 +140,11 @@ const Index = ({ user }: IndexProps) => {
 
   // Filter vehicles based on user selections
   const filteredVehicles = availableVehicles.filter((vehicle) => {
-    // ✅ Loại bỏ xe có trạng thái 'pending'
-    if (vehicle.availability?.toLowerCase() === 'pending') return false;
+    // ✅ Loại bỏ xe có trạng thái 'pending' hoặc 'awaiting_processing'
+    const avail = String(vehicle.availability || '').toLowerCase();
+    if (avail === 'pending' || avail === 'awaiting_processing') return false;
     
-    // ✅ Trang Home chỉ hiển thị xe có availability 'available'
-    if (vehicle.availability !== 'available') return false;
+    // ✅ Hiển thị tất cả xe (available, rented, maintenance) giống như khi đã login
     
     if (priceRange !== "all") {
       const price = vehicle.pricePerHour;
@@ -768,12 +768,18 @@ const Index = ({ user }: IndexProps) => {
                 </div>
               )}
 
-              {/* ✅ Featured Vehicles Grid */}
+              {/* ✅ Featured Vehicles Grid - Filter out pending/awaiting_processing */}
               {!vehiclesLoading && !vehiclesError && availableVehicles.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                  {availableVehicles.slice(0, 6).map((vehicle) => (
-                    <VehicleCard key={`${vehicle.vehicleId || vehicle.id}-${vehicle.uniqueVehicleId || vehicle.id}`} vehicle={vehicle} />
-                  ))}
+                  {availableVehicles
+                    .filter((vehicle) => {
+                      const avail = String(vehicle.availability || '').toLowerCase();
+                      return avail !== 'pending' && avail !== 'awaiting_processing';
+                    })
+                    .slice(0, 6)
+                    .map((vehicle) => (
+                      <VehicleCard key={`${vehicle.vehicleId || vehicle.id}-${vehicle.uniqueVehicleId || vehicle.id}`} vehicle={vehicle} />
+                    ))}
                 </div>
               )}
 

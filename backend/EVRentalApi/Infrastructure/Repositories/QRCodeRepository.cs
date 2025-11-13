@@ -37,19 +37,20 @@ public class QRCodeRepository : IQRCodeRepository
                 expiresAt = DateTime.Now.AddDays(1);
             }
 
-            // Check if QR code already exists for this reservation
+            // Check if QR code already exists for this reservation with the same code
             var checkExistingSql = @"
-                SELECT qr_id, code, status, expires_at, created_at
+                SELECT qr_id, code, status, expires_at, created_at, used_at
                 FROM pickup_qr_codes
-                WHERE reservation_id = @ReservationId";
+                WHERE reservation_id = @ReservationId AND code = @Code";
 
             using var checkCmd = new SqlCommand(checkExistingSql, connection);
             checkCmd.Parameters.AddWithValue("@ReservationId", request.ReservationId);
+            checkCmd.Parameters.AddWithValue("@Code", request.QRCodeData);
 
             using var existingReader = await checkCmd.ExecuteReaderAsync();
             if (await existingReader.ReadAsync())
             {
-                // QR code already exists, return it
+                // QR code with same code already exists, return it
                 var existingQRCode = new QRCodeDto
                 {
                     QrId = existingReader.GetInt32(existingReader.GetOrdinal("qr_id")),
@@ -57,12 +58,15 @@ public class QRCodeRepository : IQRCodeRepository
                     Code = existingReader.GetString(existingReader.GetOrdinal("code")),
                     Status = existingReader.GetString(existingReader.GetOrdinal("status")),
                     ExpiresAt = existingReader.GetDateTime(existingReader.GetOrdinal("expires_at")),
-                    CreatedAt = existingReader.GetDateTime(existingReader.GetOrdinal("created_at"))
+                    CreatedAt = existingReader.GetDateTime(existingReader.GetOrdinal("created_at")),
+                    UsedAt = existingReader.IsDBNull(existingReader.GetOrdinal("used_at")) 
+                        ? null 
+                        : existingReader.GetDateTime(existingReader.GetOrdinal("used_at"))
                 };
 
                 await existingReader.CloseAsync();
 
-                Console.WriteLine($"[QR] QR code already exists for reservation {request.ReservationId}");
+                Console.WriteLine($"[QR] QR code already exists for reservation {request.ReservationId} with status: {existingQRCode.Status}");
                 return new QRCodeResponse
                 {
                     Success = true,
@@ -71,6 +75,47 @@ public class QRCodeRepository : IQRCodeRepository
                 };
             }
             await existingReader.CloseAsync();
+            
+            // Check if there's an existing QR code for this reservation with different code (old QR code)
+            // If it exists and is used, we can create a new one
+            var checkOldQRCodeSql = @"
+                SELECT qr_id, code, status, expires_at, created_at, used_at
+                FROM pickup_qr_codes
+                WHERE reservation_id = @ReservationId";
+
+            using var checkOldCmd = new SqlCommand(checkOldQRCodeSql, connection);
+            checkOldCmd.Parameters.AddWithValue("@ReservationId", request.ReservationId);
+
+            using var oldReader = await checkOldCmd.ExecuteReaderAsync();
+            if (await oldReader.ReadAsync())
+            {
+                var oldStatus = oldReader.GetString(oldReader.GetOrdinal("status"));
+                var oldCode = oldReader.GetString(oldReader.GetOrdinal("code"));
+                await oldReader.CloseAsync();
+                
+                // If old QR code is used and code is different, we can create a new one
+                if (oldStatus == "used" && oldCode != request.QRCodeData)
+                {
+                    Console.WriteLine($"[QR] Old QR code for reservation {request.ReservationId} is used. Creating new QR code.");
+                    // Continue to create new QR code below
+                }
+                else if (oldCode == request.QRCodeData)
+                {
+                    // Same code - this was already handled in the first check above
+                    // Should not reach here, but if we do, it means the first check missed it
+                    Console.WriteLine($"[QR] Warning: Same QR code found in second check for reservation {request.ReservationId}");
+                }
+                else
+                {
+                    // Different code but old one is not used - this shouldn't happen normally
+                    // But if old QR code is not used and we have a new code, we should create the new one
+                    Console.WriteLine($"[QR] Warning: Reservation {request.ReservationId} has existing QR code with status {oldStatus} and different code. Creating new QR code.");
+                }
+            }
+            else
+            {
+                await oldReader.CloseAsync();
+            }
 
             // Create new QR code - expiresAt already parsed above
 
