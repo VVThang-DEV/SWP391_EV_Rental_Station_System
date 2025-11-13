@@ -45,6 +45,20 @@ public class ReservationService : IReservationService
 
     public async Task<ReservationResponse> CreateReservationAsync(CreateReservationRequest request)
     {
+        // Check if user is active (not suspended)
+        if (request.UserId > 0)
+        {
+            var isActive = await _userRepository.IsUserActiveAsync(request.UserId);
+            if (!isActive)
+            {
+                return new ReservationResponse
+                {
+                    Success = false,
+                    Message = "Your account has been suspended. Please contact customer service for assistance."
+                };
+            }
+        }
+
         // Validate request
         if (request.StartTime >= request.EndTime)
         {
@@ -135,6 +149,17 @@ public class ReservationService : IReservationService
             {
                 userId = existingUserByEmail;
                 Console.WriteLine($"[WalkIn] Found existing customer by email: UserId={userId}");
+                
+                // Check if existing customer is suspended
+                var isActive = await _userRepository.IsUserActiveAsync(userId);
+                if (!isActive)
+                {
+                    return new WalkInBookingResponse
+                    {
+                        Success = false,
+                        Message = "This customer account has been suspended. Please contact customer service for assistance."
+                    };
+                }
             }
             else
             {

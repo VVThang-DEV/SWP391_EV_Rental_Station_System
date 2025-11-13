@@ -7,11 +7,13 @@ public class StaffService : IStaffService
 {
     private readonly IStaffRepository _staffRepository;
     private readonly IHandoverService _handoverService;
+    private readonly IUserRepository _userRepository;
 
-    public StaffService(IStaffRepository staffRepository, IHandoverService handoverService)
+    public StaffService(IStaffRepository staffRepository, IHandoverService handoverService, IUserRepository userRepository)
     {
         _staffRepository = staffRepository;
         _handoverService = handoverService;
+        _userRepository = userRepository;
     }
 
     public async Task<StaffProfileDto?> GetStaffProfileAsync(int staffId)
@@ -436,5 +438,204 @@ public class StaffService : IStaffService
     public async Task<List<StaffPaymentDto>> GetStationPaymentsAsync(int staffId)
     {
         return await _staffRepository.GetStationPaymentsAsync(staffId);
+    }
+
+    public async Task<IEnumerable<StaffDto>> GetAllStaffAsync()
+    {
+        var staff = await _staffRepository.GetAllStaffAsync();
+        return staff.Select(MapToDto);
+    }
+
+    public async Task<StaffDetailDto?> GetStaffDetailAsync(int userId)
+    {
+        var staff = await _staffRepository.GetAllStaffAsync();
+        var staffMember = staff.FirstOrDefault(s => ((dynamic)s).user_id == userId);
+        if (staffMember == null) return null;
+
+        var stats = await _staffRepository.GetStaffStatsAsync(userId);
+        return MapToDetailDto(staffMember, stats);
+    }
+
+    private static StaffDto MapToDto(dynamic staff)
+    {
+        return new StaffDto
+        {
+            Id = staff.id,
+            UserId = staff.user_id,
+            Name = staff.name,
+            Email = staff.email,
+            Phone = staff.phone ?? "",
+            Station = staff.station ?? "Unassigned",
+            StationId = staff.station_id,
+            Role = staff.role,
+            Performance = staff.performance,
+            Checkouts = staff.checkouts,
+            IsActive = staff.is_active ?? true,
+            CreatedAt = staff.created_at
+        };
+    }
+
+    private static StaffDetailDto MapToDetailDto(dynamic staff, dynamic? stats)
+    {
+        var dto = new StaffDetailDto
+        {
+            Id = staff.id,
+            UserId = staff.user_id,
+            Name = staff.name,
+            Email = staff.email,
+            Phone = staff.phone ?? "",
+            Station = staff.station ?? "Unassigned",
+            StationId = staff.station_id,
+            Role = staff.role,
+            Checkouts = staff.checkouts,
+            IsActive = staff.is_active ?? true,
+            CreatedAt = staff.created_at,
+            TotalHandovers = staff.total_handovers,
+            ConfirmedReservations = staff.confirmed_reservations
+        };
+
+        if (stats != null)
+        {
+            dto.Performance = stats.performance;
+            dto.Checkouts = stats.monthly_checkouts;
+        }
+        else
+        {
+            dto.Performance = staff.performance;
+        }
+
+        return dto;
+    }
+
+    public async Task<AdminCreateStaffResponse> CreateStaffAsync(AdminCreateStaffRequest request)
+    {
+        // Validate request
+        if (string.IsNullOrWhiteSpace(request.FullName) || 
+            string.IsNullOrWhiteSpace(request.Email) || 
+            string.IsNullOrWhiteSpace(request.Phone) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            return new AdminCreateStaffResponse
+            {
+                Success = false,
+                Message = "Full name, email, phone, and password are required"
+            };
+        }
+
+        // Check if email already exists
+        if (await _userRepository.EmailExistsAsync(request.Email))
+        {
+            return new AdminCreateStaffResponse
+            {
+                Success = false,
+                Message = "Email already exists"
+            };
+        }
+
+        // Hash password
+        var passwordHash = HashPassword(request.Password);
+
+        // Register staff
+        var (success, userId) = await _userRepository.RegisterStaffAsync(
+            request.FullName,
+            request.Email,
+            request.Phone,
+            request.StationId,
+            request.Role,
+            passwordHash);
+
+        if (!success || userId == 0)
+        {
+            return new AdminCreateStaffResponse
+            {
+                Success = false,
+                Message = "Failed to create staff member"
+            };
+        }
+
+        // Get created staff
+        var staff = await _staffRepository.GetAllStaffAsync();
+        var createdStaff = staff.FirstOrDefault(s => ((dynamic)s).user_id == userId);
+        
+        if (createdStaff == null)
+        {
+            return new AdminCreateStaffResponse
+            {
+                Success = false,
+                Message = "Staff created but failed to retrieve details"
+            };
+        }
+
+        return new AdminCreateStaffResponse
+        {
+            Success = true,
+            Message = "Staff member created successfully",
+            Staff = MapToDto(createdStaff)
+        };
+    }
+
+    public async Task<AdminUpdateStaffResponse> UpdateStaffAsync(int userId, AdminUpdateStaffRequest request)
+    {
+        // Validate request
+        if (request.FullName == null && 
+            request.Phone == null && 
+            !request.StationId.HasValue && 
+            request.Role == null && 
+            !request.IsActive.HasValue)
+        {
+            return new AdminUpdateStaffResponse
+            {
+                Success = false,
+                Message = "No fields to update"
+            };
+        }
+
+        // Update staff
+        var updateRequest = new UpdateStaffRequest
+        {
+            FullName = request.FullName,
+            Phone = request.Phone,
+            StationId = request.StationId,
+            Role = request.Role,
+            IsActive = request.IsActive
+        };
+
+        var success = await _userRepository.UpdateStaffAsync(userId, updateRequest);
+
+        if (!success)
+        {
+            return new AdminUpdateStaffResponse
+            {
+                Success = false,
+                Message = "Failed to update staff member"
+            };
+        }
+
+        // Get updated staff
+        var staff = await _staffRepository.GetAllStaffAsync();
+        var updatedStaff = staff.FirstOrDefault(s => ((dynamic)s).user_id == userId);
+        
+        if (updatedStaff == null)
+        {
+            return new AdminUpdateStaffResponse
+            {
+                Success = false,
+                Message = "Staff updated but failed to retrieve details"
+            };
+        }
+
+        return new AdminUpdateStaffResponse
+        {
+            Success = true,
+            Message = "Staff member updated successfully",
+            Staff = MapToDto(updatedStaff)
+        };
+    }
+
+    private static string HashPassword(string password)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(hashedBytes);
     }
 }

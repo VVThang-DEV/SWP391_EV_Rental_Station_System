@@ -39,4 +39,10 @@ public interface IStaffService
     
     // Payment History
     Task<List<StaffPaymentDto>> GetStationPaymentsAsync(int staffId);
+    
+    // Admin: Get all staff members
+    Task<IEnumerable<StaffDto>> GetAllStaffAsync();
+    Task<StaffDetailDto?> GetStaffDetailAsync(int userId);
+    Task<AdminCreateStaffResponse> CreateStaffAsync(AdminCreateStaffRequest request);
+    Task<AdminUpdateStaffResponse> UpdateStaffAsync(int userId, AdminUpdateStaffRequest request);
 }

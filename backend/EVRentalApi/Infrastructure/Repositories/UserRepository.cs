@@ -21,6 +21,20 @@ public interface IUserRepository
     Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType);
     Task<object?> GetUserInfoByIdAsync(int userId);
     Task<EVRentalApi.Models.UserDto?> GetUserByIdAsync(int userId);
+    Task<bool> IsUserActiveAsync(int userId);
+    Task<int> GetStaffRoleIdAsync();
+    Task<int> GetSupervisorRoleIdAsync();
+    Task<(bool success, int userId)> RegisterStaffAsync(string fullName, string email, string phone, int? stationId, string role, string passwordHash);
+    Task<bool> UpdateStaffAsync(int userId, UpdateStaffRequest request);
+}
+
+public class UpdateStaffRequest
+{
+    public string? FullName { get; set; }
+    public string? Phone { get; set; }
+    public int? StationId { get; set; }
+    public string? Role { get; set; }
+    public bool? IsActive { get; set; }
 }
 
 public sealed class UserRepository : IUserRepository
@@ -505,6 +519,193 @@ WHERE u.user_id = @UserId AND u.is_active = 1";
             };
         }
         return null;
+    }
+
+    public async Task<bool> IsUserActiveAsync(int userId)
+    {
+        const string sql = @"
+SELECT is_active
+FROM users
+WHERE user_id = @UserId";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn)
+        {
+            CommandType = CommandType.Text
+        };
+        cmd.Parameters.AddWithValue("@UserId", userId);
+
+        var result = await cmd.ExecuteScalarAsync();
+        if (result == null || result == DBNull.Value)
+        {
+            return false; // User not found
+        }
+        
+        return Convert.ToBoolean(result);
+    }
+
+    public async Task<int> GetStaffRoleIdAsync()
+    {
+        const string sql = "SELECT role_id FROM roles WHERE role_name = 'staff'";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn)
+        {
+            CommandType = CommandType.Text
+        };
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result != null ? Convert.ToInt32(result) : 0;
+    }
+
+    public async Task<int> GetSupervisorRoleIdAsync()
+    {
+        const string sql = "SELECT role_id FROM roles WHERE role_name = 'supervisor'";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn)
+        {
+            CommandType = CommandType.Text
+        };
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result != null ? Convert.ToInt32(result) : 0;
+    }
+
+    public async Task<(bool success, int userId)> RegisterStaffAsync(
+        string fullName,
+        string email,
+        string phone,
+        int? stationId,
+        string role,
+        string passwordHash)
+    {
+        const string sql = @"
+INSERT INTO users (email, password_hash, role_id, full_name, phone, station_id, created_at, updated_at, is_active)
+VALUES (@Email, @PasswordHash, @RoleId, @FullName, @Phone, @StationId, @CreatedAt, @UpdatedAt, 1);
+SELECT SCOPE_IDENTITY();";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn)
+        {
+            CommandType = CommandType.Text
+        };
+
+        // Get role ID based on role name
+        int roleId = 0;
+        if (role.ToLower() == "supervisor")
+        {
+            roleId = await GetSupervisorRoleIdAsync();
+        }
+        else
+        {
+            roleId = await GetStaffRoleIdAsync();
+        }
+
+        if (roleId == 0)
+        {
+            return (false, 0);
+        }
+
+        cmd.Parameters.AddWithValue("@Email", email);
+        cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
+        cmd.Parameters.AddWithValue("@RoleId", roleId);
+        cmd.Parameters.AddWithValue("@FullName", fullName);
+        cmd.Parameters.AddWithValue("@Phone", phone);
+        cmd.Parameters.AddWithValue("@StationId", stationId.HasValue ? (object)stationId.Value : DBNull.Value);
+        cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
+        cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.UtcNow);
+
+        try
+        {
+            var newUserId = await cmd.ExecuteScalarAsync();
+            if (newUserId != null && newUserId != DBNull.Value)
+            {
+                return (true, Convert.ToInt32(newUserId));
+            }
+            return (false, 0);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[RegisterStaff] Error: {ex.Message}");
+            return (false, 0);
+        }
+    }
+
+    public async Task<bool> UpdateStaffAsync(int userId, UpdateStaffRequest request)
+    {
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        var updates = new List<string>();
+        var parameters = new List<SqlParameter>();
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+        {
+            updates.Add("full_name = @FullName");
+            parameters.Add(new SqlParameter("@FullName", request.FullName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            updates.Add("phone = @Phone");
+            parameters.Add(new SqlParameter("@Phone", request.Phone));
+        }
+
+        if (request.StationId.HasValue)
+        {
+            updates.Add("station_id = @StationId");
+            parameters.Add(new SqlParameter("@StationId", request.StationId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Role))
+        {
+            // Get role ID based on role name
+            int roleId = 0;
+            if (request.Role.ToLower() == "supervisor")
+            {
+                roleId = await GetSupervisorRoleIdAsync();
+            }
+            else
+            {
+                roleId = await GetStaffRoleIdAsync();
+            }
+
+            if (roleId > 0)
+            {
+                updates.Add("role_id = @RoleId");
+                parameters.Add(new SqlParameter("@RoleId", roleId));
+            }
+        }
+
+        if (request.IsActive.HasValue)
+        {
+            updates.Add("is_active = @IsActive");
+            parameters.Add(new SqlParameter("@IsActive", request.IsActive.Value));
+        }
+
+        if (updates.Count == 0)
+        {
+            return false; // No updates to perform
+        }
+
+        updates.Add("updated_at = GETDATE()");
+        parameters.Add(new SqlParameter("@UserId", userId));
+
+        var query = $@"
+            UPDATE users 
+            SET {string.Join(", ", updates)}
+            WHERE user_id = @UserId";
+
+        await using var cmd = new SqlCommand(query, conn);
+        cmd.Parameters.AddRange(parameters.ToArray());
+
+        var rowsAffected = await cmd.ExecuteNonQueryAsync();
+        return rowsAffected > 0;
     }
 }
 

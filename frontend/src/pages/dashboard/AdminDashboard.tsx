@@ -118,14 +118,42 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [isStationDialogOpen, setIsStationDialogOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<
-    (typeof systemData.customers)[0] | null
-  >(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<
-    (typeof systemData.staff)[0] | null
-  >(null);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customersError, setCustomersError] = useState<string | null>(null);
+  const [isEditCustomerDialogOpen, setIsEditCustomerDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
+  const [customerEditData, setCustomerEditData] = useState({
+    fullName: "",
+    phone: "",
+    address: "",
+    isActive: true,
+  });
+  const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
+  const [staff, setStaff] = useState<any[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState<string | null>(null);
+  const [isAddStaffDialogOpen, setIsAddStaffDialogOpen] = useState(false);
+  const [isEditStaffDialogOpen, setIsEditStaffDialogOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<any | null>(null);
+  const [staffFormData, setStaffFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    stationId: "",
+    role: "staff",
+  });
+  const [staffEditData, setStaffEditData] = useState({
+    fullName: "",
+    phone: "",
+    stationId: "",
+    role: "staff",
+    isActive: true,
+  });
 
   // Vehicle Management States
   const [isRegisterVehicleDialogOpen, setIsRegisterVehicleDialogOpen] =
@@ -193,6 +221,52 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
   const { toast } = useToast();
   const { t } = useTranslation();
+
+  // Load customers data
+  useEffect(() => {
+    const loadCustomers = async () => {
+      if (selectedTab === "customers") {
+        try {
+          setCustomersLoading(true);
+          setCustomersError(null);
+          const result = await adminApiService.getCustomers();
+          if (result.success && result.customers) {
+            setCustomers(result.customers);
+          }
+        } catch (error) {
+          setCustomersError(error instanceof Error ? error.message : 'Failed to load customers');
+          console.error("Failed to load customers:", error);
+        } finally {
+          setCustomersLoading(false);
+        }
+      }
+    };
+
+    loadCustomers();
+  }, [selectedTab]);
+
+  // Load staff data
+  useEffect(() => {
+    const loadStaff = async () => {
+      if (selectedTab === "staff") {
+        try {
+          setStaffLoading(true);
+          setStaffError(null);
+          const result = await adminApiService.getStaff();
+          if (result.success && result.staff) {
+            setStaff(result.staff);
+          }
+        } catch (error) {
+          setStaffError(error instanceof Error ? error.message : 'Failed to load staff');
+          console.error("Failed to load staff:", error);
+        } finally {
+          setStaffLoading(false);
+        }
+      }
+    };
+
+    loadStaff();
+  }, [selectedTab]);
 
   // Load stations data on component mount
   useEffect(() => {
@@ -489,40 +563,224 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleViewCustomer = (customer: any) => {
-    setSelectedCustomer(customer);
-    setIsCustomerDialogOpen(true);
+  const handleViewCustomer = async (customer: any) => {
+    try {
+      // Load full customer details from API
+      const result = await adminApiService.getCustomerById(customer.userId);
+      if (result.success && result.customer) {
+        setSelectedCustomer(result.customer);
+        setIsCustomerDialogOpen(true);
+      } else {
+        // Fallback to basic customer data
+        setSelectedCustomer(customer);
+        setIsCustomerDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to load customer details:", error);
+      // Fallback to basic customer data
+      setSelectedCustomer(customer);
+      setIsCustomerDialogOpen(true);
+    }
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleEditCustomer = (customer: any) => {
-    toast({
-      title: "Edit Customer",
-      description: `Editing customer ${customer.name} - Feature in development`,
-    });
+  const handleEditCustomer = async (customer: any) => {
+    try {
+      // Load full customer details
+      const result = await adminApiService.getCustomerById(customer.userId);
+      if (result.success && result.customer) {
+        setEditingCustomer(result.customer);
+        setCustomerEditData({
+          fullName: result.customer.name || "",
+          phone: result.customer.phone || "",
+          address: result.customer.address || "",
+          isActive: result.customer.status === "active",
+        });
+        setIsEditCustomerDialogOpen(true);
+      } else {
+        // Fallback to basic customer data
+        setEditingCustomer(customer);
+        setCustomerEditData({
+          fullName: customer.name || "",
+          phone: customer.phone || "",
+          address: "",
+          isActive: customer.status === "active",
+        });
+        setIsEditCustomerDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to load customer details:", error);
+      // Fallback to basic customer data
+      setEditingCustomer(customer);
+      setCustomerEditData({
+        fullName: customer.name || "",
+        phone: customer.phone || "",
+        address: "",
+        isActive: customer.status === "active",
+      });
+      setIsEditCustomerDialogOpen(true);
+    }
+  };
+
+  const handleSaveCustomerEdit = async () => {
+    if (!editingCustomer) return;
+
+    try {
+      await adminApiService.updateCustomer(editingCustomer.userId, {
+        fullName: customerEditData.fullName,
+        phone: customerEditData.phone,
+        address: customerEditData.address,
+        isActive: customerEditData.isActive,
+      });
+
+      toast({
+        title: "Success",
+        description: "Customer updated successfully",
+      });
+
+      // Refresh customers list
+      const result = await adminApiService.getCustomers();
+      if (result.success && result.customers) {
+        setCustomers(result.customers);
+      }
+
+      setIsEditCustomerDialogOpen(false);
+      setEditingCustomer(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update customer",
+        variant: "destructive",
+      });
+    }
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSuspendCustomer = (customer: any) => {
-    toast({
-      title: "Customer Suspended",
-      description: `${customer.name} has been suspended`,
-      variant: "destructive",
-    });
+  const handleSuspendCustomer = async (customer: any) => {
+    try {
+      await adminApiService.updateCustomer(customer.userId, {
+        isActive: false,
+      });
+
+      toast({
+        title: "Customer Suspended",
+        description: `${customer.name} has been suspended and cannot make new bookings.`,
+        variant: "destructive",
+      });
+
+      // Refresh customers list
+      const result = await adminApiService.getCustomers();
+      if (result.success && result.customers) {
+        setCustomers(result.customers);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to suspend customer",
+        variant: "destructive",
+      });
+    }
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleViewStaff = (staff: any) => {
-    setSelectedStaff(staff);
-    setIsStaffDialogOpen(true);
+  const handleViewStaff = async (staff: any) => {
+    try {
+      // Load full staff details from API
+      const result = await adminApiService.getStaffById(staff.userId);
+      if (result.success && result.staff) {
+        setSelectedStaff(result.staff);
+        setIsStaffDialogOpen(true);
+      } else {
+        // Fallback to basic staff data
+        setSelectedStaff(staff);
+        setIsStaffDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to load staff details:", error);
+      // Fallback to basic staff data
+      setSelectedStaff(staff);
+      setIsStaffDialogOpen(true);
+    }
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleEditStaff = (staff: any) => {
-    toast({
-      title: "Edit Staff",
-      description: `Editing staff member ${staff.name} - Feature in development`,
-    });
+  const handleEditStaff = async (staff: any) => {
+    try {
+      // Load full staff details
+      const result = await adminApiService.getStaffById(staff.userId);
+      if (result.success && result.staff) {
+        setEditingStaff(result.staff);
+        setStaffEditData({
+          fullName: result.staff.name || "",
+          phone: result.staff.phone || "",
+          stationId: result.staff.stationId != null ? result.staff.stationId.toString() : "",
+          role: result.staff.role || "staff",
+          isActive: result.staff.isActive ?? true,
+        });
+        setIsEditStaffDialogOpen(true);
+      } else {
+        // Fallback to basic staff data
+        setEditingStaff(staff);
+        setStaffEditData({
+          fullName: staff.name || "",
+          phone: staff.phone || "",
+          stationId: staff.stationId != null ? staff.stationId.toString() : "",
+          role: staff.role || "staff",
+          isActive: staff.isActive ?? true,
+        });
+        setIsEditStaffDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to load staff details:", error);
+      // Fallback to basic staff data
+      setEditingStaff(staff);
+      setStaffEditData({
+        fullName: staff.name || "",
+        phone: staff.phone || "",
+        stationId: staff.stationId != null ? staff.stationId.toString() : "",
+        role: staff.role || "staff",
+        isActive: staff.isActive ?? true,
+      });
+      setIsEditStaffDialogOpen(true);
+    }
+  };
+
+  const handleSaveStaffEdit = async () => {
+    if (!editingStaff) return;
+
+    try {
+      const stationIdValue = staffEditData.stationId && staffEditData.stationId !== "" 
+        ? parseInt(staffEditData.stationId) 
+        : undefined;
+
+      await adminApiService.updateStaff(editingStaff.userId, {
+        fullName: staffEditData.fullName,
+        phone: staffEditData.phone,
+        stationId: stationIdValue,
+        role: staffEditData.role,
+        isActive: staffEditData.isActive,
+      });
+
+      toast({
+        title: "Success",
+        description: "Staff member updated successfully",
+      });
+
+      // Refresh staff list
+      const result = await adminApiService.getStaff();
+      if (result.success && result.staff) {
+        setStaff(result.staff);
+      }
+
+      setIsEditStaffDialogOpen(false);
+      setEditingStaff(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update staff member",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddStation = () => {
@@ -533,10 +791,68 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
   };
 
   const handleAddStaff = () => {
-    toast({
-      title: "Add Staff",
-      description: "Add new staff member feature - In development",
+    setStaffFormData({
+      fullName: "",
+      email: "",
+      phone: "",
+      password: "",
+      stationId: "",
+      role: "staff",
     });
+    setIsAddStaffDialogOpen(true);
+  };
+
+  const handleSaveStaff = async () => {
+    try {
+      if (!staffFormData.fullName || !staffFormData.email || !staffFormData.phone || !staffFormData.password) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const stationIdValue = staffFormData.stationId && staffFormData.stationId !== "" 
+        ? parseInt(staffFormData.stationId) 
+        : undefined;
+
+      await adminApiService.createStaff({
+        fullName: staffFormData.fullName,
+        email: staffFormData.email,
+        phone: staffFormData.phone,
+        password: staffFormData.password,
+        stationId: stationIdValue,
+        role: staffFormData.role,
+      });
+
+      toast({
+        title: "Success",
+        description: "Staff member created successfully",
+      });
+
+      // Refresh staff list
+      const result = await adminApiService.getStaff();
+      if (result.success && result.staff) {
+        setStaff(result.staff);
+      }
+
+      setIsAddStaffDialogOpen(false);
+      setStaffFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        password: "",
+        stationId: "",
+        role: "staff",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create staff member",
+        variant: "destructive",
+      });
+    }
   };
 
   // Vehicle Management Handlers
@@ -1114,73 +1430,106 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {systemData.customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{customer.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {customer.email}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{customer.rentals}</TableCell>
-                  <TableCell>${customer.spent.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        customer.risk === "low"
-                          ? "default"
-                          : customer.risk === "medium"
-                          ? "secondary"
-                          : "destructive"
-                      }
-                    >
-                      {customer.risk}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        customer.status === "active"
-                          ? "default"
-                          : customer.status === "suspended"
-                          ? "secondary"
-                          : "destructive"
-                      }
-                    >
-                      {customer.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewCustomer(customer)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditCustomer(customer)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {customer.status === "flagged" && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleSuspendCustomer(customer)}
-                        >
-                          <UserX className="h-4 w-4" />
-                        </Button>
-                      )}
+              {customersLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="flex items-center justify-center">
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Loading customers...
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : customersError ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-destructive">
+                    Error: {customersError}
+                  </TableCell>
+                </TableRow>
+              ) : customers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No customers found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                customers
+                  .filter((customer) => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      customer.name?.toLowerCase().includes(query) ||
+                      customer.email?.toLowerCase().includes(query) ||
+                      customer.phone?.toLowerCase().includes(query)
+                    );
+                  })
+                  .map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{customer.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {customer.email}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{customer.rentals}</TableCell>
+                      <TableCell>${customer.spent.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            customer.risk === "low"
+                              ? "default"
+                              : customer.risk === "medium"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {customer.risk}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            customer.status === "active"
+                              ? "default"
+                              : customer.status === "suspended"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {customer.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewCustomer(customer)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditCustomer(customer)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          {customer.status === "flagged" && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleSuspendCustomer(customer)}
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -1220,53 +1569,76 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {systemData.staff.map((staff) => (
-                <TableRow key={staff.id}>
-                  <TableCell className="font-medium">{staff.name}</TableCell>
-                  <TableCell>{staff.station}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{staff.role}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <div className="flex-1 bg-muted rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${
-                            staff.performance >= 90
-                              ? "bg-success"
-                              : staff.performance >= 80
-                              ? "bg-warning"
-                              : "bg-destructive"
-                          }`}
-                          style={{ width: `${staff.performance}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {staff.performance}%
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{staff.checkouts}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewStaff(staff)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditStaff(staff)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+              {staffLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="flex items-center justify-center">
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Loading staff...
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : staffError ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-destructive">
+                    Error: {staffError}
+                  </TableCell>
+                </TableRow>
+              ) : staff.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No staff members found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                staff.map((staffMember) => (
+                  <TableRow key={staffMember.id}>
+                    <TableCell className="font-medium">{staffMember.name}</TableCell>
+                    <TableCell>{staffMember.station}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{staffMember.role}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <div className="flex-1 bg-muted rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              staffMember.performance >= 90
+                                ? "bg-success"
+                                : staffMember.performance >= 80
+                                ? "bg-warning"
+                                : "bg-destructive"
+                            }`}
+                            style={{ width: `${staffMember.performance}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium">
+                          {staffMember.performance}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{staffMember.checkouts}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewStaff(staffMember)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditStaff(staffMember)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -2072,16 +2444,95 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="text-sm">
-                <strong>Customer ID:</strong> {selectedCustomer?.id}
-                <br />
-                <strong>Name:</strong> {selectedCustomer?.name}
-                <br />
-                <strong>Email:</strong> {selectedCustomer?.email}
-                <br />
-                <strong>Total Rentals:</strong> {selectedCustomer?.rentals}
-                <br />
-                <strong>Total Spent:</strong> ${selectedCustomer?.spent}
+              <div className="text-sm space-y-2">
+                <p>
+                  <strong>Customer ID:</strong> {selectedCustomer?.id || selectedCustomer?.userId}
+                </p>
+                <p>
+                  <strong>Name:</strong> {selectedCustomer?.name}
+                </p>
+                <p>
+                  <strong>Email:</strong> {selectedCustomer?.email}
+                </p>
+                {selectedCustomer?.phone && (
+                  <p>
+                    <strong>Phone:</strong> {selectedCustomer.phone}
+                  </p>
+                )}
+                {selectedCustomer?.address && (
+                  <p>
+                    <strong>Address:</strong> {selectedCustomer.address}
+                  </p>
+                )}
+                {selectedCustomer?.cccd && (
+                  <p>
+                    <strong>CCCD:</strong> {selectedCustomer.cccd}
+                  </p>
+                )}
+                {selectedCustomer?.licenseNumber && (
+                  <p>
+                    <strong>License Number:</strong> {selectedCustomer.licenseNumber}
+                  </p>
+                )}
+                <p>
+                  <strong>Total Rentals:</strong> {selectedCustomer?.rentals || 0}
+                </p>
+                <p>
+                  <strong>Total Spent:</strong> ${(selectedCustomer?.spent || 0).toLocaleString()}
+                </p>
+                {selectedCustomer?.walletBalance !== undefined && (
+                  <p>
+                    <strong>Wallet Balance:</strong> ${selectedCustomer.walletBalance.toLocaleString()}
+                  </p>
+                )}
+                {selectedCustomer?.totalReservations !== undefined && (
+                  <p>
+                    <strong>Total Reservations:</strong> {selectedCustomer.totalReservations}
+                  </p>
+                )}
+                {selectedCustomer?.cancelledCount !== undefined && (
+                  <p>
+                    <strong>Cancelled Reservations:</strong> {selectedCustomer.cancelledCount}
+                  </p>
+                )}
+                {selectedCustomer?.lateReturnsCount !== undefined && (
+                  <p>
+                    <strong>Late Returns:</strong> {selectedCustomer.lateReturnsCount}
+                  </p>
+                )}
+                {selectedCustomer?.damagesCount !== undefined && (
+                  <p>
+                    <strong>Damages Reported:</strong> {selectedCustomer.damagesCount}
+                  </p>
+                )}
+                <p>
+                  <strong>Risk Level:</strong>{" "}
+                  <Badge
+                    variant={
+                      selectedCustomer?.risk === "low"
+                        ? "default"
+                        : selectedCustomer?.risk === "medium"
+                        ? "secondary"
+                        : "destructive"
+                    }
+                  >
+                    {selectedCustomer?.risk || "low"}
+                  </Badge>
+                </p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  <Badge
+                    variant={
+                      selectedCustomer?.status === "active"
+                        ? "default"
+                        : selectedCustomer?.status === "suspended"
+                        ? "secondary"
+                        : "destructive"
+                    }
+                  >
+                    {selectedCustomer?.status || "active"}
+                  </Badge>
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -2095,6 +2546,348 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
           </DialogContent>
         </Dialog>
 
+        {/* Edit Customer Dialog */}
+        <Dialog
+          open={isEditCustomerDialogOpen}
+          onOpenChange={setIsEditCustomerDialogOpen}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Customer</DialogTitle>
+              <DialogDescription>
+                Update customer information for {editingCustomer?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-fullName">Full Name</Label>
+                <Input
+                  id="edit-fullName"
+                  value={customerEditData.fullName}
+                  onChange={(e) =>
+                    setCustomerEditData({
+                      ...customerEditData,
+                      fullName: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={customerEditData.phone}
+                  onChange={(e) =>
+                    setCustomerEditData({
+                      ...customerEditData,
+                      phone: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-address">Address</Label>
+                <Textarea
+                  id="edit-address"
+                  value={customerEditData.address}
+                  onChange={(e) =>
+                    setCustomerEditData({
+                      ...customerEditData,
+                      address: e.target.value,
+                    })
+                  }
+                  rows={3}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={customerEditData.isActive ? "active" : "suspended"}
+                  onValueChange={(value) =>
+                    setCustomerEditData({
+                      ...customerEditData,
+                      isActive: value === "active",
+                    })
+                  }
+                >
+                  <SelectTrigger id="edit-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditCustomerDialogOpen(false);
+                  setEditingCustomer(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveCustomerEdit}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Staff Dialog */}
+        <Dialog
+          open={isAddStaffDialogOpen}
+          onOpenChange={setIsAddStaffDialogOpen}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add Staff Member</DialogTitle>
+              <DialogDescription>
+                Create a new staff member account
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="staff-fullName">Full Name *</Label>
+                <Input
+                  id="staff-fullName"
+                  value={staffFormData.fullName}
+                  onChange={(e) =>
+                    setStaffFormData({
+                      ...staffFormData,
+                      fullName: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="staff-email">Email *</Label>
+                <Input
+                  id="staff-email"
+                  type="email"
+                  value={staffFormData.email}
+                  onChange={(e) =>
+                    setStaffFormData({
+                      ...staffFormData,
+                      email: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="staff-phone">Phone *</Label>
+                <Input
+                  id="staff-phone"
+                  value={staffFormData.phone}
+                  onChange={(e) =>
+                    setStaffFormData({
+                      ...staffFormData,
+                      phone: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="staff-password">Password *</Label>
+                <Input
+                  id="staff-password"
+                  type="password"
+                  value={staffFormData.password}
+                  onChange={(e) =>
+                    setStaffFormData({
+                      ...staffFormData,
+                      password: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="staff-station">Station</Label>
+                <Select
+                  value={staffFormData.stationId || "none"}
+                  onValueChange={(value) =>
+                    setStaffFormData({
+                      ...staffFormData,
+                      stationId: value === "none" ? "" : value,
+                    })
+                  }
+                >
+                  <SelectTrigger id="staff-station">
+                    <SelectValue placeholder="Select a station (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {apiStations && apiStations.length > 0 && apiStations.map((station) => (
+                      <SelectItem key={station.stationId} value={station.stationId.toString()}>
+                        {station.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="staff-role">Role *</Label>
+                <Select
+                  value={staffFormData.role}
+                  onValueChange={(value) =>
+                    setStaffFormData({
+                      ...staffFormData,
+                      role: value,
+                    })
+                  }
+                >
+                  <SelectTrigger id="staff-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAddStaffDialogOpen(false);
+                  setStaffFormData({
+                    fullName: "",
+                    email: "",
+                    phone: "",
+                    password: "",
+                    stationId: "",
+                    role: "staff",
+                  });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveStaff}>Create Staff</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Staff Dialog */}
+        <Dialog
+          open={isEditStaffDialogOpen}
+          onOpenChange={setIsEditStaffDialogOpen}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Staff Member</DialogTitle>
+              <DialogDescription>
+                Update staff member information for {editingStaff?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-staff-fullName">Full Name</Label>
+                <Input
+                  id="edit-staff-fullName"
+                  value={staffEditData.fullName}
+                  onChange={(e) =>
+                    setStaffEditData({
+                      ...staffEditData,
+                      fullName: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-staff-phone">Phone</Label>
+                <Input
+                  id="edit-staff-phone"
+                  value={staffEditData.phone}
+                  onChange={(e) =>
+                    setStaffEditData({
+                      ...staffEditData,
+                      phone: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-staff-station">Station</Label>
+                <Select
+                  value={staffEditData.stationId || "none"}
+                  onValueChange={(value) =>
+                    setStaffEditData({
+                      ...staffEditData,
+                      stationId: value === "none" ? "" : value,
+                    })
+                  }
+                >
+                  <SelectTrigger id="edit-staff-station">
+                    <SelectValue placeholder="Select a station" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {apiStations && apiStations.length > 0 && apiStations.map((station) => (
+                      <SelectItem key={station.stationId} value={station.stationId.toString()}>
+                        {station.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-staff-role">Role</Label>
+                <Select
+                  value={staffEditData.role}
+                  onValueChange={(value) =>
+                    setStaffEditData({
+                      ...staffEditData,
+                      role: value,
+                    })
+                  }
+                >
+                  <SelectTrigger id="edit-staff-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-staff-status">Status</Label>
+                <Select
+                  value={staffEditData.isActive ? "active" : "inactive"}
+                  onValueChange={(value) =>
+                    setStaffEditData({
+                      ...staffEditData,
+                      isActive: value === "active",
+                    })
+                  }
+                >
+                  <SelectTrigger id="edit-staff-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditStaffDialogOpen(false);
+                  setEditingStaff(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveStaffEdit}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={isStaffDialogOpen} onOpenChange={setIsStaffDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -2104,16 +2897,63 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="text-sm">
-                <strong>Staff ID:</strong> {selectedStaff?.id}
-                <br />
-                <strong>Name:</strong> {selectedStaff?.name}
-                <br />
-                <strong>Station:</strong> {selectedStaff?.station}
-                <br />
-                <strong>Performance:</strong> {selectedStaff?.performance}%
-                <br />
-                <strong>Checkouts:</strong> {selectedStaff?.checkouts}
+              <div className="text-sm space-y-2">
+                <p>
+                  <strong>Staff ID:</strong> {selectedStaff?.id || selectedStaff?.userId}
+                </p>
+                <p>
+                  <strong>Name:</strong> {selectedStaff?.name}
+                </p>
+                <p>
+                  <strong>Email:</strong> {selectedStaff?.email}
+                </p>
+                {selectedStaff?.phone && (
+                  <p>
+                    <strong>Phone:</strong> {selectedStaff.phone}
+                  </p>
+                )}
+                <p>
+                  <strong>Station:</strong> {selectedStaff?.station || "Unassigned"}
+                </p>
+                <p>
+                  <strong>Role:</strong>{" "}
+                  <Badge variant="outline">{selectedStaff?.role}</Badge>
+                </p>
+                <p>
+                  <strong>Performance:</strong>{" "}
+                  <span
+                    className={
+                      selectedStaff?.performance >= 90
+                        ? "text-success"
+                        : selectedStaff?.performance >= 80
+                        ? "text-warning"
+                        : "text-destructive"
+                    }
+                  >
+                    {selectedStaff?.performance || 0}%
+                  </span>
+                </p>
+                <p>
+                  <strong>Monthly Checkouts:</strong> {selectedStaff?.checkouts || 0}
+                </p>
+                {selectedStaff?.totalHandovers !== undefined && (
+                  <p>
+                    <strong>Total Handovers:</strong> {selectedStaff.totalHandovers}
+                  </p>
+                )}
+                {selectedStaff?.confirmedReservations !== undefined && (
+                  <p>
+                    <strong>Confirmed Reservations:</strong> {selectedStaff.confirmedReservations}
+                  </p>
+                )}
+                <p>
+                  <strong>Status:</strong>{" "}
+                  <Badge
+                    variant={selectedStaff?.isActive ? "default" : "secondary"}
+                  >
+                    {selectedStaff?.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </p>
               </div>
             </div>
             <DialogFooter>

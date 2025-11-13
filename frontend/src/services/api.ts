@@ -1137,6 +1137,167 @@ class AdminApiService {
 
     return response.json();
   }
+
+  // Get all customers (Admin only)
+  async getCustomers(): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/customers`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to fetch customers";
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // Get customer by ID (Admin only)
+  async getCustomerById(userId: number): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/customers/${userId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to fetch customer";
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // Update customer (Admin only)
+  async updateCustomer(userId: number, data: {
+    fullName?: string;
+    phone?: string;
+    address?: string;
+    isActive?: boolean;
+  }): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/customers/${userId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to update customer";
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // Get all staff (Admin only)
+  async getStaff(): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/staff`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to fetch staff";
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // Get staff by ID (Admin only)
+  async getStaffById(userId: number): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/staff/${userId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to fetch staff";
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // Create staff (Admin only)
+  async createStaff(data: {
+    fullName: string;
+    email: string;
+    phone: string;
+    password: string;
+    stationId?: number;
+    role: string;
+  }): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/staff`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to create staff";
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // Update staff (Admin only)
+  async updateStaff(userId: number, data: {
+    fullName?: string;
+    phone?: string;
+    stationId?: number;
+    role?: string;
+    isActive?: boolean;
+  }): Promise<any> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${this.baseUrl}/staff/${userId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to update staff";
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

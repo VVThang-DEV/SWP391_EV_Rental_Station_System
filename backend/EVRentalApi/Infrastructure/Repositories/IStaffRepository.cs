@@ -43,4 +43,8 @@ public interface IStaffRepository
     
     // Payment History
     Task<List<StaffPaymentDto>> GetStationPaymentsAsync(int staffId);
+    
+    // Admin: Get all staff members
+    Task<IEnumerable<dynamic>> GetAllStaffAsync();
+    Task<dynamic?> GetStaffStatsAsync(int userId);
 }

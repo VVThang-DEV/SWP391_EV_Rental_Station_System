@@ -80,6 +80,10 @@ builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IHandoverRepository, HandoverRepository>();
 builder.Services.AddScoped<IHandoverService, HandoverService>();
 
+// DI: Customer management
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+
 // Add controllers
 builder.Services.AddControllers();
 

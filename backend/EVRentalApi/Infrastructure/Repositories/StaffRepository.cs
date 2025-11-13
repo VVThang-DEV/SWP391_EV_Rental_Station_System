@@ -1148,4 +1148,204 @@ SELECT CASE
             return payments;
         }
     }
+
+    public async Task<IEnumerable<dynamic>> GetAllStaffAsync()
+    {
+        var staffList = new List<dynamic>();
+        
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        const string sql = @"
+            SELECT 
+                u.user_id,
+                u.email,
+                u.full_name,
+                u.phone,
+                u.station_id,
+                s.name as station_name,
+                r.role_name as role,
+                u.is_active,
+                u.created_at,
+                -- Count monthly checkouts (handovers with type = 'return' in current month)
+                (SELECT COUNT(*) 
+                 FROM handovers h
+                 WHERE h.staff_id = u.user_id 
+                 AND h.[type] = 'return'
+                 AND MONTH(h.created_at) = MONTH(GETDATE())
+                 AND YEAR(h.created_at) = YEAR(GETDATE())) as monthly_checkouts,
+                -- Count total handovers for performance calculation
+                (SELECT COUNT(*) 
+                 FROM handovers h
+                 WHERE h.staff_id = u.user_id 
+                 AND h.[type] = 'return') as total_handovers,
+                -- Count confirmed reservations
+                (SELECT COUNT(*) 
+                 FROM reservations r
+                 WHERE r.status = 'confirmed'
+                 AND EXISTS (
+                     SELECT 1 FROM handovers h 
+                     WHERE h.reservation_id = r.reservation_id 
+                     AND h.staff_id = u.user_id
+                 )) as confirmed_reservations
+            FROM users u
+            INNER JOIN roles r ON u.role_id = r.role_id
+            LEFT JOIN stations s ON u.station_id = s.station_id
+            WHERE r.role_name IN ('staff', 'supervisor')
+            ORDER BY u.created_at DESC";
+
+        await using var cmd = new SqlCommand(sql, conn);
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            var totalHandovers = reader.GetInt32("total_handovers");
+            var confirmedReservations = reader.GetInt32("confirmed_reservations");
+            var monthlyCheckouts = reader.GetInt32("monthly_checkouts");
+            
+            // Calculate performance (0-100)
+            // Base performance on handovers and confirmed reservations
+            // Formula: Normalize based on activity (more activity = higher score, but capped at 100)
+            // For new staff: 0-50 based on first few activities
+            // For experienced staff: 50-100 based on consistent performance
+            int performance = 0;
+            var totalActivities = totalHandovers + confirmedReservations;
+            
+            if (totalActivities > 0)
+            {
+                // Base score from activities (each activity contributes, but with diminishing returns)
+                // First 10 activities: 5 points each (max 50)
+                // Next 20 activities: 2 points each (max 40, total 90)
+                // Beyond 30: 0.5 points each (max 10, total 100)
+                var baseScore = 0.0;
+                if (totalActivities <= 10)
+                {
+                    baseScore = totalActivities * 5;
+                }
+                else if (totalActivities <= 30)
+                {
+                    baseScore = 50 + (totalActivities - 10) * 2;
+                }
+                else
+                {
+                    baseScore = 90 + Math.Min(10, (totalActivities - 30) * 0.5);
+                }
+                
+                // Bonus for consistency (if handovers and reservations are balanced)
+                var balanceBonus = 0.0;
+                if (totalHandovers > 0 && confirmedReservations > 0)
+                {
+                    var balance = Math.Min(totalHandovers, confirmedReservations) / (double)Math.Max(totalHandovers, confirmedReservations);
+                    balanceBonus = balance * 5; // Up to 5 bonus points
+                }
+                
+                performance = Math.Min(100, (int)(baseScore + balanceBonus));
+            }
+            else
+            {
+                performance = 0; // New staff with no activity
+            }
+
+            staffList.Add(new
+            {
+                id = $"SF{reader.GetInt32("user_id").ToString("D3")}",
+                user_id = reader.GetInt32("user_id"),
+                name = reader.GetString("full_name"),
+                email = reader.GetString("email"),
+                phone = reader.IsDBNull("phone") ? "" : reader.GetString("phone"),
+                station = reader.IsDBNull("station_name") ? "Unassigned" : reader.GetString("station_name"),
+                station_id = reader.IsDBNull("station_id") ? (int?)null : reader.GetInt32("station_id"),
+                role = reader.GetString("role"),
+                performance = performance,
+                checkouts = monthlyCheckouts,
+                is_active = reader.IsDBNull("is_active") ? true : reader.GetBoolean("is_active"),
+                created_at = reader.GetDateTime("created_at"),
+                total_handovers = totalHandovers,
+                confirmed_reservations = confirmedReservations
+            });
+        }
+
+        return staffList;
+    }
+
+    public async Task<dynamic?> GetStaffStatsAsync(int userId)
+    {
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+
+        const string sql = @"
+            SELECT 
+                -- Count monthly checkouts
+                (SELECT COUNT(*) 
+                 FROM handovers h
+                 WHERE h.staff_id = @UserId 
+                 AND h.[type] = 'return'
+                 AND MONTH(h.created_at) = MONTH(GETDATE())
+                 AND YEAR(h.created_at) = YEAR(GETDATE())) as monthly_checkouts,
+                -- Count total handovers
+                (SELECT COUNT(*) 
+                 FROM handovers h
+                 WHERE h.staff_id = @UserId 
+                 AND h.[type] = 'return') as total_handovers,
+                -- Count confirmed reservations
+                (SELECT COUNT(*) 
+                 FROM reservations r
+                 WHERE r.status = 'confirmed'
+                 AND EXISTS (
+                     SELECT 1 FROM handovers h 
+                     WHERE h.reservation_id = r.reservation_id 
+                     AND h.staff_id = @UserId
+                 )) as confirmed_reservations";
+
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@UserId", userId);
+        
+        await using var reader = await cmd.ExecuteReaderAsync();
+        
+        if (await reader.ReadAsync())
+        {
+            var totalHandovers = reader.GetInt32("total_handovers");
+            var confirmedReservations = reader.GetInt32("confirmed_reservations");
+            
+            // Calculate performance (same formula as GetAllStaffAsync)
+            int performance = 0;
+            var totalActivities = totalHandovers + confirmedReservations;
+            
+            if (totalActivities > 0)
+            {
+                var baseScore = 0.0;
+                if (totalActivities <= 10)
+                {
+                    baseScore = totalActivities * 5;
+                }
+                else if (totalActivities <= 30)
+                {
+                    baseScore = 50 + (totalActivities - 10) * 2;
+                }
+                else
+                {
+                    baseScore = 90 + Math.Min(10, (totalActivities - 30) * 0.5);
+                }
+                
+                var balanceBonus = 0.0;
+                if (totalHandovers > 0 && confirmedReservations > 0)
+                {
+                    var balance = Math.Min(totalHandovers, confirmedReservations) / (double)Math.Max(totalHandovers, confirmedReservations);
+                    balanceBonus = balance * 5;
+                }
+                
+                performance = Math.Min(100, (int)(baseScore + balanceBonus));
+            }
+
+            return new
+            {
+                monthly_checkouts = reader.GetInt32("monthly_checkouts"),
+                total_handovers = totalHandovers,
+                confirmed_reservations = confirmedReservations,
+                performance = performance
+            };
+        }
+
+        return null;
+    }
 }

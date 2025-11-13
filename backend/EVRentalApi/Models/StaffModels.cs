@@ -253,3 +253,58 @@ public class AdminCreateVehicleResponse
     public string Message { get; set; } = string.Empty;
     public VehicleDto? Vehicle { get; set; }
 }
+
+public class StaffDto
+{
+    public string Id { get; set; } = string.Empty;
+    public int UserId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Station { get; set; } = string.Empty;
+    public int? StationId { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public int Performance { get; set; }
+    public int Checkouts { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class StaffDetailDto : StaffDto
+{
+    public int TotalHandovers { get; set; }
+    public int ConfirmedReservations { get; set; }
+}
+
+public class AdminCreateStaffRequest
+{
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public int? StationId { get; set; }
+    public string Role { get; set; } = "staff"; // "staff" or "supervisor"
+}
+
+public class AdminCreateStaffResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public StaffDto? Staff { get; set; }
+}
+
+public class AdminUpdateStaffRequest
+{
+    public string? FullName { get; set; }
+    public string? Phone { get; set; }
+    public int? StationId { get; set; }
+    public string? Role { get; set; }
+    public bool? IsActive { get; set; }
+}
+
+public class AdminUpdateStaffResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public StaffDto? Staff { get; set; }
+}
