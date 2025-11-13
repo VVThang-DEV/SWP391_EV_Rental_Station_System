@@ -1,5 +1,6 @@
 using EVRentalApi.Models;
 using EVRentalApi.Infrastructure.Repositories;
+using Microsoft.Data.SqlClient;
 
 namespace EVRentalApi.Application.Services
 {
@@ -57,13 +58,69 @@ namespace EVRentalApi.Application.Services
         {
             try
             {
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(request.ModelId))
+                {
+                    return new AdminCreateVehicleResponse
+                    {
+                        Success = false,
+                        Message = "Model ID is required. Please select a vehicle model."
+                    };
+                }
+
+                // Validate License Plate - check for duplicates
+                if (!string.IsNullOrWhiteSpace(request.LicensePlate))
+                {
+                    var isDuplicateLicensePlate = await _vehicleRepository.CheckDuplicateLicensePlateAsync(request.LicensePlate);
+                    if (isDuplicateLicensePlate)
+                    {
+                        return new AdminCreateVehicleResponse
+                        {
+                            Success = false,
+                            Message = $"License Plate Number '{request.LicensePlate}' already exists. Please use a different license plate."
+                        };
+                    }
+                }
+                else
+                {
+                    // License Plate is required
+                    return new AdminCreateVehicleResponse
+                    {
+                        Success = false,
+                        Message = "License Plate Number is required. Please enter a license plate number."
+                    };
+                }
+
+                // Validate VIN (Unique Vehicle ID) - check for duplicates
+                if (!string.IsNullOrWhiteSpace(request.UniqueVehicleId))
+                {
+                    var isDuplicateVIN = await _vehicleRepository.CheckDuplicateVINAsync(request.UniqueVehicleId);
+                    if (isDuplicateVIN)
+                    {
+                        return new AdminCreateVehicleResponse
+                        {
+                            Success = false,
+                            Message = $"VIN (Vehicle Identification Number) '{request.UniqueVehicleId}' already exists. Please use a different VIN."
+                        };
+                    }
+                }
+                else
+                {
+                    // VIN is required
+                    return new AdminCreateVehicleResponse
+                    {
+                        Success = false,
+                        Message = "VIN (Vehicle Identification Number) is required. Please enter a VIN."
+                    };
+                }
+
                 var newVehicle = await _vehicleRepository.CreateVehicleAsync(request);
                 if (newVehicle == null)
                 {
                     return new AdminCreateVehicleResponse
                     {
                         Success = false,
-                        Message = "Failed to create vehicle"
+                        Message = $"Failed to create vehicle. The vehicle model '{request.ModelId}' may not exist in the system. Please check the model ID and try again."
                     };
                 }
 
@@ -72,6 +129,50 @@ namespace EVRentalApi.Application.Services
                     Success = true,
                     Message = "Vehicle created successfully",
                     Vehicle = MapToDto(newVehicle)
+                };
+            }
+            catch (InvalidOperationException invalidOpEx)
+            {
+                // Handle validation errors from repository
+                return new AdminCreateVehicleResponse
+                {
+                    Success = false,
+                    Message = invalidOpEx.Message
+                };
+            }
+            catch (SqlException sqlEx)
+            {
+                // Handle SQL-specific errors
+                string errorMessage = "An error occurred while creating the vehicle.";
+                
+                if (sqlEx.Number == 2627 || sqlEx.Number == 2601) // Unique constraint violation
+                {
+                    if (sqlEx.Message.Contains("license_plate"))
+                    {
+                        errorMessage = $"License Plate Number already exists. Please use a different license plate.";
+                    }
+                    else if (sqlEx.Message.Contains("unique_vehicle_id"))
+                    {
+                        errorMessage = $"VIN (Vehicle Identification Number) already exists. Please use a different VIN.";
+                    }
+                    else
+                    {
+                        errorMessage = "A duplicate entry was detected. Please check License Plate and VIN are unique.";
+                    }
+                }
+                else if (sqlEx.Number == 547) // Foreign key constraint violation
+                {
+                    errorMessage = $"The vehicle model '{request.ModelId}' does not exist. Please select a valid model.";
+                }
+                else
+                {
+                    errorMessage = $"Database error: {sqlEx.Message}";
+                }
+
+                return new AdminCreateVehicleResponse
+                {
+                    Success = false,
+                    Message = errorMessage
                 };
             }
             catch (Exception ex)

@@ -36,10 +36,18 @@ namespace EVRentalApi.Application.Controllers
                 var result = await _vehicleService.CreateVehicleAsync(request);
                 if (!result.Success)
                 {
-                    return BadRequest(new { message = result.Message });
+                    return BadRequest(new { 
+                        success = false,
+                        message = result.Message,
+                        error = result.Message
+                    });
                 }
 
-                return Ok(new { message = "Vehicle created successfully", vehicle = result.Vehicle });
+                return Ok(new { 
+                    success = true,
+                    message = "Vehicle created successfully", 
+                    vehicle = result.Vehicle 
+                });
             }
             catch (Exception ex)
             {

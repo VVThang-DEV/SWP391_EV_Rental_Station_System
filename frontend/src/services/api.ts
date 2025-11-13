@@ -1130,8 +1130,9 @@ class AdminApiService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to create vehicle");
+      const error = await response.json().catch(() => ({}));
+      const errorMessage = error.message || error.error || "Failed to create vehicle";
+      throw new Error(errorMessage);
     }
 
     return response.json();

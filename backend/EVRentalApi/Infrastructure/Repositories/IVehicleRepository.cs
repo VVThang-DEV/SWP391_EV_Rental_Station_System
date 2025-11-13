@@ -12,6 +12,8 @@ namespace EVRentalApi.Infrastructure.Repositories
         Task<IEnumerable<dynamic>> GetUnassignedVehiclesAsync();
         Task<bool> AssignVehicleToStationAsync(int vehicleId, int stationId, string location);
         Task<dynamic?> CreateVehicleAsync(AdminCreateVehicleRequest request);
+        Task<bool> CheckDuplicateLicensePlateAsync(string licensePlate);
+        Task<bool> CheckDuplicateVINAsync(string uniqueVehicleId);
     }
 }
 
