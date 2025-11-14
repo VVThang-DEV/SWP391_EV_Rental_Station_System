@@ -144,11 +144,31 @@ public class ReservationService : IReservationService
             var existingUserByEmail = !string.IsNullOrWhiteSpace(request.Email) 
                 ? await _userRepository.GetUserIdByEmailAsync(request.Email) 
                 : 0;
+            
+            var existingUserByPhone = !string.IsNullOrWhiteSpace(request.Phone)
+                ? await _userRepository.GetUserIdByPhoneAsync(request.Phone)
+                : 0;
 
             if (existingUserByEmail > 0)
             {
                 userId = existingUserByEmail;
                 Console.WriteLine($"[WalkIn] Found existing customer by email: UserId={userId}");
+                
+                // Check if existing customer is suspended
+                var isActive = await _userRepository.IsUserActiveAsync(userId);
+                if (!isActive)
+                {
+                    return new WalkInBookingResponse
+                    {
+                        Success = false,
+                        Message = "This customer account has been suspended. Please contact customer service for assistance."
+                    };
+                }
+            }
+            else if (existingUserByPhone > 0)
+            {
+                userId = existingUserByPhone;
+                Console.WriteLine($"[WalkIn] Found existing customer by phone: UserId={userId}");
                 
                 // Check if existing customer is suspended
                 var isActive = await _userRepository.IsUserActiveAsync(userId);
@@ -183,10 +203,11 @@ public class ReservationService : IReservationService
 
                 if (!success || newUserId == 0)
                 {
+                    Console.WriteLine($"[WalkIn] ❌ Failed to create customer account. Email: {email}, Phone: {request.Phone}");
                     return new WalkInBookingResponse
                     {
                         Success = false,
-                        Message = "Failed to create customer account"
+                        Message = "Failed to create customer account. This may be due to duplicate email or phone number. Please check the backend logs for details."
                     };
                 }
 
@@ -247,6 +268,7 @@ public class ReservationService : IReservationService
                 };
             }
 
+            // Note: Booking confirmation email is already sent by CreateReservationAsync
             Console.WriteLine($"[WalkIn] ✅ Walk-in booking created successfully. ReservationId={reservationResult.Reservation?.ReservationId}, UserId={userId}");
 
             return new WalkInBookingResponse

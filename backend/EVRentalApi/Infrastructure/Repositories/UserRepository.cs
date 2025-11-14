@@ -17,6 +17,7 @@ public interface IUserRepository
     Task<bool> UpdatePasswordAsync(string email, string newPasswordHash);
     Task<bool> UpdatePersonalInfoAsync(string email, string? cccd, string? licenseNumber, string? address, string? gender, DateTime? dateOfBirth, string? phone);
     Task<int> GetUserIdByEmailAsync(string email);
+    Task<int> GetUserIdByPhoneAsync(string phone);
     Task<bool> UpsertDocumentAsync(int userId, string documentUrl, string documentType);
     Task<bool> UpdateDocumentAsync(int userId, string documentUrl, string documentType);
     Task<object?> GetUserInfoByIdAsync(int userId);
@@ -195,8 +196,14 @@ SELECT SCOPE_IDENTITY();";
             var userId = await cmd.ExecuteScalarAsync();
             return (true, Convert.ToInt32(userId));
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[UserRepository] Error registering customer: {ex.Message}");
+            Console.WriteLine($"[UserRepository] Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"[UserRepository] Inner exception: {ex.InnerException.Message}");
+            }
             return (false, 0);
         }
     }
@@ -382,6 +389,19 @@ END
         await conn.OpenAsync();
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Email", email);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result == null ? 0 : Convert.ToInt32(result);
+    }
+
+    public async Task<int> GetUserIdByPhoneAsync(string phone)
+    {
+        const string sql = "SELECT user_id FROM users WHERE phone = @Phone AND is_active = 1";
+
+        await using var conn = _connFactory();
+        await conn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Phone", phone);
 
         var result = await cmd.ExecuteScalarAsync();
         return result == null ? 0 : Convert.ToInt32(result);
